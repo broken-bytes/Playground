@@ -11,6 +11,8 @@
 #include "rendering/CPUResourceHandle.hxx"
 #include "rendering/RenderTarget.hxx"
 #include "rendering/DepthBuffer.hxx"
+#include "rendering/RootSignature.hxx"
+#include "rendering/PipelineState.hxx"
 
 namespace playground::rendering {
 	class CommandList {
@@ -21,6 +23,7 @@ namespace playground::rendering {
 		virtual auto Close() -> void = 0;
         virtual auto Reset() -> void = 0;
         virtual auto SetRenderTarget(std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void = 0;
+        virtual auto ClearDepthTarget(std::shared_ptr<DepthBuffer> target, float depth) -> void = 0;
 		virtual auto ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void = 0;
 		virtual auto SetViewport(
 			uint32_t x,
@@ -32,8 +35,10 @@ namespace playground::rendering {
 		) -> void = 0;
 		virtual auto SetScissorRect(uint32_t left, uint32_t top, uint32_t right, uint32_t bottom) -> void = 0;
 		virtual auto SetPrimitiveTopology(PrimitiveTopology topology) -> void = 0;
+        virtual auto SetRootSignature(std::shared_ptr<RootSignature>& rootSignature) -> void = 0;
+        virtual auto SetPipelineState(std::shared_ptr<PipelineState>& pipelineState) -> void = 0;
 		virtual auto SetMaterial(std::shared_ptr<Material>& material) -> void = 0;
-		virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer) -> void = 0;
+		virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void = 0;
 		virtual auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void = 0;
 		virtual auto DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex) -> void = 0;
 

@@ -14,9 +14,10 @@ find_package(FreeImage CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(directx-dxc CONFIG REQUIRED)
 
 target_link_libraries(Rendering PUBLIC Logger)
-target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm freeimage::FreeImage freeimage::FreeImagePlus cereal::cereal)
+target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm freeimage::FreeImage freeimage::FreeImagePlus cereal::cereal Microsoft::DirectXShaderCompiler)
 
 if (WIN32)
     find_package(directx-headers CONFIG REQUIRED)

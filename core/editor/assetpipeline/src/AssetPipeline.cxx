@@ -16,11 +16,8 @@ namespace playground::editor::assetpipeline {
         }
     }
 
-    std::filesystem::path projectPath;
-
-    auto Init(const std::filesystem::path& folder) -> void
+    auto Init() -> void
     {
-        projectPath = folder;
     }
 
     auto CreateDirectory(const std::string_view path) -> void {
@@ -42,11 +39,6 @@ namespace playground::editor::assetpipeline {
         zip_close(archive);
 
         return 0;
-    }
-
-    auto CreateFile(const std::string& path) -> void {
-        auto file = std::ofstream(std::filesystem::path(path));
-        file.close();
     }
 
     auto SaveBufferToArchive(const std::filesystem::path& path, const std::string_view name, std::vector<uint8_t>& buffer) -> int8_t {

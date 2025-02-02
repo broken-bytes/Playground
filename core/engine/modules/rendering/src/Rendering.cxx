@@ -7,6 +7,7 @@
 #include "rendering/renderpasses/OpaqueRenderPass.hxx"
 #include "rendering/CommandQueue.hxx"
 #include "rendering/GraphicsContext.hxx"
+#include "rendering/RootSignature.hxx"
 #include <map>
 #include <memory>
 #include <FreeImagePlus.h>
@@ -37,6 +38,122 @@ namespace playground::rendering {
 	std::shared_ptr<CommandList> transferCommandList = nullptr;
 
 	std::unique_ptr<OpaqueRenderPass> opaqueRenderPass = nullptr;
+
+    std::shared_ptr<VertexBuffer> vertexBuffer = nullptr;
+    std::shared_ptr<IndexBuffer> indexBuffer = nullptr;
+
+    std::shared_ptr<RootSignature> rootSignature = nullptr;
+
+    std::shared_ptr<PipelineState> defaultPipelineState = nullptr;
+
+    // Cube vertices
+    Vertex cubeVertices[] =
+    {
+        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { 0, 0, 1 }, { 0, 0 } },
+        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 0, 0, 1 }, { 1, 0 } },
+        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 0, 0, 1 }, { 1, 1 } },
+        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { 0, 0, 1 }, { 0, 1 } },
+
+        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { 0, 0, -1 }, { 0, 0 } },
+        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 0, 0, -1 }, { 1, 0 } },
+        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 1, 1 } },
+        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { 0, 0, -1 }, { 0, 1 } },
+    };
+
+    // Cube indices (2 triangles per face)
+    uint32_t cubeIndices[] = {
+        // Front face
+        0, 1, 2,  2, 3, 0,
+
+        // Back face
+        5, 4, 7,  7, 6, 5,
+
+        // Left face
+        4, 0, 3,  3, 7, 4,
+
+        // Right face
+        1, 5, 6,  6, 2, 1,
+
+        // Top face
+        3, 2, 6,  6, 7, 3,
+
+        // Bottom face
+        4, 5, 1,  1, 0, 4
+    };
+
+    std::string vertexShaderCode = R"(
+struct VSInput {
+    float3 position : POSITION; // Vertex position in object space
+    float4 color    : COLOR;    // Vertex color
+    float3 normal   : NORMAL;   // Vertex normal
+    float2 uv       : TEXCOORD; // UV coordinates
+};
+
+struct VSOutput {
+    float4 position : SV_Position; // Transformed position in clip space
+    float4 color    : COLOR;       // Pass-through color
+    float3 normal   : NORMAL;      // Pass-through normal
+    float2 uv       : TEXCOORD;    // Pass-through UV
+};
+
+VSOutput VSMain(VSInput input) {
+    VSOutput output;
+
+    // Construct the MVP matrix manually in the shader
+    float4x4 modelMatrix = float4x4(
+        1.0f, 0.0f, 0.0f, 0.0f, // Identity matrix (no transformation)
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    );
+
+float4x4 viewMatrix = float4x4(
+    1.0f, 0.0f, 0.0f, 0.0f,  // Right
+    0.0f, 1.0f, 0.0f, 0.0f,  // Up
+    0.0f, 0.0f, 1.0f, 0.0f,  // Forward
+    0.0f, 0.0f, 5.0f, 1.0f   // Camera at Z = 5
+);
+
+float aspectRatio = 1280.0f / 720.0f; // Update as per your resolution
+float fov = 1.0f / tan(3.14159265359f / 4.0f); // 45 degrees FOV
+float nearPlane = 0.1f;
+float farPlane = 100.0f;
+
+float4x4 projectionMatrix = float4x4(
+    fov / aspectRatio, 0.0f, 0.0f, 0.0f,
+    0.0f, fov, 0.0f, 0.0f,
+    0.0f, 0.0f, farPlane / (farPlane - nearPlane), 1.0f,
+    0.0f, 0.0f, (-nearPlane * farPlane) / (farPlane - nearPlane), 0.0f
+);
+
+
+    // Combine the matrices
+    float4x4 mvpMatrix = mul(modelMatrix, mul(viewMatrix, projectionMatrix));
+
+    // Transform the vertex position
+    output.position = mul(float4(input.position, 1.0f), mvpMatrix);
+
+    // Pass through other attributes
+    output.color = input.color;
+    output.normal = input.normal;
+    output.uv = input.uv;
+
+    return output;
+}
+
+        )";
+
+    std::string pixelShaderCode = R"(
+struct PSInput {
+    float4 position : SV_Position;
+    float4 color    : COLOR;
+};
+
+float4 PSMain(PSInput input) : SV_Target {
+    return input.color; // Pass through the vertex color
+}
+        )";
+
 
 	auto Init(void* window, uint32_t width, uint32_t height) -> void {
 		FreeImage_Initialise();
@@ -73,8 +190,18 @@ namespace playground::rendering {
 
 		graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT);
 
+        rootSignature = device->GetRootSignature();
+
+        defaultPipelineState = device->CreatePipelineState(vertexShaderCode, pixelShaderCode);
+
 		// Create the render passes
 		opaqueRenderPass = std::make_unique<OpaqueRenderPass>();
+
+        const UINT vertexBufferSize = sizeof(cubeVertices);
+
+        vertexBuffer = device->CreateVertexBuffer(cubeVertices, sizeof(Vertex) * 8, sizeof(Vertex));
+
+        indexBuffer = device->CreateIndexBuffer(cubeIndices, 36 * sizeof(uint32_t));
 	}
 
 	auto Shutdown() -> void {
@@ -113,11 +240,25 @@ namespace playground::rendering {
 		auto renderTarget = frames[frameIndex]->RenderTarget();
 		auto depthBuffer = frames[frameIndex]->DepthBuffer();
 
+        opaqueCommandList->SetRootSignature(rootSignature);
+        opaqueCommandList->SetPipelineState(defaultPipelineState);
+        opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
+        transparentCommandList->SetRootSignature(rootSignature);
+        shadowCommandList->SetRootSignature(rootSignature);
+        uiCommandList->SetRootSignature(rootSignature);
+
 		opaqueRenderPass->Begin(opaqueCommandList, renderTarget, depthBuffer);
 	}
 
 	auto Update(float deltaTime) -> void {
 		opaqueRenderPass->Execute();
+
+        opaqueCommandList->BindVertexBuffer(vertexBuffer, 0);
+        opaqueCommandList->BindIndexBuffer(indexBuffer);
+
+        opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
+
+        opaqueCommandList->DrawIndexed(36, 0, 0);
 	}
 
 	auto PostFrame() -> void {
@@ -147,18 +288,18 @@ namespace playground::rendering {
 		const std::string& code,
 		ShaderType type
 	) -> uint32_t {
-		const auto shader = device->CompileShader(code, type);
-		shaders[shader->id] = shader;
+		//const auto shader = device->CompileShader(code, type);
+		//shaders[shader->id] = shader;
 
-		return shader->id;
+        return 0;
 	}
 
 	auto UnloadShader(uint64_t shader) -> void {
 		device->DestroyShader(shader);
 	}
 
-	auto CreateVertexBuffer(const void* data, size_t size) -> VertexBufferHandle {
-		auto buffer = device->CreateVertexBuffer(data, size);
+	auto CreateVertexBuffer(const void* data, size_t size, size_t stride) -> VertexBufferHandle {
+		auto buffer = device->CreateVertexBuffer(data, size, stride);
 		auto id = buffer->Id();
 
 		vertexBuffers[id] = buffer;

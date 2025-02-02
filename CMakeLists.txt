@@ -37,6 +37,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${OUTPUT_DIR}/lib)
 
 add_subdirectory(core)
 add_subdirectory(app)
+add_subdirectory(tools)
 
 # Set the library output directory for all libraries
 set_target_properties(AssetDatabase PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)

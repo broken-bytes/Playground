@@ -40,11 +40,13 @@ namespace playground::rendering::d3d12 {
             std::map<std::string, uint32_t> ints, std::map<std::string, bool> bools,
             std::map<std::string, std::array<float, 2>> vec2s, std::map<std::string, std::array<float, 3>> vec3s,
             std::map<std::string, std::array<float, 4>> vec4s) -> std::shared_ptr<Material> override;
-        auto CompileShader(const std::string& shaderSource, ShaderType type) -> std::shared_ptr<Shader> override;
-        auto CreateVertexBuffer(const void* data, uint64_t size) -> std::shared_ptr<VertexBuffer> override;
+        auto CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader) -> std::shared_ptr<PipelineState> override;
+        auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride) -> std::shared_ptr<VertexBuffer> override;
         auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void override;
-        auto CreateIndexBuffer(const uint32_t* indices, size_t len) -> std::shared_ptr<IndexBuffer> override;
+        auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> override;
         auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void override;
+        auto GetRootSignature() -> std::shared_ptr<RootSignature> override;
+        auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
 
     private:
@@ -54,6 +56,8 @@ namespace playground::rendering::d3d12 {
         std::unique_ptr<D3D12HeapManager> _rtvHeaps;
         std::unique_ptr<D3D12HeapManager> _srvHeaps;
         std::unique_ptr<D3D12HeapManager> _dsvHeaps;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> _rootSignature;
+
 
         auto CreateCommandQueue(
             CommandListType type,

@@ -1,6 +1,7 @@
 #include <directx/d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
+#include <directx-dxc/dxcapi.h>
 #include <stdexcept>
 #include <vector>
 #include <Windows.h>
@@ -14,7 +15,13 @@
 #include "rendering/d3d12/D3D12SwapChain.hxx"
 #include "rendering/d3d12/D3D12DepthBuffer.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
-
+#include "rendering/d3d12/D3D12IndexBuffer.hxx"
+#include "rendering/d3d12/D3D12VertexBuffer.hxx"
+#include "rendering/d3d12/D3D12RootSignature.hxx"
+#include "rendering/d3d12/D3D12PipelineState.hxx"
+#include <dxcapi.h>
+#include <wrl.h>
+#include <string>
 
 using namespace Microsoft::WRL;
 
@@ -33,7 +40,7 @@ namespace playground::rendering::d3d12 {
         for (UINT i = 0; ; ++i) {
             ComPtr<IDXGIAdapter1> adapter = nullptr;
             if (DXGI_ERROR_NOT_FOUND == dxgiFactory->EnumAdapterByGpuPreference(
-                0,
+                i,
                 DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
                 __uuidof(IDXGIAdapter1),
                 &adapter)
@@ -83,6 +90,8 @@ namespace playground::rendering::d3d12 {
         _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 512);
         // 32 Depth stencils are enough for any type of render pipeline
         _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32);
+
+        _rootSignature = CreateRootSignature();
     }
 
     D3D12Device::~D3D12Device() {
@@ -236,7 +245,6 @@ namespace playground::rendering::d3d12 {
         rtDesc.Format = DXGI_FORMAT_D32_FLOAT;
         rtDesc.SampleDesc.Count = 1;
         rtDesc.SampleDesc.Quality = 0;
-        rtDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         rtDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
         D3D12_CLEAR_VALUE clearValue = {};
@@ -263,7 +271,12 @@ namespace playground::rendering::d3d12 {
             depthBuffer->SetName(std::wstring(name.begin(), name.end()).c_str());
         }
 
-        _device->CreateDepthStencilView(depthBuffer.Get(), nullptr, native);
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+        dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+        dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+        _device->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc, native);
 
         return std::make_shared<D3D12DepthBuffer>(depthBuffer, native);
     }
@@ -277,29 +290,83 @@ namespace playground::rendering::d3d12 {
         return nullptr;
     }
 
-    auto D3D12Device::CompileShader(const std::string& shaderSource, ShaderType type) -> std::shared_ptr<Shader>
+    auto D3D12Device::CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader) -> std::shared_ptr<PipelineState>
     {
-        return nullptr;
+        return std::make_shared<D3D12PipelineState>(_device, _rootSignature, vertexShader, pixelShader);
     }
 
-    auto D3D12Device::CreateVertexBuffer(const void* data, uint64_t size) -> std::shared_ptr<VertexBuffer>
+    auto D3D12Device::GetRootSignature() -> std::shared_ptr<RootSignature>
     {
-        return nullptr;
+        return std::make_shared<D3D12RootSignature>(_rootSignature);
+    }
+
+    auto D3D12Device::CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride) -> std::shared_ptr<VertexBuffer>
+    {
+        auto buffer = std::make_shared<D3D12VertexBuffer>(_device, data, size, stride);
+
+        return buffer;
     }
 
     auto D3D12Device::UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void
     {
     }
 
-    auto D3D12Device::CreateIndexBuffer(const uint32_t* indices, size_t len) -> std::shared_ptr<IndexBuffer>
+    auto D3D12Device::CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer>
     {
-        return nullptr;
+        auto buffer = std::make_shared<D3D12IndexBuffer>(_device, indices, size);
+
+        return buffer;
     }
 
     auto D3D12Device::UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void
     {
 
     }
+
+    auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
+        CD3DX12_ROOT_PARAMETER rootParameters[4];
+
+        // 1️⃣ Per-frame CBV (View Projection, Lighting, etc.)
+        rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+
+        // 2️⃣ Per-object CBV (Model Matrix, Material Properties)
+        rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
+
+        // 3️⃣ Texture Descriptor Table (SRV)
+        CD3DX12_DESCRIPTOR_RANGE srvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        rootParameters[2].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // 4️⃣ Sampler Descriptor Table
+        CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
+        rootParameters[3].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // Define the root signature descriptor
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
+            _countof(rootParameters),
+            rootParameters,
+            0, nullptr, // No static samplers
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+        );
+
+        // Serialize and create the root signature
+        Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
+        Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
+        HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+
+        if (FAILED(hr)) {
+            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+            throw std::runtime_error("Failed to serialize root signature");
+        }
+
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+        hr = _device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create root signature");
+        }
+
+        return rootSignature;
+    }
+
 
     auto D3D12Device::DestroyShader(uint64_t shaderHandle) -> void
     {

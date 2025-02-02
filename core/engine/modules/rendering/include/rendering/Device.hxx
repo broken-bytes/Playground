@@ -15,6 +15,9 @@
 #include "rendering/IndexBuffer.hxx"
 #include "rendering/VertexBuffer.hxx"
 #include "rendering/DepthBuffer.hxx"
+#include "rendering/RootSignature.hxx"
+#include "rendering/Rendering.hxx"
+#include "rendering/PipelineState.hxx"
 
 namespace playground::rendering {
 	class Buffer;
@@ -60,15 +63,15 @@ namespace playground::rendering {
 			std::map<std::string, std::array<float, 3>> vec3s = {},
 			std::map<std::string, std::array<float, 4>> vec4s = {}
 		) -> std::shared_ptr<Material> = 0;
-		virtual auto CompileShader(
-			const std::string& shaderSource,
-			ShaderType type
-		) -> std::shared_ptr<Shader> = 0;
-		virtual auto CreateVertexBuffer(const void* data, uint64_t size) -> std::shared_ptr<VertexBuffer> = 0;
+		virtual auto CreatePipelineState(
+            const std::string& vertexShader,
+            const std::string& pixelShader
+		) -> std::shared_ptr<PipelineState> = 0;
+        virtual auto GetRootSignature() -> std::shared_ptr<RootSignature> = 0;
+		virtual auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride) -> std::shared_ptr<VertexBuffer> = 0;
 		virtual auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void = 0;
-		virtual auto CreateIndexBuffer(const uint32_t* indices, size_t len) -> std::shared_ptr<IndexBuffer> = 0;
+		virtual auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> = 0;
 		virtual auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void = 0;
-
 		// Deleting resources
 		virtual auto DestroyShader(uint64_t shaderHandle) -> void = 0;
 

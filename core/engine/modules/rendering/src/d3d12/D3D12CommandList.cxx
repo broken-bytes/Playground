@@ -3,6 +3,10 @@
 #include "rendering/d3d12/D3D12CPUResourceHandle.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
 #include "rendering/d3d12/D3D12DepthBuffer.hxx"
+#include "rendering/d3d12/D3D12IndexBuffer.hxx"
+#include "rendering/d3d12/D3D12VertexBuffer.hxx"
+#include "rendering/d3d12/D3D12RootSignature.hxx"
+#include "rendering/d3d12/D3D12PipelineState.hxx"
 
 using namespace Microsoft::WRL;
 
@@ -90,14 +94,24 @@ namespace playground::rendering::d3d12 {
         _list->OMSetRenderTargets(
             1,
             &rtv,
-            FALSE,
+            false,
             &dsv
+        );
+    }
+
+    auto D3D12CommandList::ClearDepthTarget(std::shared_ptr<DepthBuffer> target, float depth) -> void {
+        _list->ClearDepthStencilView(
+            static_pointer_cast<D3D12DepthBuffer>(target)->Handle(),
+            D3D12_CLEAR_FLAG_DEPTH,
+            depth,
+            0,
+            0,
+            nullptr
         );
     }
 
 	auto D3D12CommandList::ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void
 	{
-
 		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = std::static_pointer_cast<D3D12RenderTarget>(handle)->Handle();
 		_list->ClearRenderTargetView(cpuHandle, reinterpret_cast<float*>(&color), 0, nullptr);
 	}
@@ -123,26 +137,55 @@ namespace playground::rendering::d3d12 {
 
 	auto D3D12CommandList::SetPrimitiveTopology(PrimitiveTopology topology) -> void
 	{
-
+        switch (topology)
+        {
+        case playground::rendering::PrimitiveTopology::POINT_LIST:
+            _list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+            break;
+        case playground::rendering::PrimitiveTopology::LINE_LIST:
+            _list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+            break;
+        case playground::rendering::PrimitiveTopology::LINE_STRIP:
+            _list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+            break;
+        case playground::rendering::PrimitiveTopology::TRIANGLE_LIST:
+            _list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            break;
+        case playground::rendering::PrimitiveTopology::TRIANGLE_STRIP:
+            _list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            break;
+        default:
+            break;
+        }
 	}
+
+    auto D3D12CommandList::SetRootSignature(std::shared_ptr<RootSignature>& rootSignature) -> void
+    {
+        _list->SetGraphicsRootSignature(std::static_pointer_cast<D3D12RootSignature>(rootSignature)->GetRootSignature().Get());
+    }
+
+    auto D3D12CommandList::SetPipelineState(std::shared_ptr<PipelineState>& pipelineState) -> void
+    {
+        _list->SetPipelineState(std::static_pointer_cast<D3D12PipelineState>(pipelineState)->GetPipelineState().Get());
+    }
 
 	auto D3D12CommandList::SetMaterial(std::shared_ptr<Material>& material) -> void
 	{
 
 	}
 
-	auto D3D12CommandList::BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer) -> void
+	auto D3D12CommandList::BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void
 	{
-
+        _list->IASetVertexBuffers(slot, 1, &std::static_pointer_cast<D3D12VertexBuffer>(vertexBuffer)->View());
 	}
 
 	auto D3D12CommandList::BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void
 	{
-
+        _list->IASetIndexBuffer(&std::static_pointer_cast<D3D12IndexBuffer>(vertexBuffer)->View());
 	}
 
 	auto D3D12CommandList::DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex) -> void
 	{
-
+        _list->DrawIndexedInstanced(numIndices, 1, startIndex, startVertex, 0);
 	}
 }
