@@ -6,6 +6,7 @@
 #include "rendering/Texture.hxx"
 #include "rendering/renderpasses/OpaqueRenderPass.hxx"
 #include "rendering/CommandQueue.hxx"
+#include "rendering/GraphicsContext.hxx"
 #include <map>
 #include <memory>
 #include <FreeImagePlus.h>
@@ -27,7 +28,7 @@ namespace playground::rendering {
 	std::map<uint32_t, std::shared_ptr<Material>> materials = {};
 	std::map<uint32_t, std::shared_ptr<Mesh>> meshes = {};
 
-	std::unique_ptr<Context> graphicsContext = nullptr;
+	std::unique_ptr<GraphicsContext> graphicsContext = nullptr;
 
 	std::shared_ptr<CommandList> opaqueCommandList = nullptr;
 	std::shared_ptr<CommandList> transparentCommandList = nullptr;
@@ -49,7 +50,7 @@ namespace playground::rendering {
             std::stringstream ss;
             ss << "Frame " << x;
 
-			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str());
+			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::RGBA8, ss.str());
 
             ss.clear();
             ss << "DepthBuffer " << x;
@@ -61,21 +62,16 @@ namespace playground::rendering {
 
 		// Create all command lists
 		opaqueCommandList = device->CreateCommandList(CommandListType::Graphics, "OpaqueCommandList");
-        opaqueCommandList->Close();
 
 		transparentCommandList = device->CreateCommandList(CommandListType::Graphics, "TransparentCommandList");
-        transparentCommandList->Close();
 
 		shadowCommandList = device->CreateCommandList(CommandListType::Graphics, "ShadowCommandList");
-        shadowCommandList->Close();
 
 		uiCommandList = device->CreateCommandList(CommandListType::Graphics, "UICommandList");
-        uiCommandList->Close();
 
         transferCommandList = device->CreateCommandList(CommandListType::Transfer, "TransferCommandList");
-        transferCommandList->Close();
 
-		graphicsContext = device->CreateGraphicsContext(window, width, height);
+		graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT);
 
 		// Create the render passes
 		opaqueRenderPass = std::make_unique<OpaqueRenderPass>();
@@ -114,13 +110,6 @@ namespace playground::rendering {
 	}
 
 	auto PreFrame() -> void {
-        opaqueCommandList->Reset();
-        transparentCommandList->Reset();
-        shadowCommandList->Reset();
-        uiCommandList->Reset();
-
-        transferCommandList->Reset();
-
 		auto renderTarget = frames[frameIndex]->RenderTarget();
 		auto depthBuffer = frames[frameIndex]->DepthBuffer();
 
@@ -133,13 +122,25 @@ namespace playground::rendering {
 
 	auto PostFrame() -> void {
 		opaqueRenderPass->End();
-		graphicsContext->Finish();
 
         opaqueCommandList->Close();
         transparentCommandList->Close();
         shadowCommandList->Close();
         uiCommandList->Close();
         transferCommandList->Close();
+
+        graphicsContext->ExecuteCommandLists({ opaqueCommandList });
+        graphicsContext->CopyToBackBuffer(frames[frameIndex]->RenderTarget());
+		graphicsContext->Finish();
+
+        opaqueCommandList->Reset();
+        transparentCommandList->Reset();
+        shadowCommandList->Reset();
+        uiCommandList->Reset();
+
+        transferCommandList->Reset();
+
+        frameIndex = (frameIndex + 1) % FRAME_COUNT;
 	}
 
 	auto LoadShader(

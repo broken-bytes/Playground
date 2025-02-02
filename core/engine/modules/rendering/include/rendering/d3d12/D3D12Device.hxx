@@ -17,13 +17,12 @@ namespace playground::rendering::d3d12 {
         ~D3D12Device();
 
         auto Flush() -> void override;
-        auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height) -> std::unique_ptr<Context> override;
+        auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext> override;
         auto CreateUploadContext() -> std::unique_ptr<Context> override;
         auto CreateCommandList(
             CommandListType type,
             std::string name
         ) -> std::shared_ptr<CommandList> override;
-        auto CreateFence() -> std::shared_ptr<Fence> override;
         auto CreateBuffer(uint64_t size) -> std::shared_ptr<Buffer> override;
         auto CreateRenderTarget(
             uint32_t width,

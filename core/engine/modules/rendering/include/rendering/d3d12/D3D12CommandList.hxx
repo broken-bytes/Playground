@@ -18,6 +18,7 @@ namespace playground::rendering::d3d12 {
 		auto Begin() -> void override;
 		auto Close() -> void override;
         auto Reset() -> void override;
+        auto SetRenderTarget(std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void override;
 		auto ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void override;
 		auto SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t minDepth,
 			uint32_t maxDepth) -> void override;

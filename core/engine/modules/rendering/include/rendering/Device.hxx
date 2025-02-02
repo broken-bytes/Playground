@@ -6,6 +6,7 @@
 #include "rendering/CommandListType.hxx"
 #include "rendering/CommandQueue.hxx"
 #include "rendering/Context.hxx"
+#include "rendering/GraphicsContext.hxx"
 #include "rendering/Fence.hxx"
 #include "rendering/Heap.hxx"
 #include "rendering/TextureFormat.hxx"
@@ -30,13 +31,12 @@ namespace playground::rendering {
 		virtual auto Flush() -> void = 0;
 
 		// Creation work submission and synchronization
-		virtual auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height) -> std::unique_ptr<Context> = 0;
+		virtual auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext> = 0;
 		virtual auto CreateUploadContext() -> std::unique_ptr<Context> = 0;
 		virtual auto CreateCommandList(
             CommandListType type,
             std::string name = ""
         ) -> std::shared_ptr<CommandList> = 0;
-		virtual auto CreateFence() -> std::shared_ptr<Fence> = 0;
 		// Creation of resources
 		virtual auto CreateBuffer(uint64_t size) -> std::shared_ptr<Buffer> = 0;
 		virtual auto CreateRenderTarget(

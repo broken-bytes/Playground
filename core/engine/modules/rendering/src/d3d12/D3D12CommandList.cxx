@@ -2,6 +2,7 @@
 #include "rendering/d3d12/D3D12CommandList.hxx"
 #include "rendering/d3d12/D3D12CPUResourceHandle.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
+#include "rendering/d3d12/D3D12DepthBuffer.hxx"
 
 using namespace Microsoft::WRL;
 
@@ -83,8 +84,20 @@ namespace playground::rendering::d3d12 {
         _frameIndex = (_frameIndex + 1) % _commandAllocators.size();
     }
 
+    auto D3D12CommandList::SetRenderTarget(std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {
+        auto rtv = std::static_pointer_cast<D3D12RenderTarget>(colour)->Handle();
+        auto dsv = std::static_pointer_cast<D3D12DepthBuffer>(depth)->Handle();
+        _list->OMSetRenderTargets(
+            1,
+            &rtv,
+            FALSE,
+            &dsv
+        );
+    }
+
 	auto D3D12CommandList::ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void
 	{
+
 		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = std::static_pointer_cast<D3D12RenderTarget>(handle)->Handle();
 		_list->ClearRenderTargetView(cpuHandle, reinterpret_cast<float*>(&color), 0, nullptr);
 	}
@@ -98,12 +111,14 @@ namespace playground::rendering::d3d12 {
 		uint32_t maxDepth
 	) -> void
 	{
-
+        auto viewport = CD3DX12_VIEWPORT(x, y, width, height, minDepth, maxDepth);
+        _list->RSSetViewports(1, &viewport);
 	}
 
 	auto D3D12CommandList::SetScissorRect(uint32_t left, uint32_t top, uint32_t right, uint32_t bottom) -> void
 	{
-
+        auto rect = CD3DX12_RECT(left, top, right, bottom);
+        _list->RSSetScissorRects(1, &rect);
 	}
 
 	auto D3D12CommandList::SetPrimitiveTopology(PrimitiveTopology topology) -> void

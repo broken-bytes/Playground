@@ -100,14 +100,15 @@ namespace playground::rendering::d3d12 {
         _dsvHeaps = nullptr;
     }
 
-    auto D3D12Device::CreateGraphicsContext(void* window, uint32_t width, uint32_t height) -> std::unique_ptr<Context>
+    auto D3D12Device::CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext>
     {
         return std::make_unique<D3D12GraphicsContext>(
             _device,
             CreateCommandQueue(CommandListType::Graphics, "GraphicsQueue"),
             window,
             width,
-            height
+            height,
+            bufferCount
         );
     }
 
@@ -159,11 +160,6 @@ namespace playground::rendering::d3d12 {
         return queue;
     }
 
-    auto D3D12Device::CreateFence() -> std::shared_ptr<Fence>
-    {
-        return nullptr;
-    }
-
     auto D3D12Device::CreateBuffer(uint64_t size) -> std::shared_ptr<Buffer>
     {
         return nullptr;
@@ -193,9 +189,9 @@ namespace playground::rendering::d3d12 {
 
         D3D12_CLEAR_VALUE clearValue = {};
         clearValue.Format = DXGIFormatFrom(format);
-        clearValue.Color[0] = 0.0f;
+        clearValue.Color[0] = 0.2f;
         clearValue.Color[1] = 0.0f;
-        clearValue.Color[2] = 0.0f;
+        clearValue.Color[2] = 0.7f;
         clearValue.Color[3] = 1.0f;
 
         auto handle = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);

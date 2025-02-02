@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include "rendering/RenderTarget.hxx"
+
 namespace playground::rendering {
 	class Swapchain {
 	public:

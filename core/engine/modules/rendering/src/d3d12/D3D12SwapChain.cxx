@@ -1,7 +1,7 @@
-#include "rendering/d3d12/D3D12SwapChain.hxx"
-
 #include <stdexcept>
 #include <SDL3/SDL.h>
+#include "rendering/d3d12/D3D12SwapChain.hxx"
+#include "rendering/d3d12/D3D12RenderTarget.hxx"
 
 namespace playground::rendering::d3d12
 {
@@ -61,6 +61,13 @@ namespace playground::rendering::d3d12
 
     auto D3D12SwapChain::Swap() -> void
     {
-        _swapChain->Present(1, 0);
+        _swapChain->Present(0, 0);
+    }
+
+    auto D3D12SwapChain::GetBackBuffer(uint8_t index) -> Microsoft::WRL::ComPtr<ID3D12Resource> {
+        Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer;
+        _swapChain->GetBuffer(index, IID_PPV_ARGS(&backBuffer));
+
+        return backBuffer;
     }
 }

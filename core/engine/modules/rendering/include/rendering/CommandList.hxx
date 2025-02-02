@@ -10,6 +10,7 @@
 #include "rendering/Material.hxx"
 #include "rendering/CPUResourceHandle.hxx"
 #include "rendering/RenderTarget.hxx"
+#include "rendering/DepthBuffer.hxx"
 
 namespace playground::rendering {
 	class CommandList {
@@ -19,6 +20,7 @@ namespace playground::rendering {
 		virtual auto Begin() -> void = 0;
 		virtual auto Close() -> void = 0;
         virtual auto Reset() -> void = 0;
+        virtual auto SetRenderTarget(std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void = 0;
 		virtual auto ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void = 0;
 		virtual auto SetViewport(
 			uint32_t x,
