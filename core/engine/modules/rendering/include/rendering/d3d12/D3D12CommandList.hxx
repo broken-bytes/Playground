@@ -31,5 +31,6 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList7> _list;;
         std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> _commandAllocators;
         uint8_t _frameIndex;
+        std::string _name;
 	};
 }

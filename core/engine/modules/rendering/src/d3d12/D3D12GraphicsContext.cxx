@@ -28,7 +28,13 @@ namespace playground::rendering::d3d12
 
     D3D12GraphicsContext::~D3D12GraphicsContext()
     {
+        _queue->Signal(_fence.Get(), _fenceValue);
 
+        // Wait until the GPU has finished execution
+        if (_fence->GetCompletedValue() < _fenceValue) {
+            _fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
+            WaitForSingleObject(_fenceEvent, INFINITE);
+        }
     }
 
     auto D3D12GraphicsContext::Begin() -> void

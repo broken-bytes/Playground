@@ -1,5 +1,6 @@
 #include <directx/d3d12.h>
 #include <dxgi1_6.h>
+#include <dxgidebug.h>
 #include <stdexcept>
 #include <vector>
 #include <Windows.h>
@@ -85,7 +86,12 @@ namespace playground::rendering::d3d12 {
     }
 
     D3D12Device::~D3D12Device() {
-        _device->RemoveDevice();
+        _adapter = nullptr;
+        Flush();
+        Microsoft::WRL::ComPtr<IDXGIDebug1> dxgiDebug;
+        if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)))) {
+            dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+        }
     }
 
     auto D3D12Device::Flush() -> void {
@@ -163,7 +169,12 @@ namespace playground::rendering::d3d12 {
         return nullptr;
     }
 
-    auto D3D12Device::CreateRenderTarget(uint32_t width, uint32_t height, TextureFormat format) -> std::shared_ptr<RenderTarget>
+    auto D3D12Device::CreateRenderTarget(
+        uint32_t width,
+        uint32_t height,
+        TextureFormat format,
+        std::string name
+    ) -> std::shared_ptr<RenderTarget>
     {
         ComPtr<ID3D12Resource> rtv = nullptr;
         // Describe the texture resource for the render target.
@@ -188,24 +199,34 @@ namespace playground::rendering::d3d12 {
         clearValue.Color[3] = 1.0f;
 
         auto handle = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        _device->CreateCommittedResource(
+        if(FAILED(_device->CreateCommittedResource(
             &handle,
             D3D12_HEAP_FLAG_NONE,
             &rtDesc,
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             &clearValue,
             IID_PPV_ARGS(&rtv)
-        );
+        ))) {
+            throw std::runtime_error("Failed to create render target");
+        }
 
         auto nextCpuHandle = _rtvHeaps->NextCpuHandle();
         auto native = nextCpuHandle->GetHandle();
 
         _device->CreateRenderTargetView(rtv.Get(), nullptr, native);
 
+        if (!name.empty()) {
+            rtv->SetName(std::wstring(name.begin(), name.end()).c_str());
+        }
+
         return std::make_shared<D3D12RenderTarget>(rtv, native);
     }
 
-    auto D3D12Device::CreateDepthBuffer(uint32_t width, uint32_t height) -> std::shared_ptr<DepthBuffer>
+    auto D3D12Device::CreateDepthBuffer(
+        uint32_t width,
+        uint32_t height,
+        std::string name
+    ) -> std::shared_ptr<DepthBuffer>
     {
         ComPtr<ID3D12Resource> depthBuffer = nullptr;
         // Describe the texture resource for the render target.
@@ -228,17 +249,23 @@ namespace playground::rendering::d3d12 {
         clearValue.DepthStencil.Stencil = 0;
 
         auto handle = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        _device->CreateCommittedResource(
+        if (FAILED(_device->CreateCommittedResource(
             &handle,
             D3D12_HEAP_FLAG_NONE,
             &rtDesc,
             D3D12_RESOURCE_STATE_DEPTH_WRITE,
             &clearValue,
             IID_PPV_ARGS(&depthBuffer)
-        );
+        ))) {
+            throw std::runtime_error("Failed to create depth buffer");
+        }
 
         auto nextCpuHandle = _dsvHeaps->NextCpuHandle();
         auto native = nextCpuHandle->GetHandle();
+
+        if (!name.empty()) {
+            depthBuffer->SetName(std::wstring(name.begin(), name.end()).c_str());
+        }
 
         _device->CreateDepthStencilView(depthBuffer.Get(), nullptr, native);
 

@@ -56,6 +56,7 @@ namespace playground::rendering::d3d12 {
 		}
 
         _list->SetName(std::wstring(name.begin(), name.end()).c_str());
+        _name = name;
     }
 
 	auto D3D12CommandList::Native() -> ComPtr<ID3D12GraphicsCommandList> {
@@ -64,7 +65,6 @@ namespace playground::rendering::d3d12 {
 
 	D3D12CommandList::~D3D12CommandList()
 	{
-
 	}
 
 	auto D3D12CommandList::Begin() -> void

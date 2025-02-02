@@ -22,7 +22,8 @@ namespace playground::rendering
 
         ~Frame()
         {
-            
+            _renderTarget.reset();
+            _depth.reset();
         }
 
         auto RenderTarget() const -> std::shared_ptr<rendering::RenderTarget>

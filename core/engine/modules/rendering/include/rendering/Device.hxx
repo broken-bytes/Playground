@@ -39,8 +39,17 @@ namespace playground::rendering {
 		virtual auto CreateFence() -> std::shared_ptr<Fence> = 0;
 		// Creation of resources
 		virtual auto CreateBuffer(uint64_t size) -> std::shared_ptr<Buffer> = 0;
-		virtual auto CreateRenderTarget(uint32_t width, uint32_t height, TextureFormat format) -> std::shared_ptr<RenderTarget> = 0;
-		virtual auto CreateDepthBuffer(uint32_t width, uint32_t height) -> std::shared_ptr<DepthBuffer> = 0;
+		virtual auto CreateRenderTarget(
+            uint32_t width,
+            uint32_t height,
+            TextureFormat format,
+            std::string name = ""
+        ) -> std::shared_ptr<RenderTarget> = 0;
+		virtual auto CreateDepthBuffer(
+            uint32_t width,
+            uint32_t height,
+            std::string name = ""
+        ) -> std::shared_ptr<DepthBuffer> = 0;
 		virtual auto CreateMaterial(
 			std::map<ShaderType, std::shared_ptr<Shader>> shaders,
 			std::map<std::string, uint64_t> textures = {},

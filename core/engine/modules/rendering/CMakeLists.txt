@@ -21,7 +21,7 @@ target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm freei
 if (WIN32)
     find_package(directx-headers CONFIG REQUIRED)
 
-    target_link_libraries(Rendering PRIVATE Microsoft::DirectX-Headers dxgi d3d12)
+    target_link_libraries(Rendering PRIVATE Microsoft::DirectX-Headers dxgi d3d12 dxguid)
 endif()
 
 find_path(ATOMIC_QUEUE_INCLUDE_DIRS "atomic_queue/atomic_queue.h")

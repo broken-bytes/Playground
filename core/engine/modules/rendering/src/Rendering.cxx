@@ -6,7 +6,6 @@
 #include "rendering/Texture.hxx"
 #include "rendering/renderpasses/OpaqueRenderPass.hxx"
 #include "rendering/CommandQueue.hxx"
-
 #include <map>
 #include <memory>
 #include <FreeImagePlus.h>
@@ -47,10 +46,17 @@ namespace playground::rendering {
 		// Create frames (frames hold all render things that need to alter between frames)
 		for (int x = 0; x < FRAME_COUNT; x++)
 		{
-			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8);
-			auto depthBuffer = device->CreateDepthBuffer(width, height);
+            std::stringstream ss;
+            ss << "Frame " << x;
 
-			frames.emplace_back(std::make_shared<Frame>(rendertarget,depthBuffer));
+			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str());
+
+            ss.clear();
+            ss << "DepthBuffer " << x;
+
+			auto depthBuffer = device->CreateDepthBuffer(width, height, ss.str());
+
+			frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer));
 		}
 
 		// Create all command lists
@@ -76,6 +82,12 @@ namespace playground::rendering {
 	}
 
 	auto Shutdown() -> void {
+        // Destroy all render passes first as these hold references to queues, buffers etc.
+        opaqueRenderPass = nullptr;
+
+        // Clear the contexts -> These hold swapchains and other resources
+        graphicsContext = nullptr;
+
         // Close all command lists
         opaqueCommandList->Close();
         transparentCommandList->Close();
@@ -87,8 +99,7 @@ namespace playground::rendering {
         transparentCommandList = nullptr;
         shadowCommandList = nullptr;
         uiCommandList = nullptr;
-        shadowCommandList = nullptr;
-        transparentCommandList = nullptr;
+        transferCommandList = nullptr;
 
         // Destroy all resources (render targets, depth buffers, etc)
         for (auto& frame : frames)
@@ -96,13 +107,10 @@ namespace playground::rendering {
             frame = nullptr;
         }
 
-        // Flush the device -> This destroys all heaps related to the device
-        device->Flush();
-
-        // Clear the contexts -> These hold swapchains and other resources
-		graphicsContext = nullptr;
 		// Cleanup
 		device = nullptr;
+
+        FreeImage_DeInitialise();
 	}
 
 	auto PreFrame() -> void {

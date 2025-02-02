@@ -25,8 +25,17 @@ namespace playground::rendering::d3d12 {
         ) -> std::shared_ptr<CommandList> override;
         auto CreateFence() -> std::shared_ptr<Fence> override;
         auto CreateBuffer(uint64_t size) -> std::shared_ptr<Buffer> override;
-        auto CreateRenderTarget(uint32_t width, uint32_t height, TextureFormat format) -> std::shared_ptr<RenderTarget> override;
-        auto CreateDepthBuffer(uint32_t width, uint32_t height) -> std::shared_ptr<DepthBuffer> override;
+        auto CreateRenderTarget(
+            uint32_t width,
+            uint32_t height,
+            TextureFormat format,
+            std::string name
+        ) -> std::shared_ptr<RenderTarget> override;
+        auto CreateDepthBuffer(
+            uint32_t width,
+            uint32_t height,
+            std::string name
+        ) -> std::shared_ptr<DepthBuffer> override;
         auto CreateMaterial(std::map<ShaderType, std::shared_ptr<Shader>> shaders,
             std::map<std::string, uint64_t> textures, std::map<std::string, float> floats,
             std::map<std::string, uint32_t> ints, std::map<std::string, bool> bools,
@@ -40,7 +49,6 @@ namespace playground::rendering::d3d12 {
         auto DestroyShader(uint64_t shaderHandle) -> void override;
 
     private:
-        Microsoft::WRL::ComPtr<IDXGIFactory4> _factory;
         Microsoft::WRL::ComPtr<IDXGIAdapter1> _adapter;
         Microsoft::WRL::ComPtr<ID3D12Device9> _device;
         // ---- Resources ----

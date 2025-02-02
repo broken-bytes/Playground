@@ -17,7 +17,8 @@ namespace playground::rendering::d3d12
             _handle = handle;
         }
 
-        ~D3D12DepthBuffer() {}
+        ~D3D12DepthBuffer() {
+        }
 
         Microsoft::WRL::ComPtr<ID3D12Resource> Resource() const
         {

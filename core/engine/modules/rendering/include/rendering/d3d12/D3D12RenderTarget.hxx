@@ -21,7 +21,6 @@ namespace playground::rendering::d3d12
         }
 
         ~D3D12RenderTarget() {
-            _resource->Release();
         }
 
         Microsoft::WRL::ComPtr<ID3D12Resource> Resource() const
