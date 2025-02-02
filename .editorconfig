@@ -1,0 +1,23 @@
+# EditorConfig for C++ coding style
+root = true
+
+# General settings
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+# C++ specific settings
+[*.cxx]
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = true
+ij_javascript_function_expression_brace_style = end_of_line
+
+
+[*.hxx]
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = true

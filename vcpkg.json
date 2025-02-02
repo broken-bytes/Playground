@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "playground",
+  "version": "0.0.1",
+  "builtin-baseline": "57c08a3223a1ec03c3a31986ee38d32e90b6039c",
+  "dependencies": [
+    "assimp",
+    "atomic-queue",
+    "audiofile",
+    "bitsery",
+    "cereal",
+    "concurrentqueue",
+    "directx-dxc",
+    "freealut",
+    "freeimage",
+    "glm",
+    "gtest",
+    "joltphysics",
+    "libjpeg-turbo",
+    "libpng",
+    "libsodium",
+    "libvorbis",
+    "libzip",
+    "nlohmann-json",
+    "openal-soft",
+    "rmlui",
+    "sdl3",
+    "spdlog",
+    "sqlite3",
+    "stduuid",
+    "directx-headers"
+  ]
+}
