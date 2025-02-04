@@ -337,7 +337,7 @@ namespace playground::rendering::d3d12 {
 
     }
 
-    auto D3D12Device::CreateTexture(uint32_t width, uint32_t height, void* data) -> std::shared_ptr<Texture> {
+    auto D3D12Device::CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> {
         return std::make_shared<D3D12Texture>(_device, width, height, data, _srvHeaps->NextHandle());
     }
 

@@ -15,9 +15,8 @@ namespace playground::io {
     auto CheckIfFileExists(std::string archivePath, std::string filePath) -> int8_t;
     auto LoadFileFromArchive(
         const char* path,
-        const char* name,
-        uint8_t** buffer
-    ) -> int8_t;
+        const char* name
+    ) -> std::vector<uint8_t>;
     auto LoadFileFromArchivePartial(
         const char* path, 
         const char* name,

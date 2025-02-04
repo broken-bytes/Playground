@@ -75,7 +75,7 @@ namespace playground::rendering {
 		virtual auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> = 0;
 		virtual auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void = 0;
         virtual auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> = 0;
-        virtual auto CreateTexture(uint32_t width, uint32_t height, void* data) -> std::shared_ptr<Texture> = 0;
+        virtual auto CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> = 0;
         virtual auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> = 0;
 		// Deleting resources
 		virtual auto DestroyShader(uint64_t shaderHandle) -> void = 0;

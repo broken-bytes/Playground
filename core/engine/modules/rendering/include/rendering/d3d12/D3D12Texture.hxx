@@ -11,7 +11,7 @@ namespace playground::rendering::d3d12 {
     class D3D12Texture : public Texture {
     private:
         auto FillBuffer(
-            const void* data,
+            const uint8_t* data,
             size_t size,
             Microsoft::WRL::ComPtr<ID3D12Device9> device,
             D3D12_RESOURCE_DESC bufferDesc,
@@ -66,7 +66,7 @@ namespace playground::rendering::d3d12 {
             Microsoft::WRL::ComPtr<ID3D12Device9> device,
             uint32_t width,
             uint32_t height,
-            void* data,
+            const uint8_t* data,
             std::shared_ptr<D3D12ResourceHandle> handle
         ) {
             D3D12_RESOURCE_DESC textureDesc = {};

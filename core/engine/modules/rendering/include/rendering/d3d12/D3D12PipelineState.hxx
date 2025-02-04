@@ -51,7 +51,9 @@ namespace playground::rendering::d3d12 {
 
         // Retrieve compiled shader blob
         Microsoft::WRL::ComPtr<IDxcBlobUtf8> errors;
-        result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
+        if (FAILED(result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr))) {
+            throw std::runtime_error("Failed to retrieve error messages.");
+        }
         if (errors && errors->GetStringLength() > 0) {
             OutputDebugStringA(errors->GetStringPointer()); // Print error messages
         }

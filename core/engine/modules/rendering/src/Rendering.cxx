@@ -14,6 +14,7 @@
 #include "rendering/Camera.hxx"
 #include "rendering/Sampler.hxx"
 #include <FreeImagePlus.h>
+#include <assetloader/AssetLoader.hxx>
 
 struct ObjectData {
     glm::mat4 WorldMatrix;
@@ -188,27 +189,16 @@ namespace playground::rendering {
 
     bool didUpload = false;
 
-    // 10x10 pixel checkerboard (RGBA8 layout)
-    const uint8_t* textureData;
+    bool textureUploaded = false;
+    bool textureCreated = false;
 
-    std::shared_ptr<Texture> texture = nullptr;
+    std::shared_ptr<Texture> targetTexture = nullptr;
 
     std::shared_ptr<Sampler> sampler = nullptr;
 
 	auto Init(void* window, uint32_t width, uint32_t height) -> void {
 		// Create a device
 		device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, window, FRAME_COUNT);
-
-        FreeImage_Initialise();
-        FIBITMAP* bitmap = FreeImage_Load(FIF_PNG, "C:\\Users\\marce\\Downloads\\CustomUVChecker_byValle_1K.png");
-        bitmap = FreeImage_ConvertTo32Bits(bitmap);
-        FreeImage_FlipVertical(bitmap);
-        // Turn brga into rgba
-        textureData = FreeImage_GetBits(bitmap);
-
-        texture = device->CreateTexture(1024, 1024, (void*)textureData);
-
-        FreeImage_DeInitialise();
 
 		// Create frames (frames hold all render things that need to alter between frames)
 		for (int x = 0; x < FRAME_COUNT; x++)
@@ -316,7 +306,12 @@ namespace playground::rendering {
         if (!didUpload) {
             uploadContext->Upload(vertexBuffer);
             uploadContext->Upload(indexBuffer);
-            uploadContext->Upload(texture);
+        }
+
+        if (!textureUploaded && textureCreated) {
+            uploadContext->Upload(targetTexture);
+            graphicsContext->TransitionTexture(targetTexture);
+            textureUploaded = true;
         }
 	}
 
@@ -326,7 +321,6 @@ namespace playground::rendering {
         if (!didUpload) {
             graphicsContext->TransitionVertexBuffer(vertexBuffer);
             graphicsContext->TransitionIndexBuffer(indexBuffer);
-            graphicsContext->TransitionTexture(texture);
         }
 
         auto cameraData = cam.GetCameraData();
@@ -344,7 +338,9 @@ namespace playground::rendering {
         opaqueCommandList->BindConstantBuffer(cameraBuffer, 0);
         opaqueCommandList->BindConstantBuffer(objectBuffer, 1);
 
-        opaqueCommandList->BindTexture(texture, 1);
+        if (textureUploaded) {
+            opaqueCommandList->BindTexture(targetTexture, 1);
+        }
         opaqueCommandList->BindSampler(sampler, 2);
 
         opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
@@ -417,6 +413,18 @@ namespace playground::rendering {
 	auto UpdateIndexBuffer(IndexBufferHandle buffer, const void* data, size_t size) -> void {
 
 	}
+
+    auto UploadMesh(const assetloader::RawMeshData& mesh) -> std::pair<VertexBufferHandle, IndexBufferHandle> {
+        return { 0, 0 };
+    }
+
+    auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle {
+        targetTexture = device->CreateTexture(texture.Width, texture.Height, texture.Pixels.data());
+
+        textureCreated = true;
+
+        return 0;
+    }
 
 	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void {
 	}

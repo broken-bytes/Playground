@@ -11,7 +11,10 @@
 #include <rendering/IndexBufferHandle.hxx>
 #include <rendering/MaterialHandle.hxx>
 #include <rendering/VertexBufferHandle.hxx>
+#include <rendering/TextureHandle.hxx>
 #include <rendering/CameraHandle.hxx>
+#include <assetloader/RawMeshData.hxx>
+#include <assetloader/RawTextureData.hxx>
 
 namespace playground::rendering {
 	// Lifecycle
@@ -22,10 +25,13 @@ namespace playground::rendering {
 	auto PostFrame() -> void;
 
 	// Resource creation
-	auto CreateVertexBuffer(const void* data, size_t size, size_t stride) -> VertexBufferHandle;
+	auto CreateVertexBuffer(const void* data, size_t size, size_t stride, bool isStatic) -> VertexBufferHandle;
 	auto CreateIndexBuffer(const uint32_t* indices, size_t len) -> IndexBufferHandle;
 	auto UpdateVertexBuffer(VertexBufferHandle buffer, const void* data, size_t size) -> void;
 	auto UpdateIndexBuffer(IndexBufferHandle buffer, const void* data, size_t size) -> void;
+
+    auto UploadMesh(const assetloader::RawMeshData& mesh) -> std::pair<VertexBufferHandle, IndexBufferHandle>;
+    auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle;
 
 	// Resource destruction
 	auto UnloadShader(uint64_t shader) -> void;

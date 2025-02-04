@@ -72,68 +72,42 @@ namespace playground::io {
 		const char* path,
 		const char* name
 	) -> std::vector<uint8_t> {
-		zip_t* archive;
-		int err;
+        // 1. Open
+        int err = 0;
+        zip_t* archive = zip_open(path, ZIP_RDONLY, &err);
+        if (!archive) throw std::runtime_error("Could not open archive");
 
-		if ((archive = zip_open(path, ZIP_RDONLY, &err)) == nullptr) {
-			zip_error_t error;
-			zip_error_init_with_code(&error, err);
-			zip_error_fini(&error);
-			throw std::runtime_error("Failed to load file");
-		}
+        // 2. Stat
+        zip_stat_t st;
+        if (zip_stat(archive, name, 0, &st) != 0) {
+            zip_close(archive);
+            throw std::runtime_error("zip_stat failed");
+        }
 
-		zip_stat_t stat;
-		zip_stat_init(&stat);
-		zip_stat(archive, name, ZIP_FL_ENC_UTF_8, &stat);
-		zip_close(archive);
+        // 3. Open the file entry
+        zip_file_t* zfile = zip_fopen(archive, name, 0);
+        if (!zfile) {
+            zip_close(archive);
+            throw std::runtime_error("zip_fopen failed");
+        }
 
-		return LoadFileFromArchivePartial(path, name, 0, stat.size);
-	}
+        // 4. Read
+        std::vector<uint8_t> data(st.size);
+        auto bytesRead = zip_fread(zfile, data.data(), st.size);
+        if (bytesRead < 0) {
+            zip_fclose(zfile);
+            zip_close(archive);
+            throw std::runtime_error("zip_fread failed");
+        }
 
-	auto LoadFileFromArchivePartial(
-		const char* path,
-		const char* name,
-		size_t start, 
-		size_t count
-	) -> std::vector<uint8_t> {
-		zip_t* archive;
-		int err;
+        // 5. Close the file entry
+        zip_fclose(zfile);
 
-		if ((archive = zip_open(path, ZIP_RDONLY, &err)) == nullptr) {
-			zip_error_t error;
-			zip_error_init_with_code(&error, err);
-			zip_error_fini(&error);
+        // 6. Close the archive
+        zip_close(archive);
 
-			throw std::runtime_error("Failed to load file");
-		}
-
-		zip_stat_t stat;
-		zip_stat_init(&stat);
-		zip_stat(archive, name, ZIP_FL_ENC_UTF_8, &stat);
-
-		zip_file_t* file = zip_fopen(archive, name, ZIP_FL_ENC_UTF_8);
-		if (file == nullptr) {
-			zip_close(archive);
-			throw std::runtime_error("Failed to load file");
-		}
-
-		auto rawBuffer = new uint8_t[count];
-		auto result = zip_fseek(file, start, SEEK_SET);
-		result = zip_file_is_seekable(file);
-		result = zip_fread(file, rawBuffer, count);
-		result = zip_fclose(file);
-		result = zip_close(archive);
-
-		if (result != 0)
-		{
-			throw std::runtime_error("Failed to load file");
-		}
-
-		auto vec = std::vector(rawBuffer, rawBuffer + count);
-
-		XOR_Encrypt(vec);
-
-		return vec;
+        // 7. Return the data
+        return data;
 	}
 
 	auto CreateUUID() -> std::string {
