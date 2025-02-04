@@ -111,7 +111,7 @@ namespace playground::rendering::d3d12 {
             psoDesc.SampleMask = UINT_MAX;
             psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             psoDesc.NumRenderTargets = 1;
-            psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
             psoDesc.SampleDesc.Count = 1;
             psoDesc.SampleDesc.Quality = 0;
 

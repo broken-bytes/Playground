@@ -26,25 +26,16 @@ namespace playground::rendering::d3d12 {
 		auto Increment()->size_t;
 
 		[[nodiscard]]
-		auto CPUHandleForHeapStart() -> std::shared_ptr<D3D12CPUResourceHandle>;
-
-		[[nodiscard]]
-		auto GPUHandleForHeapStart() -> std::shared_ptr<D3D12GPUResourceHandle>;
+		auto HandleForHeapStart() -> std::shared_ptr<D3D12ResourceHandle>;
 
 		[[nodiscard]]
 		auto Native() -> Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>;
 
     	[[nodiscard]]
-		auto CpuHandleFor(std::uint32_t index) -> std::shared_ptr<D3D12CPUResourceHandle>;
-
-    	[[nodiscard]]
-		auto GpuHandleFor(std::uint32_t index) -> std::shared_ptr<D3D12GPUResourceHandle>;
+		auto HandleFor(std::uint32_t index) -> std::shared_ptr<D3D12ResourceHandle>;
 
 		[[nodiscard]]
-		auto NextGpuHandle() -> std::shared_ptr<D3D12GPUResourceHandle>;
-
-		[[nodiscard]]
-		auto NextCpuHandle() -> std::shared_ptr<D3D12CPUResourceHandle>;
+		auto NextHandle() -> std::shared_ptr<D3D12ResourceHandle>;
 
 		[[nodiscard]]
 		auto IsFilled() -> bool;

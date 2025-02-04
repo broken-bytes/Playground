@@ -2,6 +2,7 @@
 
 #include <directx/d3d12.h>
 #include <wrl.h>
+#include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/CommandList.hxx"
 #include "rendering/RootSignature.hxx"
 #include "rendering/PipelineState.hxx"
@@ -10,7 +11,7 @@ namespace playground::rendering::d3d12 {
 	class D3D12CommandList : public rendering::CommandList {
     public:
         D3D12CommandList(
-            const Microsoft::WRL::ComPtr<ID3D12Device9>& device,
+            std::shared_ptr<D3D12Device> device,
             CommandListType type,
             uint8_t frameCount,
             std::string name
@@ -32,8 +33,12 @@ namespace playground::rendering::d3d12 {
 		auto SetMaterial(std::shared_ptr<Material>& material) -> void override;
 		auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void override;
 		auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void override;
+        auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot) -> void override;
+        auto BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void override;
+        auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void override;
 		auto DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex) -> void override;
 	private:
+        std::shared_ptr<D3D12Device> _device;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList7> _list;;
         std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> _commandAllocators;
         uint8_t _frameIndex;

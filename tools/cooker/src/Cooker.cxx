@@ -1,6 +1,7 @@
 #include <iostream>
 #include <assetpipeline/AssetPipeline.hxx>
 #include <assetpipeline/loaders/ModelLoader.hxx>
+#include <assetpipeline/loaders/TextureLoader.hxx>
 
 
 int main(int argc, char** argv) {
@@ -25,6 +26,12 @@ int main(int argc, char** argv) {
     if (std::strcmp(argv[3], "Model") == 0) {
         auto meshes = playground::editor::assetpipeline::loaders::modelloader::LoadFromFile(argv[1]);
         buffer = playground::editor::assetpipeline::CookModel(meshes);
+
+        playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
+    }
+    else if (std::strcmp(argv[3], "Texture") == 0) {
+        auto texture = playground::editor::assetpipeline::loaders::textureloader::LoadFromFile(argv[1]);
+        buffer = playground::editor::assetpipeline::CookTexture(texture);
 
         playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
     }

@@ -5,7 +5,6 @@
 #include <assimp/Importer.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-
 #include <rendering/Mesh.hxx>
 
 namespace playground::editor::assetpipeline::loaders::modelloader {

@@ -18,7 +18,7 @@ namespace playground::rendering::d3d12 {
 
         auto Flush() -> void override;
         auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext> override;
-        auto CreateUploadContext() -> std::unique_ptr<Context> override;
+        auto CreateUploadContext() -> std::unique_ptr<UploadContext> override;
         auto CreateCommandList(
             CommandListType type,
             std::string name
@@ -41,13 +41,27 @@ namespace playground::rendering::d3d12 {
             std::map<std::string, std::array<float, 2>> vec2s, std::map<std::string, std::array<float, 3>> vec3s,
             std::map<std::string, std::array<float, 4>> vec4s) -> std::shared_ptr<Material> override;
         auto CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader) -> std::shared_ptr<PipelineState> override;
-        auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride) -> std::shared_ptr<VertexBuffer> override;
+        auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> override;
         auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void override;
         auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> override;
         auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void override;
+        auto CreateTexture(uint32_t width, uint32_t height, void* data) -> std::shared_ptr<Texture> override;
+        auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> override;
+        auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> override;
         auto GetRootSignature() -> std::shared_ptr<RootSignature> override;
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
+
+        auto GetDevice() -> Microsoft::WRL::ComPtr<ID3D12Device9> {
+            return _device;
+        }
+
+        auto GetDescriptorHeaps() -> std::vector<ID3D12DescriptorHeap*> {
+            return {
+                _srvHeaps->Heap()->Native().Get(),
+                _samplerHeaps->Heap()->Native().Get()
+            };
+        }
 
     private:
         Microsoft::WRL::ComPtr<IDXGIAdapter1> _adapter;
@@ -55,9 +69,9 @@ namespace playground::rendering::d3d12 {
         // ---- Resources ----
         std::unique_ptr<D3D12HeapManager> _rtvHeaps;
         std::unique_ptr<D3D12HeapManager> _srvHeaps;
+        std::unique_ptr<D3D12HeapManager> _samplerHeaps;
         std::unique_ptr<D3D12HeapManager> _dsvHeaps;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _rootSignature;
-
 
         auto CreateCommandQueue(
             CommandListType type,

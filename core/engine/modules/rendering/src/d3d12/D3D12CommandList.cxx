@@ -1,4 +1,5 @@
 #include <sstream>
+#include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/d3d12/D3D12CommandList.hxx"
 #include "rendering/d3d12/D3D12CPUResourceHandle.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
@@ -7,16 +8,19 @@
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12RootSignature.hxx"
 #include "rendering/d3d12/D3D12PipelineState.hxx"
+#include "rendering/d3d12/D3D12ConstantBuffer.hxx"
+#include "rendering/d3d12/D3D12Texture.hxx"
+#include "rendering/d3d12/D3D12Sampler.hxx"
 
 using namespace Microsoft::WRL;
 
 namespace playground::rendering::d3d12 {
 	D3D12CommandList::D3D12CommandList(
-        const ComPtr<ID3D12Device9>& device,
+        std::shared_ptr<D3D12Device> device,
         CommandListType type,
         uint8_t frameCount,
         std::string name
-    ) : CommandList(type), _frameIndex(0) {
+    ) : CommandList(type), _frameIndex(0), _device(device) {
 		// Create the command list
 		D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
@@ -39,7 +43,7 @@ namespace playground::rendering::d3d12 {
         for (int x = 0; x < frameCount; x++) {
             ComPtr<ID3D12CommandAllocator> commandAllocator;
 
-            if (FAILED(device->CreateCommandAllocator(listType, IID_PPV_ARGS(&commandAllocator))))
+            if (FAILED(device->GetDevice()->CreateCommandAllocator(listType, IID_PPV_ARGS(&commandAllocator))))
             {
                 throw std::exception("Failed to create command allocator");
             }
@@ -54,7 +58,7 @@ namespace playground::rendering::d3d12 {
             _commandAllocators.push_back(commandAllocator);
         }
 
-		auto result = device->CreateCommandList(0, listType, _commandAllocators[0].Get(), nullptr, IID_PPV_ARGS(&_list));
+		auto result = device->GetDevice()->CreateCommandList(0, listType, _commandAllocators[0].Get(), nullptr, IID_PPV_ARGS(&_list));
 		if (FAILED(result))
 		{
 			throw std::exception("Failed to create command list");
@@ -74,7 +78,11 @@ namespace playground::rendering::d3d12 {
 
 	auto D3D12CommandList::Begin() -> void
 	{
-
+        if (_type == CommandListType::Graphics) {
+            // Automatically bind the descriptor heaps
+            auto heaps = _device->GetDescriptorHeaps();
+            _list->SetDescriptorHeaps(heaps.size(), heaps.data());
+        }
 	}
 
 	auto D3D12CommandList::Close() -> void
@@ -183,6 +191,18 @@ namespace playground::rendering::d3d12 {
 	{
         _list->IASetIndexBuffer(&std::static_pointer_cast<D3D12IndexBuffer>(vertexBuffer)->View());
 	}
+
+    auto D3D12CommandList::BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot) -> void {
+        _list->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12ConstantBuffer>(buffer)->GPUHandle());
+    }
+
+    auto D3D12CommandList::BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void {
+        _list->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12Texture>(texture)->GPUHandle());
+    }
+
+    auto D3D12CommandList::BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void {
+        _list->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12TextureSampler>(sampler)->GPUHandle());
+    }
 
 	auto D3D12CommandList::DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex) -> void
 	{

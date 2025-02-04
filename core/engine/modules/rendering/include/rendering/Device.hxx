@@ -5,8 +5,10 @@
 #include "rendering/CommandList.hxx"
 #include "rendering/CommandListType.hxx"
 #include "rendering/CommandQueue.hxx"
+#include "rendering/ConstantBuffer.hxx"
 #include "rendering/Context.hxx"
 #include "rendering/GraphicsContext.hxx"
+#include "rendering/UploadContext.hxx"
 #include "rendering/Fence.hxx"
 #include "rendering/Heap.hxx"
 #include "rendering/TextureFormat.hxx"
@@ -18,11 +20,11 @@
 #include "rendering/RootSignature.hxx"
 #include "rendering/Rendering.hxx"
 #include "rendering/PipelineState.hxx"
+#include "rendering/Sampler.hxx"
 
 namespace playground::rendering {
 	class Buffer;
 	class RenderTarget;
-	class UploadContext;
 
 	class Device {
 
@@ -35,7 +37,7 @@ namespace playground::rendering {
 
 		// Creation work submission and synchronization
 		virtual auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext> = 0;
-		virtual auto CreateUploadContext() -> std::unique_ptr<Context> = 0;
+		virtual auto CreateUploadContext() -> std::unique_ptr<UploadContext> = 0;
 		virtual auto CreateCommandList(
             CommandListType type,
             std::string name = ""
@@ -68,10 +70,13 @@ namespace playground::rendering {
             const std::string& pixelShader
 		) -> std::shared_ptr<PipelineState> = 0;
         virtual auto GetRootSignature() -> std::shared_ptr<RootSignature> = 0;
-		virtual auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride) -> std::shared_ptr<VertexBuffer> = 0;
+		virtual auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> = 0;
 		virtual auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void = 0;
 		virtual auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> = 0;
 		virtual auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void = 0;
+        virtual auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> = 0;
+        virtual auto CreateTexture(uint32_t width, uint32_t height, void* data) -> std::shared_ptr<Texture> = 0;
+        virtual auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> = 0;
 		// Deleting resources
 		virtual auto DestroyShader(uint64_t shaderHandle) -> void = 0;
 

@@ -1,15 +1,15 @@
-#include "assetpipeline/assetpipeline.hxx"
 #include <fstream>
 #include <filesystem>
 #include <FreeImagePlus.h>
 #include <zip.h>
 #include <rendering/Mesh.hxx>
-#include "assetloader/RawMeshData.hxx"
+#include <assetloader/AssetLoader.hxx>
+#include <assetloader/RawMeshData.hxx>
+#include "assetpipeline/assetpipeline.hxx"
+
+using namespace playground::assetloader;
 
 namespace playground::editor::assetpipeline {
-    constexpr uint32_t MAGIC_NUMBER = 0x4D455348; // "MESH" in hex
-    constexpr uint16_t VERSION = 1;
-
     void XOR_Encrypt(std::vector<uint8_t>& data, uint8_t key = 0xAB) {
         for (auto& byte : data) {
             byte ^= key;
@@ -70,10 +70,12 @@ namespace playground::editor::assetpipeline {
         // Load the mesh
         std::vector<uint8_t> buffer;
 
+        auto magic = assetloader::MagicNumberStringFor(MAGIC_NUMBERS::MESH);
+
         // Write header
         uint32_t meshCount = meshData.size();
-        buffer.insert(buffer.end(), reinterpret_cast<const uint8_t*>(&MAGIC_NUMBER), reinterpret_cast<const uint8_t*>(&MAGIC_NUMBER) + 4);
-        buffer.insert(buffer.end(), reinterpret_cast<const uint8_t*>(&VERSION), reinterpret_cast<const uint8_t*>(&VERSION) + 2);
+        buffer.insert(buffer.end(), reinterpret_cast<const uint8_t*>(magic), reinterpret_cast<const uint8_t*>(magic) + sizeof(magic));
+        buffer.insert(buffer.end(), reinterpret_cast<const uint8_t*>(ASSET_LOADER_VERSION), reinterpret_cast<const uint8_t*>(ASSET_LOADER_VERSION) + 2);
         buffer.insert(buffer.end(), reinterpret_cast<uint8_t*>(&meshCount), reinterpret_cast<uint8_t*>(&meshCount) + 4);
 
         for (auto& mesh : meshData) {
@@ -94,6 +96,29 @@ namespace playground::editor::assetpipeline {
                 reinterpret_cast<uint8_t*>(mesh.indices.data()),
                 reinterpret_cast<uint8_t*>(mesh.indices.data()) + mesh.indices.size() * sizeof(uint32_t)
             );
+        }
+
+        return buffer;
+    }
+
+    auto CookTexture(assetloader::RawTextureData textureData) -> std::vector<uint8_t> {
+        std::vector<uint8_t> buffer;
+
+        auto magic = assetloader::MagicNumberStringFor(MAGIC_NUMBERS::TEXTURE);
+
+        // Write header
+        buffer.insert(buffer.end(), reinterpret_cast<const uint8_t*>(magic), reinterpret_cast<const uint8_t*>(magic) + sizeof(magic));
+        buffer.insert(buffer.end(), reinterpret_cast<const uint8_t*>(ASSET_LOADER_VERSION), reinterpret_cast<const uint8_t*>(ASSET_LOADER_VERSION) + 2);
+        buffer.insert(buffer.end(), reinterpret_cast<uint8_t*>(&textureData.Channels), reinterpret_cast<uint8_t*>(&textureData.Channels) + 4);
+
+        uint32_t width = textureData.Width;
+        uint32_t height = textureData.Height;
+
+        buffer.insert(buffer.end(), reinterpret_cast<uint8_t*>(&width), reinterpret_cast<uint8_t*>(&width) + 4);
+        buffer.insert(buffer.end(), reinterpret_cast<uint8_t*>(&height), reinterpret_cast<uint8_t*>(&height) + 4);
+
+        for (auto& pixel : textureData.Pixels) {
+            buffer.push_back(pixel);
         }
 
         return buffer;

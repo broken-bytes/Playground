@@ -16,6 +16,5 @@ namespace playground::rendering {
         virtual ~Context() = default;
         virtual auto Begin() -> void = 0;
         virtual auto Finish() -> void = 0;
-        virtual auto ExecuteCommandLists(std::vector<std::shared_ptr<CommandList>> commandLists) -> void = 0;
     };
 }

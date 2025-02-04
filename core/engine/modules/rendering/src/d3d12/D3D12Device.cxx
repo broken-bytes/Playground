@@ -6,8 +6,11 @@
 #include <vector>
 #include <Windows.h>
 #include <wrl.h>
+#include <dxcapi.h>
+#include <string>
 #include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
+#include "rendering/d3d12/D3D12UploadContext.hxx"
 #include "rendering/d3d12/D3D12CommandQueue.hxx"
 #include "rendering/d3d12/D3D12Utils.hxx"
 #include "rendering/d3d12/D3D12CommandAllocator.hxx"
@@ -19,9 +22,9 @@
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12RootSignature.hxx"
 #include "rendering/d3d12/D3D12PipelineState.hxx"
-#include <dxcapi.h>
-#include <wrl.h>
-#include <string>
+#include "rendering/d3d12/D3D12ConstantBuffer.hxx"
+#include "rendering/d3d12/D3D12Texture.hxx"
+#include "rendering/d3d12/D3D12Sampler.hxx"
 
 using namespace Microsoft::WRL;
 
@@ -85,11 +88,21 @@ namespace playground::rendering::d3d12 {
         // Create heaps
         // Start with one heap per type
         // 32 RTVS (2-3 for the back buffers and 30~ for render textures)
-        _rtvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 32);
+        _rtvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128);
         // Use chunks of 512 entries per shader heap
-        _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 512);
+        _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 8192);
         // 32 Depth stencils are enough for any type of render pipeline
-        _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32);
+        _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 128);
+
+        // Create sampler heap
+        // 6 Samplers:
+        // - Point Clamp
+        // - Point Wrap
+        // - Linear Clamp
+        // - Linear Wrap
+        // - Anisotropic Clamp
+        // - Anisotropic Wrap
+        _samplerHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 8);
 
         _rootSignature = CreateRootSignature();
     }
@@ -121,9 +134,12 @@ namespace playground::rendering::d3d12 {
         );
     }
 
-    auto D3D12Device::CreateUploadContext() -> std::unique_ptr<Context>
+    auto D3D12Device::CreateUploadContext() -> std::unique_ptr<UploadContext>
     {
-        return nullptr;
+        return std::make_unique<D3D12UploadContext>(
+            _device,
+            CreateCommandQueue(CommandListType::Transfer, "UploadQueue")
+        );
     }
 
     auto D3D12Device::CreateCommandList(
@@ -131,7 +147,7 @@ namespace playground::rendering::d3d12 {
         std::string name
     ) -> std::shared_ptr<CommandList>
     {
-        return std::make_shared<D3D12CommandList>(_device.Get(), type, _frameCount, name);
+        return std::make_shared<D3D12CommandList>(shared_from_this(), type, _frameCount, name);
     }
 
     auto D3D12Device::CreateCommandQueue(
@@ -204,7 +220,7 @@ namespace playground::rendering::d3d12 {
         clearValue.Color[3] = 1.0f;
 
         auto handle = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        if(FAILED(_device->CreateCommittedResource(
+        if (FAILED(_device->CreateCommittedResource(
             &handle,
             D3D12_HEAP_FLAG_NONE,
             &rtDesc,
@@ -215,16 +231,15 @@ namespace playground::rendering::d3d12 {
             throw std::runtime_error("Failed to create render target");
         }
 
-        auto nextCpuHandle = _rtvHeaps->NextCpuHandle();
-        auto native = nextCpuHandle->GetHandle();
+        auto nextHandle = _rtvHeaps->NextHandle();
 
-        _device->CreateRenderTargetView(rtv.Get(), nullptr, native);
+        _device->CreateRenderTargetView(rtv.Get(), nullptr, nextHandle->GetCPUHandle());
 
         if (!name.empty()) {
             rtv->SetName(std::wstring(name.begin(), name.end()).c_str());
         }
 
-        return std::make_shared<D3D12RenderTarget>(rtv, native);
+        return std::make_shared<D3D12RenderTarget>(rtv, nextHandle->GetCPUHandle());
     }
 
     auto D3D12Device::CreateDepthBuffer(
@@ -264,8 +279,7 @@ namespace playground::rendering::d3d12 {
             throw std::runtime_error("Failed to create depth buffer");
         }
 
-        auto nextCpuHandle = _dsvHeaps->NextCpuHandle();
-        auto native = nextCpuHandle->GetHandle();
+        auto nextHandle = _dsvHeaps->NextHandle();
 
         if (!name.empty()) {
             depthBuffer->SetName(std::wstring(name.begin(), name.end()).c_str());
@@ -276,9 +290,9 @@ namespace playground::rendering::d3d12 {
         dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
-        _device->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc, native);
+        _device->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc, nextHandle->GetCPUHandle());
 
-        return std::make_shared<D3D12DepthBuffer>(depthBuffer, native);
+        return std::make_shared<D3D12DepthBuffer>(depthBuffer, nextHandle->GetCPUHandle());
     }
 
     auto D3D12Device::CreateMaterial(std::map<ShaderType, std::shared_ptr<Shader>> shaders,
@@ -300,9 +314,9 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12RootSignature>(_rootSignature);
     }
 
-    auto D3D12Device::CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride) -> std::shared_ptr<VertexBuffer>
+    auto D3D12Device::CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer>
     {
-        auto buffer = std::make_shared<D3D12VertexBuffer>(_device, data, size, stride);
+        auto buffer = std::make_shared<D3D12VertexBuffer>(_device, data, size, stride, isStatic);
 
         return buffer;
     }
@@ -323,22 +337,43 @@ namespace playground::rendering::d3d12 {
 
     }
 
+    auto D3D12Device::CreateTexture(uint32_t width, uint32_t height, void* data) -> std::shared_ptr<Texture> {
+        return std::make_shared<D3D12Texture>(_device, width, height, data, _srvHeaps->NextHandle());
+    }
+
+    auto D3D12Device::CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> {
+        return std::make_shared<D3D12TextureSampler>(_device, _samplerHeaps->NextHandle(), filtering, wrapping);
+    }
+
+    auto D3D12Device::CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> {
+        auto handle = _srvHeaps->NextHandle();
+        return std::make_shared<D3D12ConstantBuffer>(
+            _device,
+            handle->GetCPUHandle(),
+            handle->GetGPUHandle(),
+            _srvHeaps->Heap()->Native(),
+            data,
+            size,
+            name
+        );
+    }
+
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
-        CD3DX12_ROOT_PARAMETER rootParameters[4];
+        CD3DX12_ROOT_PARAMETER rootParameters[3];
 
-        // 1️⃣ Per-frame CBV (View Projection, Lighting, etc.)
-        rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+        // 1️ Per-frame CBV (View Projection, Lighting, etc.)
+        CD3DX12_DESCRIPTOR_RANGE cbvRanges[2];
+        cbvRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0); // First CBV (b0)
+        cbvRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1); // Second CBV (b1)
+        rootParameters[0].InitAsDescriptorTable(2, cbvRanges, D3D12_SHADER_VISIBILITY_ALL);
 
-        // 2️⃣ Per-object CBV (Model Matrix, Material Properties)
-        rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
-
-        // 3️⃣ Texture Descriptor Table (SRV)
+        // 2 Texture Descriptor Table (SRV)
         CD3DX12_DESCRIPTOR_RANGE srvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-        rootParameters[2].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        // 4️⃣ Sampler Descriptor Table
+        // 3 Sampler Descriptor Table
         CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-        rootParameters[3].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[2].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
@@ -354,7 +389,6 @@ namespace playground::rendering::d3d12 {
         HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
 
         if (FAILED(hr)) {
-            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
             throw std::runtime_error("Failed to serialize root signature");
         }
 

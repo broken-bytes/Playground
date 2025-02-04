@@ -4,6 +4,7 @@ FILE(GLOB_RECURSE SRC "src/*.c*")
 find_package(unofficial-sqlite3 REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(libzip CONFIG REQUIRED)
+find_package(FreeImage CONFIG REQUIRED)
 
 add_library(AssetPipeline SHARED ${SRC} ${HEADERS})
 
@@ -15,7 +16,7 @@ target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/io/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
 
-target_link_libraries(AssetPipeline PRIVATE unofficial::sqlite3::sqlite3 assimp::assimp libzip::zip)
+target_link_libraries(AssetPipeline PRIVATE unofficial::sqlite3::sqlite3 assimp::assimp libzip::zip freeimage::FreeImagePlus)
 
 # Link all engine libraries
 target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering)

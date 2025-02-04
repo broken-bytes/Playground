@@ -22,16 +22,17 @@
 		}
 	});
 
-	float deltaTime = 0.0f;
+    double deltaTime = 0.0f;
 
 	while (true) {
 		auto now = std::chrono::high_resolution_clock::now();
+
 		playground::input::Update();
 		playground::audio::Update();
 		playground::rendering::PreFrame();
 		playground::rendering::Update(deltaTime);
 		playground::rendering::PostFrame();
 
-		deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(std::chrono::high_resolution_clock::now() - now).count();
+		deltaTime = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - now).count();
 	}
 }

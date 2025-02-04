@@ -10,47 +10,47 @@ namespace playground::rendering::d3d12
         uint16_t chunkSize
     ) : _device(device), _type(type), _chunkSize(chunkSize)
     {
-        _chunks = { CreateHeap() };
+        _heap = CreateHeap();
+
+        switch (type)
+        {
+        case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+            _heap->Native()->SetName(L"CBV_SRV_UAV Heap");
+            break;
+        case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+            _heap->Native()->SetName(L"SAMPLER Heap");
+            break;
+        case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+            _heap->Native()->SetName(L"RTV Heap");
+            break;
+        case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
+            _heap->Native()->SetName(L"DSV Heap");
+            break;
+        case D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES:
+            _heap->Native()->SetName(L"NUM_TYPES Heap");
+            break;
+        default:
+            break;
+        }
     }
 
-    auto D3D12HeapManager::NextCpuHandle() -> std::shared_ptr<D3D12CPUResourceHandle>
-    {
-        for (auto& heap : _chunks)
-        {
-            if (heap->IsFilled())
-            {
-                continue;
-            }
-
-            return heap->NextCpuHandle();
-        }
-
-        // If we reach this we need to grow
-        _chunks.emplace_back(CreateHeap());
-
-        return _chunks.back()->NextCpuHandle();
+    auto D3D12HeapManager::HandleAt(uint32_t index) -> std::shared_ptr<D3D12ResourceHandle> {
+        return _heap->HandleFor(index);
     }
 
-    auto D3D12HeapManager::NextGpuHandle() -> std::shared_ptr<D3D12GPUResourceHandle>
+    auto D3D12HeapManager::NextHandle() -> std::shared_ptr<D3D12ResourceHandle>
     {
-        for (auto& heap : _chunks)
-        {
-            if (heap->IsFilled())
-            {
-                continue;
-            }
-
-            return heap->NextGpuHandle();
-        }
-
-        // If we reach this we need to grow
-        _chunks.emplace_back(CreateHeap());
-
-       return _chunks.back()->NextGpuHandle();
+        return _heap->NextHandle();
     }
 
     auto D3D12HeapManager::CreateHeap() -> std::shared_ptr<D3D12Heap>
     {
-        return std::make_shared<D3D12Heap>(_device, _type, _chunkSize, _type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        _currentChunk++;
+        return std::make_shared<D3D12Heap>(
+            _device,
+            _type,
+            _chunkSize * _currentChunk,
+            _type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || _type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
+        );
     }
 }

@@ -12,7 +12,6 @@ namespace playground::assetloader
     };
 
     struct RawMeshData {
-        std::string name;
         std::vector<RawVertex> vertices;
         std::vector<uint32_t> indices;
     };

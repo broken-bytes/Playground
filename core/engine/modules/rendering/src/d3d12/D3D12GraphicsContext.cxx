@@ -5,6 +5,9 @@
 #include "rendering/d3d12/D3D12CommandAllocator.hxx"
 #include "rendering/d3d12/D3D12CommandList.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
+#include "rendering/d3d12/D3D12IndexBuffer.hxx"
+#include "rendering/d3d12/D3D12VertexBuffer.hxx"
+#include "rendering/d3d12/D3D12Texture.hxx"
 
 namespace playground::rendering::d3d12
 {
@@ -27,7 +30,6 @@ namespace playground::rendering::d3d12
 
         _swapChain = std::make_unique<D3D12SwapChain>(queue, width, height, hwnd);
 
-
         device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
@@ -39,7 +41,7 @@ namespace playground::rendering::d3d12
             throw std::runtime_error("Failed to create command list");
         }
 
-        _commandList->SetName(L"FrameBufferSwapchainCopyList");
+        _commandList->SetName(L"GraphicsContextList");
     }
 
     D3D12GraphicsContext::~D3D12GraphicsContext()
@@ -76,6 +78,40 @@ namespace playground::rendering::d3d12
 
         _commandAllocator->Reset();
         _commandList->Reset(_commandAllocator.Get(), nullptr);
+    }
+
+    auto D3D12GraphicsContext::TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void {
+        // Transition GPU buffer to index buffer state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12IndexBuffer>(buffer)->Buffer().Get(),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_INDEX_BUFFER
+        );
+
+        _commandList->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
+        // Transition GPU buffer to vertex buffer state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12VertexBuffer>(buffer)->Buffer().Get(),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+        );
+
+        _commandList->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionTexture(std::shared_ptr<Texture> texture) -> void
+    {
+        // Transition GPU buffer to texture state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12Texture>(texture)->Texture().Get(),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+
+        _commandList->ResourceBarrier(1, &barrier);
     }
 
     auto D3D12GraphicsContext::ExecuteCommandLists(std::vector<std::shared_ptr<CommandList>> lists) -> void

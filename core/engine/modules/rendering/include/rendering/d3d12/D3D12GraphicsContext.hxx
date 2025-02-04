@@ -23,6 +23,9 @@ namespace playground::rendering::d3d12 {
 
         auto Begin() -> void override;
         auto Finish() -> void override;
+        auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
+        auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
+        auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
         auto ExecuteCommandLists(std::vector<std::shared_ptr<CommandList>> lists) -> void override;
         auto CopyToBackBuffer(std::shared_ptr<RenderTarget> renderTarget) -> void override;
 

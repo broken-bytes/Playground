@@ -13,7 +13,7 @@ namespace playground::rendering::d3d12
 		D3D12_DESCRIPTOR_HEAP_TYPE type,
 		uint32_t numDescriptors,
 		bool shaderVisible
-	) : _index(0) {
+	) : _index(0), _isShaderVisible(shaderVisible) {
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 		desc.NumDescriptors = numDescriptors;
 		desc.Type = type;
@@ -46,53 +46,42 @@ namespace playground::rendering::d3d12
 		return _increment;
 	};
 
-	auto D3D12Heap::CPUHandleForHeapStart() -> std::shared_ptr<D3D12CPUResourceHandle> {
+	auto D3D12Heap::HandleForHeapStart() -> std::shared_ptr<D3D12ResourceHandle> {
 		auto cdx = CD3DX12_CPU_DESCRIPTOR_HANDLE(_heap->GetCPUDescriptorHandleForHeapStart());
-		return std::make_shared<D3D12CPUResourceHandle>(cdx);
-	};
-
-	auto D3D12Heap::GPUHandleForHeapStart() -> std::shared_ptr<D3D12GPUResourceHandle> {
-		auto cdx = CD3DX12_GPU_DESCRIPTOR_HANDLE(_heap->GetGPUDescriptorHandleForHeapStart());
-		return std::make_shared<D3D12GPUResourceHandle>(cdx);
+        if (!_isShaderVisible) {
+            return std::make_shared<D3D12ResourceHandle>(cdx);
+        }
+        auto gdx = CD3DX12_GPU_DESCRIPTOR_HANDLE(_heap->GetGPUDescriptorHandleForHeapStart());
+		return std::make_shared<D3D12ResourceHandle>(cdx, gdx);
 	};
 
 	auto D3D12Heap::Native() -> Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> {
-		return _heap.Get();
+		return _heap;
 	}
 
-	auto D3D12Heap::CpuHandleFor(std::uint32_t index) -> std::shared_ptr<D3D12CPUResourceHandle> {
+	auto D3D12Heap::HandleFor(std::uint32_t index) -> std::shared_ptr<D3D12ResourceHandle> {
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(_heap->GetCPUDescriptorHandleForHeapStart(), index, _increment);
+        if (!_isShaderVisible) {
+            return std::make_shared<D3D12ResourceHandle>(handle);
+        }
 
-		return std::make_shared<D3D12CPUResourceHandle>(handle);
+        CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(_heap->GetGPUDescriptorHandleForHeapStart(), index, _increment);
+
+		return std::make_shared<D3D12ResourceHandle>(handle, gpuHandle);
 	}
 
-	auto D3D12Heap::GpuHandleFor(std::uint32_t index) ->  std::shared_ptr<D3D12GPUResourceHandle> {
-		assert(_desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(_heap->GetGPUDescriptorHandleForHeapStart(), index, _increment);
-
-		return std::make_shared<D3D12GPUResourceHandle>(handle);
-
-	}
-
-	auto D3D12Heap::NextGpuHandle() -> std::shared_ptr<D3D12GPUResourceHandle>
-	{
-		assert(_index < _desc.NumDescriptors);
-		assert(_desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(_heap->GetGPUDescriptorHandleForHeapStart(), _index, _increment);
-
-		_index++;
-
-		return std::make_shared<D3D12GPUResourceHandle>(handle);
-	}
-
-	auto D3D12Heap::NextCpuHandle() -> std::shared_ptr<D3D12CPUResourceHandle>
+	auto D3D12Heap::NextHandle() -> std::shared_ptr<D3D12ResourceHandle>
 	{
 		assert(_index < _desc.NumDescriptors);
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(_heap->GetCPUDescriptorHandleForHeapStart(), _index, _increment);
+        if (!_isShaderVisible) {
+            _index++;
+            return std::make_shared<D3D12ResourceHandle>(handle);
+        }
+        CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(_heap->GetGPUDescriptorHandleForHeapStart(), _index, _increment);
 
-		_index++;
-
-		return std::make_shared<D3D12CPUResourceHandle>(handle);
+        _index++;
+		return std::make_shared<D3D12ResourceHandle>(handle, gpuHandle);
 	}
 
 	auto D3D12Heap::IsFilled() -> bool

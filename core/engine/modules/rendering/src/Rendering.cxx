@@ -1,3 +1,6 @@
+#include <map>
+#include <memory>
+#include <sstream>
 #include "rendering/Rendering.hxx"
 #include "rendering/Device.hxx"
 #include "rendering/Frame.hxx"
@@ -8,9 +11,13 @@
 #include "rendering/CommandQueue.hxx"
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/RootSignature.hxx"
-#include <map>
-#include <memory>
+#include "rendering/Camera.hxx"
+#include "rendering/Sampler.hxx"
 #include <FreeImagePlus.h>
+
+struct ObjectData {
+    glm::mat4 WorldMatrix;
+};
 
 namespace playground::rendering {
 	constexpr uint8_t FRAME_COUNT = 2;
@@ -30,12 +37,12 @@ namespace playground::rendering {
 	std::map<uint32_t, std::shared_ptr<Mesh>> meshes = {};
 
 	std::unique_ptr<GraphicsContext> graphicsContext = nullptr;
+    std::unique_ptr<UploadContext> uploadContext = nullptr;
 
 	std::shared_ptr<CommandList> opaqueCommandList = nullptr;
 	std::shared_ptr<CommandList> transparentCommandList = nullptr;
 	std::shared_ptr<CommandList> shadowCommandList = nullptr;
 	std::shared_ptr<CommandList> uiCommandList = nullptr;
-	std::shared_ptr<CommandList> transferCommandList = nullptr;
 
 	std::unique_ptr<OpaqueRenderPass> opaqueRenderPass = nullptr;
 
@@ -46,19 +53,53 @@ namespace playground::rendering {
 
     std::shared_ptr<PipelineState> defaultPipelineState = nullptr;
 
+    std::map<CameraHandle, CameraData> cameras = {};
+
+    std::shared_ptr<ConstantBuffer> cameraBuffer = nullptr;
+
+    std::shared_ptr<ConstantBuffer> objectBuffer = nullptr;
+
+
     // Cube vertices
     Vertex cubeVertices[] =
     {
-        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { 0, 0, 1 }, { 0, 0 } },
-        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 0, 0, 1 }, { 1, 0 } },
-        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 0, 0, 1 }, { 1, 1 } },
-        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { 0, 0, 1 }, { 0, 1 } },
+        // Front face
+        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { 0, 0, 1 }, { 0, 1 } },
+        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 0, 0, 1 }, { 1, 1 } },
+        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 0, 0, 1 }, { 1, 0 } },
+        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { 0, 0, 1 }, { 0, 0 } },
 
-        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { 0, 0, -1 }, { 0, 0 } },
-        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 0, 0, -1 }, { 1, 0 } },
-        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 1, 1 } },
-        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { 0, 0, -1 }, { 0, 1 } },
+        // Back face
+        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { 0, 0, -1 }, { 0, 1 } },
+        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 0, 0, -1 }, { 0, 0 } },
+        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 1, 0 } },
+        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { 0, 0, -1 }, { 1, 1 } },
+
+        // Left face
+        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { -1, 0, 0 }, { 0, 1 } },
+        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { -1, 0, 0 }, { 1, 1 } },
+        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { -1, 0, 0 }, { 1, 0 } },
+        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { -1, 0, 0 }, { 0, 0 } },
+
+        // Right face
+        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 1, 0, 0 }, { 0, 1 } },
+        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 1, 0, 0 }, { 0, 0 } },
+        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 1, 0, 0 }, { 1, 0 } },
+        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 1, 0, 0 }, { 1, 1 } },
+
+        // Top face
+        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { 0, 1, 0 }, { 0, 1 } },
+        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { 0, 1, 0 }, { 0, 0 } },
+        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 0, 1, 0 }, { 1, 0 } },
+        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 1, 0 }, { 1, 1 } },
+
+        // Bottom face
+        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { 0, -1, 0 }, { 0, 1 } },
+        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { 0, -1, 0 }, { 0, 0 } },
+        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 0, -1, 0 }, { 1, 0 } },
+        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 0, -1, 0 }, { 1, 1 } },
     };
+
 
     // Cube indices (2 triangles per face)
     uint32_t cubeIndices[] = {
@@ -82,84 +123,92 @@ namespace playground::rendering {
     };
 
     std::string vertexShaderCode = R"(
-struct VSInput {
-    float3 position : POSITION; // Vertex position in object space
-    float4 color    : COLOR;    // Vertex color
-    float3 normal   : NORMAL;   // Vertex normal
-    float2 uv       : TEXCOORD; // UV coordinates
-};
+        cbuffer CameraBuffer : register(b0) {
+            matrix viewMatrix;
+            matrix projectionMatrix;
+        };
 
-struct VSOutput {
-    float4 position : SV_Position; // Transformed position in clip space
-    float4 color    : COLOR;       // Pass-through color
-    float3 normal   : NORMAL;      // Pass-through normal
-    float2 uv       : TEXCOORD;    // Pass-through UV
-};
+        cbuffer ObjectBuffer : register(b1) {
+            matrix worldMatrix;
+        };
 
-VSOutput VSMain(VSInput input) {
-    VSOutput output;
+        struct VSInput {
+            float3 position : POSITION;
+            float4 color : COLOR;
+            float3 normal : NORMAL;
+            float2 uv : TEXCOORD;
+        };
 
-    // Construct the MVP matrix manually in the shader
-    float4x4 modelMatrix = float4x4(
-        1.0f, 0.0f, 0.0f, 0.0f, // Identity matrix (no transformation)
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    );
+        struct VSOutput {
+            float4 position : SV_Position;
+            float4 color : COLOR;
+            float3 normal : NORMAL;
+            float2 uv : TEXCOORD;
+        };
 
-float4x4 viewMatrix = float4x4(
-    1.0f, 0.0f, 0.0f, 0.0f,  // Right
-    0.0f, 1.0f, 0.0f, 0.0f,  // Up
-    0.0f, 0.0f, 1.0f, 0.0f,  // Forward
-    0.0f, 0.0f, 5.0f, 1.0f   // Camera at Z = 5
-);
+        VSOutput VSMain(VSInput input) {
+            VSOutput output;
+    
+            // Transform object position to world space
+            float4 worldPosition = mul(float4(input.position, 1.0f), worldMatrix);
 
-float aspectRatio = 1280.0f / 720.0f; // Update as per your resolution
-float fov = 1.0f / tan(3.14159265359f / 4.0f); // 45 degrees FOV
-float nearPlane = 0.1f;
-float farPlane = 100.0f;
+            // Transform world position to view space
+            float4 viewPosition = mul(worldPosition, viewMatrix);
 
-float4x4 projectionMatrix = float4x4(
-    fov / aspectRatio, 0.0f, 0.0f, 0.0f,
-    0.0f, fov, 0.0f, 0.0f,
-    0.0f, 0.0f, farPlane / (farPlane - nearPlane), 1.0f,
-    0.0f, 0.0f, (-nearPlane * farPlane) / (farPlane - nearPlane), 0.0f
-);
+            // Transform view position to clip space
+            output.position = mul(viewPosition, projectionMatrix);
+    
+            output.color = input.color;
+            output.normal = input.normal;
+            output.uv = input.uv;
 
-
-    // Combine the matrices
-    float4x4 mvpMatrix = mul(modelMatrix, mul(viewMatrix, projectionMatrix));
-
-    // Transform the vertex position
-    output.position = mul(float4(input.position, 1.0f), mvpMatrix);
-
-    // Pass through other attributes
-    output.color = input.color;
-    output.normal = input.normal;
-    output.uv = input.uv;
-
-    return output;
-}
-
+            return output;
+        }
         )";
 
-    std::string pixelShaderCode = R"(
-struct PSInput {
-    float4 position : SV_Position;
-    float4 color    : COLOR;
-};
+    std::string pixelShaderCode = R"(    
+        Texture2D diffuse : register(t0);
+        SamplerState mainSampler : register(s0);
 
-float4 PSMain(PSInput input) : SV_Target {
-    return input.color; // Pass through the vertex color
-}
+        struct PSInput {
+            float4 position : SV_Position;
+            float4 color    : COLOR;
+            float3 normal   : NORMAL;
+            float2 uv       : TEXCOORD;
+        };
+
+        float4 PSMain(PSInput input) : SV_TARGET {
+            return diffuse.Sample(mainSampler, input.uv);
+        }
         )";
 
+    auto cam = Camera(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+
+    ObjectData objectData;
+
+    bool didUpload = false;
+
+    // 10x10 pixel checkerboard (RGBA8 layout)
+    const uint8_t* textureData;
+
+    std::shared_ptr<Texture> texture = nullptr;
+
+    std::shared_ptr<Sampler> sampler = nullptr;
 
 	auto Init(void* window, uint32_t width, uint32_t height) -> void {
-		FreeImage_Initialise();
-
 		// Create a device
 		device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, window, FRAME_COUNT);
+
+        FreeImage_Initialise();
+        FIBITMAP* bitmap = FreeImage_Load(FIF_PNG, "C:\\Users\\marce\\Downloads\\CustomUVChecker_byValle_1K.png");
+        bitmap = FreeImage_ConvertTo32Bits(bitmap);
+        FreeImage_FlipVertical(bitmap);
+        // Turn brga into rgba
+        textureData = FreeImage_GetBits(bitmap);
+
+        texture = device->CreateTexture(1024, 1024, (void*)textureData);
+
+        FreeImage_DeInitialise();
 
 		// Create frames (frames hold all render things that need to alter between frames)
 		for (int x = 0; x < FRAME_COUNT; x++)
@@ -167,7 +216,7 @@ float4 PSMain(PSInput input) : SV_Target {
             std::stringstream ss;
             ss << "Frame " << x;
 
-			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::RGBA8, ss.str());
+			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str());
 
             ss.clear();
             ss << "DepthBuffer " << x;
@@ -186,9 +235,8 @@ float4 PSMain(PSInput input) : SV_Target {
 
 		uiCommandList = device->CreateCommandList(CommandListType::Graphics, "UICommandList");
 
-        transferCommandList = device->CreateCommandList(CommandListType::Transfer, "TransferCommandList");
-
 		graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT);
+        uploadContext = device->CreateUploadContext();
 
         rootSignature = device->GetRootSignature();
 
@@ -199,9 +247,20 @@ float4 PSMain(PSInput input) : SV_Target {
 
         const UINT vertexBufferSize = sizeof(cubeVertices);
 
-        vertexBuffer = device->CreateVertexBuffer(cubeVertices, sizeof(Vertex) * 8, sizeof(Vertex));
-
+        vertexBuffer = device->CreateVertexBuffer(cubeVertices, sizeof(Vertex) * 8, sizeof(Vertex), true);
         indexBuffer = device->CreateIndexBuffer(cubeIndices, 36 * sizeof(uint32_t));
+        sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
+
+        cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
+
+        objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectData), "ObjectBuffer");
+
+        glm::mat4 scale = glm::identity<glm::mat4>();
+        glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f)); // Translation
+        glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // 45° around Y-axis
+        glm::mat4 rotationMatrix = glm::mat4_cast(quaternion); // Quaternion to rotation matrix
+        glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix); // Combine rotation and translation
+        objectData.WorldMatrix = finalTransform; // Update the world matrix
 	}
 
 	auto Shutdown() -> void {
@@ -210,19 +269,18 @@ float4 PSMain(PSInput input) : SV_Target {
 
         // Clear the contexts -> These hold swapchains and other resources
         graphicsContext = nullptr;
+        uploadContext = nullptr;
 
         // Close all command lists
         opaqueCommandList->Close();
         transparentCommandList->Close();
         shadowCommandList->Close();
         uiCommandList->Close();
-        transferCommandList->Close();
 
         opaqueCommandList = nullptr;
         transparentCommandList = nullptr;
         shadowCommandList = nullptr;
         uiCommandList = nullptr;
-        transferCommandList = nullptr;
 
         // Destroy all resources (render targets, depth buffers, etc)
         for (auto& frame : frames)
@@ -232,13 +290,16 @@ float4 PSMain(PSInput input) : SV_Target {
 
 		// Cleanup
 		device = nullptr;
-
-        FreeImage_DeInitialise();
 	}
 
 	auto PreFrame() -> void {
 		auto renderTarget = frames[frameIndex]->RenderTarget();
 		auto depthBuffer = frames[frameIndex]->DepthBuffer();
+
+        opaqueCommandList->Begin();
+        transparentCommandList->Begin();
+        shadowCommandList->Begin();
+        uiCommandList->Begin();
 
         opaqueCommandList->SetRootSignature(rootSignature);
         opaqueCommandList->SetPipelineState(defaultPipelineState);
@@ -248,17 +309,51 @@ float4 PSMain(PSInput input) : SV_Target {
         uiCommandList->SetRootSignature(rootSignature);
 
 		opaqueRenderPass->Begin(opaqueCommandList, renderTarget, depthBuffer);
+
+        graphicsContext->Begin();
+        uploadContext->Begin();
+
+        if (!didUpload) {
+            uploadContext->Upload(vertexBuffer);
+            uploadContext->Upload(indexBuffer);
+            uploadContext->Upload(texture);
+        }
 	}
 
-	auto Update(float deltaTime) -> void {
-		opaqueRenderPass->Execute();
+    auto Update(double deltaTime) -> void {
+        uploadContext->Finish();
+
+        if (!didUpload) {
+            graphicsContext->TransitionVertexBuffer(vertexBuffer);
+            graphicsContext->TransitionIndexBuffer(indexBuffer);
+            graphicsContext->TransitionTexture(texture);
+        }
+
+        auto cameraData = cam.GetCameraData();
+
+        cameraBuffer->Update(&cameraData, sizeof(CameraData));
+
+        objectData.WorldMatrix = glm::transpose(glm::rotate(glm::transpose(objectData.WorldMatrix), glm::radians(25.0f) * (float)deltaTime, glm::vec3(1, 1, 0.0f)));
+
+        // Update buffer with new data
+        objectBuffer->Update(&objectData, sizeof(ObjectData));
 
         opaqueCommandList->BindVertexBuffer(vertexBuffer, 0);
         opaqueCommandList->BindIndexBuffer(indexBuffer);
 
+        opaqueCommandList->BindConstantBuffer(cameraBuffer, 0);
+        opaqueCommandList->BindConstantBuffer(objectBuffer, 1);
+
+        opaqueCommandList->BindTexture(texture, 1);
+        opaqueCommandList->BindSampler(sampler, 2);
+
         opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
 
-        opaqueCommandList->DrawIndexed(36, 0, 0);
+		opaqueRenderPass->Execute();
+
+        for (int x = 0; x < 1; x++) {
+            opaqueCommandList->DrawIndexed(36, 0, 0);
+        }
 	}
 
 	auto PostFrame() -> void {
@@ -268,7 +363,6 @@ float4 PSMain(PSInput input) : SV_Target {
         transparentCommandList->Close();
         shadowCommandList->Close();
         uiCommandList->Close();
-        transferCommandList->Close();
 
         graphicsContext->ExecuteCommandLists({ opaqueCommandList });
         graphicsContext->CopyToBackBuffer(frames[frameIndex]->RenderTarget());
@@ -279,9 +373,9 @@ float4 PSMain(PSInput input) : SV_Target {
         shadowCommandList->Reset();
         uiCommandList->Reset();
 
-        transferCommandList->Reset();
-
         frameIndex = (frameIndex + 1) % FRAME_COUNT;
+
+        didUpload = true;
 	}
 
 	auto LoadShader(
@@ -298,8 +392,8 @@ float4 PSMain(PSInput input) : SV_Target {
 		device->DestroyShader(shader);
 	}
 
-	auto CreateVertexBuffer(const void* data, size_t size, size_t stride) -> VertexBufferHandle {
-		auto buffer = device->CreateVertexBuffer(data, size, stride);
+	auto CreateVertexBuffer(const void* data, size_t size, size_t stride, bool isStatic) -> VertexBufferHandle {
+		auto buffer = device->CreateVertexBuffer(data, size, stride, isStatic);
 		auto id = buffer->Id();
 
 		vertexBuffers[id] = buffer;
@@ -326,4 +420,16 @@ float4 PSMain(PSInput input) : SV_Target {
 
 	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void {
 	}
+
+    auto SetCamera(
+        CameraHandle handle,
+        float fov,
+        float aspectRatio,
+        float near,
+        float far,
+        float pos[3],
+        float rot[3]
+    ) -> void {
+
+    }
 }

@@ -10,12 +10,66 @@
 namespace playground::rendering::d3d12 {
     class D3D12VertexBuffer : public rendering::VertexBuffer {
     public:
-        D3D12VertexBuffer(Microsoft::WRL::ComPtr<ID3D12Device9> device, const void* data, size_t size, size_t stride) : rendering::VertexBuffer(size) {
-            const UINT vertexBufferSize = (size + 255) & ~255;
 
+        auto FillBuffer(
+            const void* data,
+            size_t size,
+            Microsoft::WRL::ComPtr<ID3D12Device9> device,
+            D3D12_RESOURCE_DESC bufferDesc,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& buffer
+        ) {
             // Create a default heap resource for the vertex buffer
             D3D12_HEAP_PROPERTIES heapProps = {};
             heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+            HRESULT hr = device->CreateCommittedResource(
+                &heapProps,
+                D3D12_HEAP_FLAG_NONE,
+                &bufferDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(&buffer)
+            );
+            if (FAILED(hr)) {
+                throw std::runtime_error("Failed to create vertex buffer resource.");
+            }
+
+            void* mappedData = nullptr;
+            D3D12_RANGE readRange = {};
+            buffer->Map(0, &readRange, &mappedData);
+            memcpy(mappedData, data, size);
+        }
+
+        auto PrepareStaticBuffer(
+            Microsoft::WRL::ComPtr<ID3D12Device9> device,
+            D3D12_RESOURCE_DESC bufferDesc,
+            Microsoft::WRL::ComPtr<ID3D12Resource>& buffer
+        ) {
+            // Create a default heap resource for the vertex buffer
+            D3D12_HEAP_PROPERTIES heapProps = {};
+            heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+            HRESULT hr = device->CreateCommittedResource(
+                &heapProps,
+                D3D12_HEAP_FLAG_NONE,
+                &bufferDesc,
+                D3D12_RESOURCE_STATE_COMMON,
+                nullptr,
+                IID_PPV_ARGS(&buffer)
+            );
+            if (FAILED(hr)) {
+                throw std::runtime_error("Failed to create vertex buffer resource.");
+            }
+        }
+
+        D3D12VertexBuffer(
+            Microsoft::WRL::ComPtr<ID3D12Device9> device,
+            const void* data,
+            size_t size,
+            size_t stride,
+            bool isStatic
+        ) : rendering::VertexBuffer(size) {
+            const UINT vertexBufferSize = (size + 255) & ~255;
 
             D3D12_RESOURCE_DESC bufferDesc = {};
             bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -29,27 +83,17 @@ namespace playground::rendering::d3d12 {
             bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
             bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-            HRESULT hr = device->CreateCommittedResource(
-                &heapProps,
-                D3D12_HEAP_FLAG_NONE,
-                &bufferDesc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(&_vertexBuffer)
-            );
-            if (FAILED(hr)) {
-                throw std::runtime_error("Failed to create vertex buffer resource.");
+            FillBuffer(data, size, device, bufferDesc, isStatic ? _stagingBuffer : _vertexBuffer);
+
+            if (isStatic) {
+                PrepareStaticBuffer(device, bufferDesc, _vertexBuffer);
+
+                _stagingBuffer->Unmap(0, nullptr);
             }
 
             _vertexBufferView.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
             _vertexBufferView.StrideInBytes = stride;
             _vertexBufferView.SizeInBytes = vertexBufferSize;
-
-            void* mappedData = nullptr;
-            D3D12_RANGE readRange = {};
-            _vertexBuffer->Map(0, &readRange, &mappedData);
-            memcpy(mappedData, data, size);
-            _vertexBuffer->Unmap(0, nullptr);
         };
 
         ~D3D12VertexBuffer() {
@@ -74,7 +118,16 @@ namespace playground::rendering::d3d12 {
             return _vertexBuffer;
         }
 
+        auto StagingBuffer() const -> Microsoft::WRL::ComPtr<ID3D12Resource> {
+            return _stagingBuffer;
+        }
+
+        auto Free() -> void {
+            _stagingBuffer = nullptr;
+        }
+
     private:
+        Microsoft::WRL::ComPtr<ID3D12Resource> _stagingBuffer;
         Microsoft::WRL::ComPtr<ID3D12Resource> _vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW _vertexBufferView;
     };
