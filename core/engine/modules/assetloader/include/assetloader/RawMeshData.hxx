@@ -11,13 +11,14 @@ namespace playground::assetloader
 {
     struct RawVertex {
         float x, y, z;
+        float cr, cg, cb, ca;
         float nx, ny, nz;
         float u, v;
 
         template <class Archive>
         void serialize(Archive& ar)
         {
-            ar(x, y, z, nx, ny, nz, u, v);
+            ar(x, y, z, cr, cg, cb, ca, nx, ny, nz, u, v);
         }
     };
 

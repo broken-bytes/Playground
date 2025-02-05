@@ -66,9 +66,11 @@ namespace playground::rendering::d3d12 {
             D3D12_HEAP_PROPERTIES heapProps = {};
             heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 
+            const uint32_t bufferSize = size * sizeof(uint32_t);
+
             D3D12_RESOURCE_DESC bufferDesc = {};
             bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-            bufferDesc.Width = size; // Exact size of the index buffer
+            bufferDesc.Width = bufferSize; // Exact size of the index buffer
             bufferDesc.Height = 1;
             bufferDesc.DepthOrArraySize = 1;
             bufferDesc.MipLevels = 1;
@@ -89,13 +91,13 @@ namespace playground::rendering::d3d12 {
                 throw std::runtime_error("Failed to create index buffer.");
             }
 
-            FillBuffer(data, size, device, bufferDesc, _stagingBuffer);
+            FillBuffer(data, bufferSize, device, bufferDesc, _stagingBuffer);
             PrepareStaticBuffer(device, bufferDesc, _indexBuffer);
             _stagingBuffer->Unmap(0, nullptr);        
 
             // Create the index buffer view
             _indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
-            _indexBufferView.SizeInBytes = size;
+            _indexBufferView.SizeInBytes = bufferSize;
             _indexBufferView.Format = DXGI_FORMAT_R32_UINT;       
         };
 

@@ -47,9 +47,6 @@ namespace playground::rendering {
 
 	std::unique_ptr<OpaqueRenderPass> opaqueRenderPass = nullptr;
 
-    std::shared_ptr<VertexBuffer> vertexBuffer = nullptr;
-    std::shared_ptr<IndexBuffer> indexBuffer = nullptr;
-
     std::shared_ptr<RootSignature> rootSignature = nullptr;
 
     std::shared_ptr<PipelineState> defaultPipelineState = nullptr;
@@ -60,68 +57,6 @@ namespace playground::rendering {
 
     std::shared_ptr<ConstantBuffer> objectBuffer = nullptr;
 
-
-    // Cube vertices
-    Vertex cubeVertices[] =
-    {
-        // Front face
-        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { 0, 0, 1 }, { 0, 1 } },
-        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 0, 0, 1 }, { 1, 1 } },
-        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 0, 0, 1 }, { 1, 0 } },
-        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { 0, 0, 1 }, { 0, 0 } },
-
-        // Back face
-        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { 0, 0, -1 }, { 0, 1 } },
-        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 0, 0, -1 }, { 0, 0 } },
-        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 1, 0 } },
-        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { 0, 0, -1 }, { 1, 1 } },
-
-        // Left face
-        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { -1, 0, 0 }, { 0, 1 } },
-        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { -1, 0, 0 }, { 1, 1 } },
-        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { -1, 0, 0 }, { 1, 0 } },
-        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { -1, 0, 0 }, { 0, 0 } },
-
-        // Right face
-        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 1, 0, 0 }, { 0, 1 } },
-        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 1, 0, 0 }, { 0, 0 } },
-        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 1, 0, 0 }, { 1, 0 } },
-        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 1, 0, 0 }, { 1, 1 } },
-
-        // Top face
-        { { -0.5f,  0.5f, -0.5f }, { 0, 0, 0, 1 }, { 0, 1, 0 }, { 0, 1 } },
-        { { -0.5f,  0.5f,  0.5f }, { 1, 1, 0, 1 }, { 0, 1, 0 }, { 0, 0 } },
-        { {  0.5f,  0.5f,  0.5f }, { 0, 0, 1, 1 }, { 0, 1, 0 }, { 1, 0 } },
-        { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 1, 0 }, { 1, 1 } },
-
-        // Bottom face
-        { { -0.5f, -0.5f, -0.5f }, { 1, 0, 1, 1 }, { 0, -1, 0 }, { 0, 1 } },
-        { { -0.5f, -0.5f,  0.5f }, { 1, 0, 0, 1 }, { 0, -1, 0 }, { 0, 0 } },
-        { {  0.5f, -0.5f,  0.5f }, { 0, 1, 0, 1 }, { 0, -1, 0 }, { 1, 0 } },
-        { {  0.5f, -0.5f, -0.5f }, { 0, 1, 1, 1 }, { 0, -1, 0 }, { 1, 1 } },
-    };
-
-
-    // Cube indices (2 triangles per face)
-    uint32_t cubeIndices[] = {
-        // Front face
-        0, 1, 2,  2, 3, 0,
-
-        // Back face
-        5, 4, 7,  7, 6, 5,
-
-        // Left face
-        4, 0, 3,  3, 7, 4,
-
-        // Right face
-        1, 5, 6,  6, 2, 1,
-
-        // Top face
-        3, 2, 6,  6, 7, 3,
-
-        // Bottom face
-        4, 5, 1,  1, 0, 4
-    };
 
     std::string vertexShaderCode = R"(
         cbuffer CameraBuffer : register(b0) {
@@ -193,6 +128,8 @@ namespace playground::rendering {
     bool textureCreated = false;
 
     std::shared_ptr<Texture> targetTexture = nullptr;
+    std::shared_ptr<VertexBuffer> vertexBuffer = nullptr;
+    std::shared_ptr<IndexBuffer> indexBuffer = nullptr;
 
     std::shared_ptr<Sampler> sampler = nullptr;
 
@@ -235,10 +172,6 @@ namespace playground::rendering {
 		// Create the render passes
 		opaqueRenderPass = std::make_unique<OpaqueRenderPass>();
 
-        const UINT vertexBufferSize = sizeof(cubeVertices);
-
-        vertexBuffer = device->CreateVertexBuffer(cubeVertices, sizeof(Vertex) * 8, sizeof(Vertex), true);
-        indexBuffer = device->CreateIndexBuffer(cubeIndices, 36 * sizeof(uint32_t));
         sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
 
         cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
@@ -303,12 +236,11 @@ namespace playground::rendering {
         graphicsContext->Begin();
         uploadContext->Begin();
 
-        if (!didUpload) {
+        if (!textureUploaded && textureCreated) {
             uploadContext->Upload(vertexBuffer);
             uploadContext->Upload(indexBuffer);
-        }
-
-        if (!textureUploaded && textureCreated) {
+            graphicsContext->TransitionVertexBuffer(vertexBuffer);
+            graphicsContext->TransitionIndexBuffer(indexBuffer);
             uploadContext->Upload(targetTexture);
             graphicsContext->TransitionTexture(targetTexture);
             textureUploaded = true;
@@ -319,8 +251,7 @@ namespace playground::rendering {
         uploadContext->Finish();
 
         if (!didUpload) {
-            graphicsContext->TransitionVertexBuffer(vertexBuffer);
-            graphicsContext->TransitionIndexBuffer(indexBuffer);
+
         }
 
         auto cameraData = cam.GetCameraData();
@@ -332,13 +263,13 @@ namespace playground::rendering {
         // Update buffer with new data
         objectBuffer->Update(&objectData, sizeof(ObjectData));
 
-        opaqueCommandList->BindVertexBuffer(vertexBuffer, 0);
-        opaqueCommandList->BindIndexBuffer(indexBuffer);
 
         opaqueCommandList->BindConstantBuffer(cameraBuffer, 0);
         opaqueCommandList->BindConstantBuffer(objectBuffer, 1);
 
         if (textureUploaded) {
+            opaqueCommandList->BindVertexBuffer(vertexBuffer, 0);
+            opaqueCommandList->BindIndexBuffer(indexBuffer);
             opaqueCommandList->BindTexture(targetTexture, 1);
         }
         opaqueCommandList->BindSampler(sampler, 2);
@@ -348,7 +279,7 @@ namespace playground::rendering {
 		opaqueRenderPass->Execute();
 
         for (int x = 0; x < 1; x++) {
-            opaqueCommandList->DrawIndexed(36, 0, 0);
+            opaqueCommandList->DrawIndexed(indexBuffer->Size(), 0, 0);
         }
 	}
 
@@ -415,7 +346,13 @@ namespace playground::rendering {
 	}
 
     auto UploadMesh(const assetloader::RawMeshData& mesh) -> std::pair<VertexBufferHandle, IndexBufferHandle> {
-        return { 0, 0 };
+        const UINT vertexBufferSize = mesh.vertices.size();
+        const UINT indexBufferSize = mesh.indices.size();
+
+        vertexBuffer = device->CreateVertexBuffer(mesh.vertices.data(), sizeof(Vertex) * vertexBufferSize, sizeof(Vertex), true);
+        indexBuffer = device->CreateIndexBuffer(mesh.indices.data(), indexBufferSize);
+
+        return { vertexBuffer->Id(), indexBuffer->Id() };
     }
 
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle {

@@ -8,7 +8,7 @@ namespace playground::rendering {
 
 		auto Size() const -> size_t { return _size; }
 
-	private:
+	protected:
 		size_t _size;
 	};
 }

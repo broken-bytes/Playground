@@ -41,10 +41,15 @@
                 "C:\\Users\\marce\\Desktop\\TestArchive.pak",
                 "Checker"
             );
-
             auto texture = playground::assetloader::LoadTexture(buffer);
-
             playground::rendering::UploadTexture(texture);
+
+            auto meshBuffer = playground::io::LoadFileFromArchive(
+                "C:\\Users\\marce\\Desktop\\TestArchive.pak",
+                "Cube"
+            );
+            auto mesh = playground::assetloader::LoadMeshes(meshBuffer);
+            playground::rendering::UploadMesh(mesh.front());
 
             uploaded = true;
         }

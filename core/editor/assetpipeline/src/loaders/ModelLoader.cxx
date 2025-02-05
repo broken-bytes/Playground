@@ -53,9 +53,22 @@ namespace playground::editor::assetpipeline::loaders::modelloader {
 				vertex.ny = mesh->mNormals[i].y;
 				vertex.nz = mesh->mNormals[i].z;
 
+                if (mesh->mColors[0] != nullptr) {
+                    vertex.cb = mesh->mColors[0][i].r;
+                    vertex.cg = mesh->mColors[0][i].g;
+                    vertex.cr = mesh->mColors[0][i].b;
+                    vertex.ca = mesh->mColors[0][i].a;
+                }
+                else {
+                    vertex.cb = 1;
+                    vertex.cg = 1;
+                    vertex.cr = 1;
+                    vertex.ca = 1;
+                }
+
 				if (mesh->mTextureCoords[0]) {
-					vertex.u = mesh->mTextureCoords[0][0].x;
-					vertex.v = mesh->mTextureCoords[0][0].y;
+					vertex.u = mesh->mTextureCoords[0][i].x;
+					vertex.v = mesh->mTextureCoords[0][i].y;
 				}
 				else {
 					vertex.u = 0;

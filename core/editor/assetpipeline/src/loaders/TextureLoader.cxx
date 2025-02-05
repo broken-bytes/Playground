@@ -15,7 +15,7 @@ namespace playground::editor::assetpipeline::loaders::textureloader {
         int height = FreeImage_GetHeight(result);
         auto bbp = FreeImage_GetBPP(result);
 
-        FreeImage_FlipVertical(result);
+        //FreeImage_FlipVertical(result);
         RGBQUAD pix;
         FreeImage_GetPixelColor(result, 60, 0, &pix);
 
