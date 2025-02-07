@@ -25,10 +25,7 @@ namespace playground::rendering::d3d12
         _bufferCount = bufferCount;
         _frameIndex = 0;
 
-        auto props = SDL_GetWindowProperties(static_cast<SDL_Window*>(window));
-        HWND hwnd = static_cast<HWND>(SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-
-        _swapChain = std::make_unique<D3D12SwapChain>(queue, width, height, hwnd);
+        _swapChain = std::make_unique<D3D12SwapChain>(queue, width, height, reinterpret_cast<HWND>(window));
 
         device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);

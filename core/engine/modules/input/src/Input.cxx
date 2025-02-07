@@ -14,11 +14,6 @@ namespace playground::input {
 	}
 
 	auto Update() -> void {
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_EVENT_QUIT) {
-				events::Emit(new events::QuitEvent());
-			}
-		}
+		
 	}
 }

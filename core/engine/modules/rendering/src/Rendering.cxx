@@ -135,7 +135,7 @@ namespace playground::rendering {
 
 	auto Init(void* window, uint32_t width, uint32_t height) -> void {
 		// Create a device
-		device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, window, FRAME_COUNT);
+		device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
 
 		// Create frames (frames hold all render things that need to alter between frames)
 		for (int x = 0; x < FRAME_COUNT; x++)

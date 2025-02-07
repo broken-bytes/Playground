@@ -1,7 +1,7 @@
 #include <cstdint>
 
 extern "C" {
-	typedef void (*LookupTableDelegate)(const char*, void*);
+    typedef void (__cdecl *LookupTableDelegate)(const char*, void*);
 
 	struct {
 		void* Window;

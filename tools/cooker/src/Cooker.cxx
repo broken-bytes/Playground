@@ -27,6 +27,8 @@ int main(int argc, char** argv) {
         auto meshes = playground::editor::assetpipeline::loaders::modelloader::LoadFromFile(argv[1]);
         buffer = playground::editor::assetpipeline::CookModel(meshes);
 
+        auto animations = playground::editor::assetpipeline::loaders::modelloader::LoadAnimationsFromFile(argv[1]);
+
         playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
     }
     else if (std::strcmp(argv[3], "Texture") == 0) {

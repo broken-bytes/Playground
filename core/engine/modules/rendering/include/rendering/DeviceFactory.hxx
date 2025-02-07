@@ -6,13 +6,13 @@
 namespace playground::rendering {
 	class DeviceFactory {
 	public:
-		static auto CreateDevice(RenderBackendType backend, void* window, uint8_t frameCount) -> std::shared_ptr<Device> {
+		static auto CreateDevice(RenderBackendType backend, uint8_t frameCount) -> std::shared_ptr<Device> {
 			switch (backend)
 			{
 			case playground::rendering::RenderBackendType::Vulkan:
 				break;
 			case playground::rendering::RenderBackendType::D3D12:
-				return std::make_shared<d3d12::D3D12Device>(window, frameCount);
+				return std::make_shared<d3d12::D3D12Device>(frameCount);
 				break;
 			default:
 				break;

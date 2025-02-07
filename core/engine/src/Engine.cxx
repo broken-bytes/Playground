@@ -12,50 +12,34 @@
 #include <io/IO.hxx>
 
 [[noreturn]] void PlaygroundMain(const PlaygroundConfig& config) {
-	playground::audio::Init();
-	playground::input::Init();
-	auto window = playground::system::Init(config.Window);
-	playground::rendering::Init(window, config.Width, config.Height);
+    playground::audio::Init();
+    playground::input::Init();
+    auto window = playground::system::Init(config.Window);
+    playground::rendering::Init(window, config.Width, config.Height);
 
-	Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
-		if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
-			playground::rendering::Shutdown();
-			exit(0);
-		}
-	});
-
-    double deltaTime = 0.0f;
-
-
-    bool uploaded = false;
-
-	while (true) {
-		auto now = std::chrono::high_resolution_clock::now();
-
-		playground::input::Update();
-		playground::audio::Update();
-		playground::rendering::PreFrame();
-
-        if (!uploaded) {
-            auto buffer = playground::io::LoadFileFromArchive(
-                "C:\\Users\\marce\\Desktop\\TestArchive.pak",
-                "Checker"
-            );
-            auto texture = playground::assetloader::LoadTexture(buffer);
-            playground::rendering::UploadTexture(texture);
-
-            auto meshBuffer = playground::io::LoadFileFromArchive(
-                "C:\\Users\\marce\\Desktop\\TestArchive.pak",
-                "Cube"
-            );
-            auto mesh = playground::assetloader::LoadMeshes(meshBuffer);
-            playground::rendering::UploadMesh(mesh.front());
-
-            uploaded = true;
+    Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
+        if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
+            playground::rendering::Shutdown();
+            exit(0);
         }
-		playground::rendering::Update(deltaTime);
-		playground::rendering::PostFrame();
+        });
 
-		deltaTime = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - now).count();
-	}
+    auto buffer = playground::io::LoadFileFromArchive(
+        "C:\\Users\\marce\\Desktop\\TestArchive.pak",
+        "Checker"
+    );
+    auto texture = playground::assetloader::LoadTexture(buffer);
+    playground::rendering::UploadTexture(texture);
+
+    auto meshBuffer = playground::io::LoadFileFromArchive(
+        "C:\\Users\\marce\\Desktop\\TestArchive.pak",
+        "Cube"
+    );
+    auto mesh = playground::assetloader::LoadMeshes(meshBuffer);
+    playground::rendering::UploadMesh(mesh.front());
+
+
+    config.Delegate("Rendering_PreFrame\0", playground::rendering::PreFrame);
+    config.Delegate("Rendering_Update\0", playground::rendering::Update);
+    config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);
 }

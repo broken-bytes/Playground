@@ -13,7 +13,7 @@
 namespace playground::rendering::d3d12 {
     class D3D12Device : public rendering::Device, public std::enable_shared_from_this<D3D12Device> {
     public:
-        explicit D3D12Device(void* window, uint8_t frameCount);
+        explicit D3D12Device(uint8_t frameCount);
         ~D3D12Device();
 
         auto Flush() -> void override;

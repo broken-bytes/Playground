@@ -24,20 +24,6 @@ namespace playground::editor::assetpipeline::loaders::modelloader {
 		std::vector<assetloader::RawVertex> vertices;
 		std::vector<uint32_t> indices = {};
 
-		// Process animations
-		for (int x = 0; x < scene->mNumAnimations; x++) {
-			aiAnimation* animation = scene->mAnimations[x];
-			// Process channels
-			for (int i = 0; i < animation->mNumChannels; i++) {
-				aiNodeAnim* channel = animation->mChannels[i];
-				// Process keyframes
-				for (int j = 0; j < channel->mNumPositionKeys; j++) {
-					aiVectorKey key = channel->mPositionKeys[j];
-					// Process keyframe
-				}
-			}
-		}
-
 		for (int x = 0; x < scene->mNumMeshes; x++) {
 			// Process mesh
 			aiMesh* mesh = scene->mMeshes[x];
@@ -98,4 +84,75 @@ namespace playground::editor::assetpipeline::loaders::modelloader {
 
 		return meshes;
 	}
+
+    auto LoadAnimationsFromFile(
+        std::filesystem::path path
+    ) -> std::vector<assetloader::RawAnimationData> {
+        std::vector<assetloader::RawAnimationData> animations = {};
+
+        Assimp::Importer importer;
+        const aiScene* scene = importer.ReadFile(path.string(), 0);
+
+        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+            auto err = importer.GetErrorString();
+            throw std::runtime_error(err);
+        }
+        for (int x = 0; x < scene->mNumAnimations; x++) {
+            aiAnimation* animation = scene->mAnimations[x];
+
+            assetloader::RawAnimationData rawAnimation = {};
+            rawAnimation.name = animation->mName.C_Str();  
+            rawAnimation.duration = animation->mDuration;  
+            rawAnimation.framesPerSecond = animation->mTicksPerSecond;
+
+            for (int i = 0; i < animation->mNumChannels; i++) {
+                aiNodeAnim* channel = animation->mChannels[i];
+
+                assetloader::RawAnimationChannel rawChannel = {};
+                rawChannel.nodeName = channel->mNodeName.C_Str();
+
+                // Process position keyframes
+                for (int j = 0; j < channel->mNumPositionKeys; j++) {
+                    aiVectorKey key = channel->mPositionKeys[j];
+                    assetloader::RawKeyframe keyframe = {};
+                    keyframe.time = key.mTime;
+                    keyframe.px = key.mValue.x;
+                    keyframe.py = key.mValue.y;
+                    keyframe.pz = key.mValue.z;
+                    rawChannel.positionKeys.push_back(keyframe);
+                }
+
+                // Process rotation keyframes
+                for (int j = 0; j < channel->mNumRotationKeys; j++) {
+                    aiQuatKey key = channel->mRotationKeys[j];
+                    assetloader::RawKeyframe keyframe = {};
+                    keyframe.time = key.mTime;
+                    keyframe.rx = key.mValue.x;
+                    keyframe.ry = key.mValue.y;
+                    keyframe.rz = key.mValue.z;
+                    keyframe.rw = key.mValue.w;
+
+                    rawChannel.rotationKeys.push_back(keyframe);
+                }
+
+                // Process scaling keyframes
+                for (int j = 0; j < channel->mNumScalingKeys; j++) {
+                    aiVectorKey key = channel->mScalingKeys[j];
+                    assetloader::RawKeyframe keyframe = {};
+                    keyframe.time = key.mTime;
+                    keyframe.sx = key.mValue.x;
+                    keyframe.sy = key.mValue.y;
+                    keyframe.sz = key.mValue.z;
+
+                    rawChannel.scalingKeys.push_back(keyframe);
+                }
+
+                rawAnimation.channels.push_back(rawChannel);
+            }
+
+            animations.push_back(rawAnimation);
+        }
+
+        return animations;
+    }
 }

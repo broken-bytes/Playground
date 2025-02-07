@@ -1,0 +1,12 @@
+H:\Projects\Playground\scripting\engine\Playground\Playground\bin\Debug\net9.0\Playground.deps.json
+H:\Projects\Playground\scripting\engine\Playground\Playground\bin\Debug\net9.0\Playground.dll
+H:\Projects\Playground\scripting\engine\Playground\Playground\bin\Debug\net9.0\Playground.pdb
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.GeneratedMSBuildEditorConfig.editorconfig
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.AssemblyInfoInputs.cache
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.AssemblyInfo.cs
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.csproj.CoreCompileInputs.cache
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.sourcelink.json
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.dll
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\refint\Playground.dll
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.pdb
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\ref\Playground.dll

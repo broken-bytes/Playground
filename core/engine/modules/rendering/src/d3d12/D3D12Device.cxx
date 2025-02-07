@@ -57,7 +57,7 @@ namespace playground::rendering::d3d12 {
         throw std::runtime_error("Failed to enumerate GPU preferences");
     }
 
-    D3D12Device::D3D12Device(void* window, uint8_t frameCount) : Device(frameCount) {
+    D3D12Device::D3D12Device(uint8_t frameCount) : Device(frameCount) {
         // Create adapter
         _adapter = GetHardwareAdapter();
         // Create device
