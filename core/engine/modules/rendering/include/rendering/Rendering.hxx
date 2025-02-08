@@ -18,11 +18,15 @@
 
 namespace playground::rendering {
 	// Lifecycle
-	auto Init(void* window, uint32_t width, uint32_t height) -> void;
+	auto Init(void* window, uint32_t width, uint32_t height, bool offscreen) -> void;
 	auto Shutdown() -> void;
     auto PreFrame() -> void;
 	auto Update(double deltaTime) -> void;
 	auto PostFrame() -> void;
+
+    /// Readback the current frame buffer
+    /// When data is nullptr, the function will return the size of the buffer required to readback the frame buffer
+    auto ReadbackBuffer(void* data) -> size_t;
 
 	// Resource creation
 	auto CreateVertexBuffer(const void* data, size_t size, size_t stride, bool isStatic) -> VertexBufferHandle;
@@ -37,13 +41,49 @@ namespace playground::rendering {
 	auto UnloadShader(uint64_t shader) -> void;
 	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void;
 
-    auto SetCamera(
-        CameraHandle handle,
+
+    auto CreateCamera(
         float fov,
         float aspectRatio,
         float near,
         float far,
         float pos[3],
-        float rot[3]
+        float rot[3],
+        uint32_t renderTargetTextureId
+    ) -> CameraHandle;
+
+    auto SetCameraFOV(
+        CameraHandle handle,
+        float fov
+    ) -> void;
+
+    auto SetCameraAspectRatio(
+        CameraHandle handle,
+        float aspectRatio
+    ) -> void;
+
+    auto SetCameraNear(
+        CameraHandle handle,
+        float near
+    ) -> void;
+
+    auto SetCameraFar(
+        CameraHandle handle,
+        float far
+    ) -> void;
+
+    auto SetCameraPosition(
+        CameraHandle handle,
+        float pos[3]
+    ) -> void;
+
+    auto SetCameraRotation(
+        CameraHandle handle,
+        float rot[4]
+    ) -> void;
+
+    auto SetCameraRenderTarget(
+        CameraHandle handle,
+        uint32_t texture
     ) -> void;
 }

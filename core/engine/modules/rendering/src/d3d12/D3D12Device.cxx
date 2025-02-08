@@ -122,7 +122,7 @@ namespace playground::rendering::d3d12 {
         _dsvHeaps = nullptr;
     }
 
-    auto D3D12Device::CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext>
+    auto D3D12Device::CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount, bool offscreen) -> std::unique_ptr<GraphicsContext>
     {
         return std::make_unique<D3D12GraphicsContext>(
             _device,
@@ -130,7 +130,8 @@ namespace playground::rendering::d3d12 {
             window,
             width,
             height,
-            bufferCount
+            bufferCount,
+            offscreen
         );
     }
 
@@ -194,7 +195,8 @@ namespace playground::rendering::d3d12 {
         uint32_t width,
         uint32_t height,
         TextureFormat format,
-        std::string name
+        std::string name,
+        bool isCPUReadable
     ) -> std::shared_ptr<RenderTarget>
     {
         ComPtr<ID3D12Resource> rtv = nullptr;
@@ -211,6 +213,10 @@ namespace playground::rendering::d3d12 {
         rtDesc.SampleDesc.Quality = 0;
         rtDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         rtDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+        if (isCPUReadable) {
+            rtDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        }
 
         D3D12_CLEAR_VALUE clearValue = {};
         clearValue.Format = DXGIFormatFrom(format);

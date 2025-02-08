@@ -16,6 +16,7 @@
 #include "rendering/ConstantBuffer.hxx"
 #include "rendering/Texture.hxx"
 #include "rendering/Sampler.hxx"
+#include "rendering/ReadbackBuffer.hxx"
 
 namespace playground::rendering {
 	class CommandList {

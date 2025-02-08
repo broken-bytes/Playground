@@ -11,11 +11,11 @@
     "cereal",
     "concurrentqueue",
     "directx-dxc",
+    "directx-headers",
     "freealut",
     "freeimage",
     "glm",
     "gtest",
-    "joltphysics",
     "libjpeg-turbo",
     "libpng",
     "libsodium",
@@ -23,11 +23,12 @@
     "libzip",
     "nlohmann-json",
     "openal-soft",
+    "physx",
     "rmlui",
     "sdl3",
     "spdlog",
     "sqlite3",
     "stduuid",
-    "directx-headers"
+    "stb"
   ]
 }

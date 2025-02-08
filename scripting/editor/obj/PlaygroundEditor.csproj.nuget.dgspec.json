@@ -79,6 +79,10 @@
               "target": "Package",
               "version": "[11.2.1, )"
             },
+            "StbSharp": {
+              "target": "Package",
+              "version": "[0.7.2.38, )"
+            },
             "Svg.Skia": {
               "target": "Package",
               "version": "[2.0.0.4, )"

@@ -75,3 +75,4 @@ H:\Projects\Playground\scripting\editor\bin\Debug\net9.0\SkiaSharp.HarfBuzz.dll
 H:\Projects\Playground\scripting\editor\bin\Debug\net9.0\Svg.Skia.dll
 H:\Projects\Playground\scripting\editor\bin\Debug\net9.0\Playground.dll
 H:\Projects\Playground\scripting\editor\bin\Debug\net9.0\Playground.pdb
+H:\Projects\Playground\scripting\editor\bin\Debug\net9.0\StbSharp.dll

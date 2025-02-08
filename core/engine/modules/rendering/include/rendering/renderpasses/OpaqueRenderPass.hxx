@@ -11,7 +11,7 @@ namespace playground::rendering
     class OpaqueRenderPass: public RenderPass
     {
     public:
-        OpaqueRenderPass();
+        OpaqueRenderPass(uint32_t width, uint32_t height);
         ~OpaqueRenderPass() final;
         void Begin(std::shared_ptr<CommandList> list, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) override;
         void Execute() override;
@@ -21,5 +21,8 @@ namespace playground::rendering
         std::shared_ptr<CommandList> _commandList;
         std::shared_ptr<RenderTarget> _colour;
         std::shared_ptr<DepthBuffer> _depth;
+
+        uint32_t _width;
+        uint32_t _height;
     };
 }

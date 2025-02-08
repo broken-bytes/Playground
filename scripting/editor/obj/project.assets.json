@@ -605,6 +605,15 @@
           }
         }
       },
+      "StbSharp/0.7.2.38": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard1.1/StbSharp.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard1.1/StbSharp.dll": {}
+        }
+      },
       "Svg.Custom/2.0.0.4": {
         "type": "package",
         "dependencies": {
@@ -1567,6 +1576,20 @@
         "skiasharp.nativeassets.win32.nuspec"
       ]
     },
+    "StbSharp/0.7.2.38": {
+      "sha512": "cFVL63Bo1CMezdaCQQ8i/6qwtObNY8ZZp0M33wRu9n8axFkiBuQ/dzK21Yep6yDos+iQ361D31y/JIUyE+sClg==",
+      "type": "package",
+      "path": "stbsharp/0.7.2.38",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net20/StbSharp.dll",
+        "lib/netstandard1.1/StbSharp.dll",
+        "lib/portable-net45+win+wp81+MonoAndroid10+MonoTouch10/StbSharp.dll",
+        "stbsharp.0.7.2.38.nupkg.sha512",
+        "stbsharp.nuspec"
+      ]
+    },
     "Svg.Custom/2.0.0.4": {
       "sha512": "RTA2brxnCbPi+hR8Z6qRGNA0aB7CGR2dBn57xmK3KXbuZPmiV1OUEjuI5++oMN6HcnEMIXSa8UkHTanjNt3eMA==",
       "type": "package",
@@ -1665,6 +1688,7 @@
       "Avalonia.Svg >= 11.2.0.2",
       "Avalonia.Svg.Skia >= 11.2.0.2",
       "Avalonia.Themes.Fluent >= 11.2.1",
+      "StbSharp >= 0.7.2.38",
       "Svg.Skia >= 2.0.0.4"
     ]
   },
@@ -1746,6 +1770,10 @@
           "Avalonia.Themes.Fluent": {
             "target": "Package",
             "version": "[11.2.1, )"
+          },
+          "StbSharp": {
+            "target": "Package",
+            "version": "[0.7.2.38, )"
           },
           "Svg.Skia": {
             "target": "Package",

@@ -80,13 +80,14 @@
                 Background="#16233B" 
                 ResizeDirection="Columns"
             />
-            <!-- Center Panel for Scene View -->
-            <playgroundEditor:SceneViewRenderControl 
+            <playgroundEditor:NativeEngineEmbedHost
                 Grid.Column="2" 
                 Grid.Row="0"
                 VerticalAlignment="Stretch"
+                Loaded="Control_OnLoaded"
             >
-            </playgroundEditor:SceneViewRenderControl>
+                
+            </playgroundEditor:NativeEngineEmbedHost>
             
             <GridSplitter 
                 Grid.Row="0"

@@ -17,7 +17,7 @@ namespace playground::rendering::d3d12 {
         ~D3D12Device();
 
         auto Flush() -> void override;
-        auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext> override;
+        auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount, bool offscreen) -> std::unique_ptr<GraphicsContext> override;
         auto CreateUploadContext() -> std::unique_ptr<UploadContext> override;
         auto CreateCommandList(
             CommandListType type,
@@ -28,7 +28,8 @@ namespace playground::rendering::d3d12 {
             uint32_t width,
             uint32_t height,
             TextureFormat format,
-            std::string name
+            std::string name,
+            bool isCPUReadable
         ) -> std::shared_ptr<RenderTarget> override;
         auto CreateDepthBuffer(
             uint32_t width,

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -6,11 +7,10 @@ namespace Playground.Internal;
 
 internal class PlaygroundMainHandler
 {
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetActiveWindow ();
-    
     [DllImport("PlaygroundCore.dll")]
     private static extern void PlaygroundMain(ref PlaygroundConfig config);
+    
+    private static EmptyDelegate _shutdownDelegate;
     
     private static Thread _engineMainThread;
 
@@ -19,35 +19,37 @@ internal class PlaygroundMainHandler
         
     }
 
-    static void OnStart(IntPtr window)
+    static void OnStart(IntPtr window, uint width, uint height, bool isOffscreen)
     {
-        _engineMainThread = new Thread(() =>
+        var receiveFunctionTableEntry = new NativePointerTable.ReceiveFunctionTableEntryDelegate(NativePointerTable.Receive);
+        var config = new PlaygroundConfig
         {
-            var receiveFunctionTableEntry = new NativePointerTable.ReceiveFunctionTableEntryDelegate(NativePointerTable.Receive);
-            var config = new PlaygroundConfig
-            {
-                Window = window,
-                Delegate = Marshal.GetFunctionPointerForDelegate(receiveFunctionTableEntry),
-                Width = 1024,
-                Height = 768
-            };
+            Window = window,
+            Delegate = Marshal.GetFunctionPointerForDelegate(receiveFunctionTableEntry),
+            Width = width,
+            Height = height,
+            IsOffscreen = isOffscreen
+        };
             
-            SceneManager.OnStart();
+        SceneManager.OnStart();
             
-            PlaygroundMain(ref config);
-            
-            var renderer = new Renderer();
-            
-            while (true)
-            {
-                renderer.OnPreFrame();
-                SceneManager.OnUpdate();
-                renderer.OnUpdate(Time.DeltaTime);
-                renderer.OnPostFrame();
-                Time.OnTick();
-            } 
-        });
-        
-        _engineMainThread.Start();
+        PlaygroundMain(ref config);
+    }
+
+    static void OnUpdate()
+    {
+        Input.OnUpdate();
+        Renderer.OnPreFrame();
+        SceneManager.OnUpdate();
+        Renderer.OnUpdate(Time.DeltaTime);
+        Renderer.OnPostFrame();
+        Time.OnTick();
+    }
+
+    static void OnDestroy()
+    {
+        SceneManager.OnDestroy();
+
+        Marshal.GetDelegateForFunctionPointer<EmptyDelegate>(NativePointerTable.GetPointer("Playground_Shutdown"))();
     }
 }

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PlaygroundEditor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+36c48ec23ec50290464faa539b5fd30759ce30f9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+45244a441a0f16a9dded544930aa230d51772a16")]
 [assembly: System.Reflection.AssemblyProductAttribute("PlaygroundEditor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PlaygroundEditor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -2,7 +2,7 @@
 
 public partial class Component
 {
-    public GameObject? GameObject { get; set; }
+    public GameObject GameObject { get; set; }
 
     public virtual void OnAwake() {}
     

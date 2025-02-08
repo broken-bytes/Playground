@@ -13,15 +13,23 @@ namespace playground::rendering {
         glm::mat4x4 ProjectionMatrix;
     };
 
-    class Camera {
-    public:
+    struct Camera {
+        glm::vec3 Position;
+        glm::quat Rotation;
+        float FOV;
+        float AspectRatio;
+        float Near;
+        float Far;
+        uint32_t RenderTargetTextureId;
+
         Camera() {
-            _fov = 45.0f;
-            _aspectRatio = 1.0f;
-            _near = 0.1f;
-            _far = 100.0f;
-            _position = glm::vec3(0.0f, 0.0f, 0.0f);
-            _rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+            FOV = 45.0f;
+            AspectRatio = 1.0f;
+            Near = 0.1f;
+            Far = 100.0f;
+            Position = glm::vec3(0.0f, 0.0f, 0.0f);
+            Rotation = glm::quat(0.0f, 0.0f, 0.0f, 1);
+            RenderTargetTextureId = 0;
         }
 
         Camera(
@@ -30,41 +38,52 @@ namespace playground::rendering {
             float near,
             float far,
             glm::vec3 pos,
-            glm::vec3 rot
-        ) : _fov(fov), _aspectRatio(aspectRatio), _near(near), _far(far), _position(pos), _rotation(rot) {}
+            glm::quat rot,
+            uint32_t renderTargetTextureId
+        ) : FOV(fov), AspectRatio(aspectRatio), Near(near), Far(far), Position(pos), Rotation(rot), RenderTargetTextureId(renderTargetTextureId) {}
 
-        float GetFov() const { return _fov; }
-        float GetAspectRatio() const { return _aspectRatio; }
-        float GetNear() const { return _near; }
-        float GetFar() const { return _far; }
-        glm::vec3 GetPosition() const { return _position; }
-        glm::vec3 GetRotation() const { return _rotation; }
+        float GetFov() const { return FOV; }
+        float GetAspectRatio() const { return AspectRatio; }
+        float GetNear() const { return Near; }
+        float GetFar() const { return Far; }
+        glm::vec3 GetPosition() const { return Position; }
+        glm::quat GetRotation() const { return Rotation; }
 
-        void SetFov(float fov) { _fov = fov; }
-        void SetAspectRatio(float aspectRatio) { _aspectRatio = aspectRatio; }
-        void SetNear(float nearPlane) { _near = nearPlane; }
-        void SetFar(float farPlane) { _far = farPlane; }
-        void SetPosition(glm::vec3 pos) { _position = pos; }
-        void SetRotation(glm::vec3 rot) { _rotation = rot; }
+        void SetFov(float fov) { FOV = fov; }
+        void SetAspectRatio(float aspectRatio) { AspectRatio = aspectRatio; }
+        void SetNear(float nearPlane) { Near = nearPlane; }
+        void SetFar(float farPlane) { Far = farPlane; }
+        void SetPosition(glm::vec3 pos) { Position = pos; }
+        void SetRotation(glm::vec3 rot) { Rotation = rot; }
 
         glm::mat4 GetViewMatrix() const {
-            glm::quat q = glm::quat(_rotation); // Convert Euler angles to quaternion
-
             // Construct the rotation matrix manually
             glm::mat4 rotationMatrix = glm::mat4(
-                1 - 2 * (q.y * q.y + q.z * q.z), 2 * (q.x * q.y - q.w * q.z), 2 * (q.x * q.z + q.w * q.y), 0,
-                2 * (q.x * q.y + q.w * q.z), 1 - 2 * (q.x * q.x + q.z * q.z), 2 * (q.y * q.z - q.w * q.x), 0,
-                2 * (q.x * q.z - q.w * q.y), 2 * (q.y * q.z + q.w * q.x), 1 - 2 * (q.x * q.x + q.y * q.y), 0,
-                0, 0, 0, 1
+                1 - 2 * (Rotation.y * Rotation.y + Rotation.z * Rotation.z),
+                2 * (Rotation.x * Rotation.y - Rotation.w * Rotation.z),
+                2 * (Rotation.x * Rotation.z + Rotation.w * Rotation.y),
+                0,
+                2 * (Rotation.x * Rotation.y + Rotation.w * Rotation.z),
+                1 - 2 * (Rotation.x * Rotation.x + Rotation.z * Rotation.z),
+                2 * (Rotation.y * Rotation.z - Rotation.w * Rotation.x),
+                0,
+                2 * (Rotation.x * Rotation.z - Rotation.w * Rotation.y),
+                2 * (Rotation.y * Rotation.z + Rotation.w * Rotation.x),
+                1 - 2 * (Rotation.x * Rotation.x + Rotation.y * Rotation.y),
+                0,
+                0,
+                0,
+                0,
+                1
             );
 
-            glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -_position);
+            glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -Position);
 
             return rotationMatrix * translationMatrix;
         }
 
         glm::mat4 GetProjectionMatrix() const {
-            return glm::perspectiveLH(glm::radians(_fov), _aspectRatio, _near, _far);
+            return glm::perspectiveLH(glm::radians(FOV), AspectRatio, Near, Far);
         }
 
         CameraData GetCameraData() const {
@@ -73,13 +92,5 @@ namespace playground::rendering {
             data.ProjectionMatrix = glm::transpose(GetProjectionMatrix());
             return data;
         }
-
-    private:
-        glm::vec3 _position;
-        glm::vec3 _rotation;
-        float _fov;
-        float _aspectRatio;
-        float _near;
-        float _far;
     };
 }

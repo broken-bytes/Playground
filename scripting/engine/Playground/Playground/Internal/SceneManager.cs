@@ -4,6 +4,7 @@ namespace Playground.Internal;
 
 internal static class SceneManager
 {
+    internal static double _fixedTimeStep;
     internal static List<GameObject> SceneObjects = new();
     
     internal static void OnStart()
@@ -35,6 +36,7 @@ internal static class SceneManager
     
     internal static void OnUpdate()
     {
+        // Update script code on each gameobject
         foreach (var objc in SceneObjects)
         {
             objc.OnUpdate();

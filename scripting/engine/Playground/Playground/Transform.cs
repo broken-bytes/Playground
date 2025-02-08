@@ -1,11 +1,9 @@
 ﻿namespace Playground;
 
-public partial class Transform : Component
+public struct Transform
 {
-    public float Health;
-    
-    public override void OnUpdate()
-    {
-        base.OnUpdate();
-    }
+    public Vector3 Position { get; set; }
+    public Vector3 LocalPosition { get; set; }
+    public Quaternion Rotation { get; set; }
+    public Vector3 Scale { get; set; }
 }

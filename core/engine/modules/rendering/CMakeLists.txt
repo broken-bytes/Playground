@@ -17,6 +17,9 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(directx-dxc CONFIG REQUIRED)
+find_package(Stb REQUIRED)
+
+target_include_directories(Rendering PRIVATE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(Rendering PUBLIC Logger AssetLoader)
 target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm-header-only freeimage::FreeImage freeimage::FreeImagePlus Microsoft::DirectXShaderCompiler)

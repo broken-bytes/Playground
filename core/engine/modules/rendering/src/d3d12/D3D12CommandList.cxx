@@ -11,6 +11,7 @@
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
+#include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
 
 using namespace Microsoft::WRL;
 

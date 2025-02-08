@@ -15,6 +15,7 @@
           "Avalonia.Svg": "11.2.0.2",
           "Avalonia.Svg.Skia": "11.2.0.2",
           "Avalonia.Themes.Fluent": "11.2.1",
+          "StbSharp": "0.7.2.38",
           "Svg.Skia": "2.0.0.4",
           "Playground": "1.0.0.0"
         },
@@ -459,6 +460,14 @@
           }
         }
       },
+      "StbSharp/0.7.2.38": {
+        "runtime": {
+          "lib/netstandard1.1/StbSharp.dll": {
+            "assemblyVersion": "0.7.2.38",
+            "fileVersion": "0.7.2.38"
+          }
+        }
+      },
       "Svg.Custom/2.0.0.4": {
         "dependencies": {
           "ExCSS": "4.2.3"
@@ -747,6 +756,13 @@
       "sha512": "sha512-O9QXoWEXA+6cweR4h3BOnwMz+pO9vL9mXdjLrpDd0w1QzCgWmLQBxa1VgySDITiH7nQndrDG1h6937zm9pLj1Q==",
       "path": "skiasharp.nativeassets.win32/2.88.8",
       "hashPath": "skiasharp.nativeassets.win32.2.88.8.nupkg.sha512"
+    },
+    "StbSharp/0.7.2.38": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-cFVL63Bo1CMezdaCQQ8i/6qwtObNY8ZZp0M33wRu9n8axFkiBuQ/dzK21Yep6yDos+iQ361D31y/JIUyE+sClg==",
+      "path": "stbsharp/0.7.2.38",
+      "hashPath": "stbsharp.0.7.2.38.nupkg.sha512"
     },
     "Svg.Custom/2.0.0.4": {
       "type": "package",

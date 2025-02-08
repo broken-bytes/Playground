@@ -17,7 +17,8 @@ namespace playground::rendering::d3d12
         void* window,
         uint32_t width,
         uint32_t height,
-        uint32_t bufferCount
+        uint32_t bufferCount,
+        bool isOffscreen
     )
     {
         _device = device;
@@ -39,6 +40,14 @@ namespace playground::rendering::d3d12
         }
 
         _commandList->SetName(L"GraphicsContextList");
+
+        _isOffscreen = isOffscreen;
+
+        if (_isOffscreen) {
+            _readbackBuffer = std::make_unique<D3D12ReadbackBuffer>(device, width, height);
+        }
+
+        _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(device, 1, 1);
     }
 
     D3D12GraphicsContext::~D3D12GraphicsContext()
@@ -122,7 +131,15 @@ namespace playground::rendering::d3d12
 
     auto D3D12GraphicsContext::CopyToBackBuffer(std::shared_ptr<RenderTarget> renderTarget) -> void
     {
-        auto backBuffer = _swapChain->GetBackBuffer(_frameIndex);
+
+        Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer;
+
+        if (!_isOffscreen) {
+            backBuffer = _swapChain->GetBackBuffer(_frameIndex);
+        }
+        else {
+            backBuffer = _readbackBuffer->Buffer();
+        }
 
         auto copyFromBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
             std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get(),
@@ -132,15 +149,43 @@ namespace playground::rendering::d3d12
 
         _commandList->ResourceBarrier(1, &copyFromBarrier);
 
-        auto copyBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            backBuffer.Get(),
-            D3D12_RESOURCE_STATE_PRESENT,
-            D3D12_RESOURCE_STATE_COPY_DEST
-        );
-        _commandList->ResourceBarrier(1, &copyBarrier);
+        if (!_isOffscreen) {
+            auto copyBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                backBuffer.Get(),
+                D3D12_RESOURCE_STATE_PRESENT,
+                D3D12_RESOURCE_STATE_COPY_DEST
+            );
+            _commandList->ResourceBarrier(1, &copyBarrier);
+        }
 
-        // Copy the render target to the swap chain's back buffer
-        _commandList->CopyResource(backBuffer.Get(), std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get());
+        // Swapchain can just copy as we are doing texture -> texture
+        if (!_isOffscreen) {
+            // Copy the render target to the swap chain's back buffer
+            _commandList->CopyResource(backBuffer.Get(), std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get());
+        }
+        // Readback buffer needs to use a copy texture region as we are doing texture -> buffer
+        else {
+            auto d3d312RenderTarget = std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get();
+            D3D12_RESOURCE_DESC textureDesc = d3d312RenderTarget->GetDesc();
+            UINT64 totalBytes = 0;
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+            UINT numRows = 0;
+            UINT64 rowSizeInBytes = 0;
+            D3D12_SUBRESOURCE_FOOTPRINT subresourceFootprint = {};
+            _device->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footprint, &numRows, &rowSizeInBytes, &totalBytes);
+
+            D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
+            srcLocation.pResource = d3d312RenderTarget;
+            srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            srcLocation.SubresourceIndex = 0;
+
+            D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
+            dstLocation.pResource = _readbackBuffer->Buffer().Get();
+            dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            dstLocation.PlacedFootprint = footprint;
+
+            _commandList->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, nullptr);
+        }
 
         auto presentBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
             backBuffer.Get(),
@@ -163,5 +208,23 @@ namespace playground::rendering::d3d12
         std::vector<ID3D12CommandList*> commandLists;
         commandLists.push_back(_commandList.Get());
         _queue->ExecuteCommandLists(1, commandLists.data());
+    }
+
+    auto D3D12GraphicsContext::ReadbackBuffer(void* data, size_t* numBytes) -> void
+    {
+        if (!_isOffscreen) {
+            throw std::runtime_error("Readback buffer is only supported in offscreen mode");
+        }
+
+        _readbackBuffer->Read(data, numBytes);
+    }
+
+    auto D3D12GraphicsContext::MouseOverID() -> uint64_t
+    {
+        uint64_t* data = nullptr;
+        size_t numRead = 0;
+        _mouseOverBuffer->Read(reinterpret_cast<void**>(&data), &numRead);
+
+        return *data;
     }
 }

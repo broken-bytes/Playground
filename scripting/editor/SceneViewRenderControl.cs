@@ -1,14 +1,22 @@
-﻿using Avalonia;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net.Mime;
+using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using Avalonia.Threading;
+using StbSharp;
+using Image = Avalonia.Controls.Image;
 
 namespace PlaygroundEditor;
 
-public class SceneViewRenderControl: Control
+public class SceneViewRenderControl: UserControl
 {
-    public override void Render(DrawingContext context)
-    {
-        // Custom drawing here
-        context.FillRectangle(Brushes.Transparent, new Rect(0, 0, this.Width, this.Height));
-    }
+    
 }

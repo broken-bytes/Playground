@@ -13,21 +13,33 @@
 #include "rendering/RootSignature.hxx"
 #include "rendering/Camera.hxx"
 #include "rendering/Sampler.hxx"
-#include <FreeImagePlus.h>
 #include <assetloader/AssetLoader.hxx>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 struct ObjectData {
     glm::mat4 WorldMatrix;
 };
 
 namespace playground::rendering {
-	constexpr uint8_t FRAME_COUNT = 2;
+
+    struct Config {
+        uint32_t Width;
+        uint32_t Height;
+        bool Offscreen;
+    };
+
+    Config config;
+
+    constexpr uint8_t FRAME_COUNT = 2;
 
 	std::shared_ptr<Device> device = nullptr;
 	void* window = nullptr;
 
 	uint8_t frameIndex = 0;
 	std::vector<std::shared_ptr<Frame>> frames = {};
+
+
 
 	// Resource management
 	std::map<uint64_t, std::shared_ptr<VertexBuffer>> vertexBuffers = {};
@@ -51,12 +63,11 @@ namespace playground::rendering {
 
     std::shared_ptr<PipelineState> defaultPipelineState = nullptr;
 
-    std::map<CameraHandle, CameraData> cameras = {};
+    std::vector<std::unique_ptr<Camera>> cameras = {};
 
     std::shared_ptr<ConstantBuffer> cameraBuffer = nullptr;
 
     std::shared_ptr<ConstantBuffer> objectBuffer = nullptr;
-
 
     std::string vertexShaderCode = R"(
         cbuffer CameraBuffer : register(b0) {
@@ -118,8 +129,6 @@ namespace playground::rendering {
         }
         )";
 
-    auto cam = Camera(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-
     ObjectData objectData;
 
     bool didUpload = false;
@@ -133,9 +142,13 @@ namespace playground::rendering {
 
     std::shared_ptr<Sampler> sampler = nullptr;
 
-	auto Init(void* window, uint32_t width, uint32_t height) -> void {
+	auto Init(void* window, uint32_t width, uint32_t height, bool offscreen) -> void {
 		// Create a device
 		device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
+
+        config.Width = width;
+        config.Height = height;
+        config.Offscreen = offscreen;
 
 		// Create frames (frames hold all render things that need to alter between frames)
 		for (int x = 0; x < FRAME_COUNT; x++)
@@ -143,7 +156,7 @@ namespace playground::rendering {
             std::stringstream ss;
             ss << "Frame " << x;
 
-			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str());
+			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str(), offscreen);
 
             ss.clear();
             ss << "DepthBuffer " << x;
@@ -162,7 +175,7 @@ namespace playground::rendering {
 
 		uiCommandList = device->CreateCommandList(CommandListType::Graphics, "UICommandList");
 
-		graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT);
+		graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT, offscreen);
         uploadContext = device->CreateUploadContext();
 
         rootSignature = device->GetRootSignature();
@@ -170,20 +183,23 @@ namespace playground::rendering {
         defaultPipelineState = device->CreatePipelineState(vertexShaderCode, pixelShaderCode);
 
 		// Create the render passes
-		opaqueRenderPass = std::make_unique<OpaqueRenderPass>();
+		opaqueRenderPass = std::make_unique<OpaqueRenderPass>(width, height);
 
         sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
+
+        auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
+        cameras.push_back(std::make_unique<Camera>(camera));
 
         cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
 
         objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectData), "ObjectBuffer");
 
         glm::mat4 scale = glm::identity<glm::mat4>();
-        glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f)); // Translation
-        glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // 45° around Y-axis
-        glm::mat4 rotationMatrix = glm::mat4_cast(quaternion); // Quaternion to rotation matrix
-        glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix); // Combine rotation and translation
-        objectData.WorldMatrix = finalTransform; // Update the world matrix
+        glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f));
+        glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 rotationMatrix = glm::mat4_cast(quaternion);
+        glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
+        objectData.WorldMatrix = finalTransform;
 	}
 
 	auto Shutdown() -> void {
@@ -254,8 +270,7 @@ namespace playground::rendering {
 
         }
 
-        auto cameraData = cam.GetCameraData();
-
+        auto cameraData = cameras[0]->GetCameraData();
         cameraBuffer->Update(&cameraData, sizeof(CameraData));
 
         objectData.WorldMatrix = glm::transpose(glm::rotate(glm::transpose(objectData.WorldMatrix), glm::radians(25.0f) * (float)deltaTime, glm::vec3(1, 1, 0.0f)));
@@ -304,6 +319,13 @@ namespace playground::rendering {
 
         didUpload = true;
 	}
+
+    auto ReadbackBuffer(void* data) -> size_t {
+        size_t numBytes = 0;
+        graphicsContext->ReadbackBuffer(data, &numBytes);
+
+        return numBytes;
+    }
 
 	auto LoadShader(
 		const std::string& code,
@@ -366,15 +388,63 @@ namespace playground::rendering {
 	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void {
 	}
 
-    auto SetCamera(
-        CameraHandle handle,
+    auto CreateCamera(
         float fov,
         float aspectRatio,
         float near,
         float far,
         float pos[3],
-        float rot[3]
-    ) -> void {
+        float rot[3],
+        uint32_t renderTargetTextureId
+    ) -> CameraHandle {
+        cameras.push_back(std::make_unique<Camera>(fov, aspectRatio, near, far, glm::vec3(pos[0], pos[1], pos[2]), glm::quat(rot[0], rot[1], rot[2], rot[3]), 0));
 
+        return cameras.size() - 1;
+    }
+
+    auto SetCameraFOV(
+        CameraHandle handle,
+        float fov
+    ) -> void {
+        cameras[handle]->FOV = fov;
+    }
+
+    auto SetCameraAspectRatio(
+        CameraHandle handle,
+        float aspectRatio
+    ) -> void {
+        cameras[handle]->AspectRatio = aspectRatio;
+    }
+
+    auto SetCameraNear(
+        CameraHandle handle,
+        float near
+    ) -> void {
+        cameras[handle]->Near = near;
+    }
+
+    auto SetCameraFar(
+        CameraHandle handle,
+        float far
+    ) -> void {
+        cameras[handle]->Far = far;
+    }
+
+    auto SetCameraPosition(
+        CameraHandle handle,
+        float pos[3]
+    ) -> void {
+        cameras[handle]->Position = glm::vec3(pos[0], pos[1], pos[2]);
+    }
+
+    auto SetCameraRotation(
+        CameraHandle handle,
+        float rot[4]
+    ) -> void {
+        cameras[handle]->Rotation = glm::quat(rot[0], rot[1], rot[2], rot[3]);
+    }
+
+    auto SetCameraRenderTarget(CameraHandle handle, uint32_t texture) -> void {
+        cameras[handle]->RenderTargetTextureId = texture;
     }
 }

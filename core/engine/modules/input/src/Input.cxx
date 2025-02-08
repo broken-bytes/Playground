@@ -5,6 +5,7 @@
 #include <events/SystemEvent.hxx>
 #include <stdexcept>
 #include <SDL3/SDL.h>
+#include <iostream>
 
 namespace playground::input {
 	auto Init() -> void {
@@ -14,6 +15,9 @@ namespace playground::input {
 	}
 
 	auto Update() -> void {
-		
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            std::cout << "Event: " << event.type << "|" << event.key.scancode << std::endl;
+        }
 	}
 }

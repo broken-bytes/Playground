@@ -7,6 +7,7 @@
 #include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/d3d12/D3D12CommandQueue.hxx"
 #include "rendering/GraphicsContext.hxx"
+#include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
 
 namespace playground::rendering::d3d12 {
     class D3D12GraphicsContext : public rendering::GraphicsContext {
@@ -17,7 +18,8 @@ namespace playground::rendering::d3d12 {
             void* window,
             uint32_t width,
             uint32_t height,
-            uint32_t bufferCount
+            uint32_t bufferCount,
+            bool isOffscreen
         );
         ~D3D12GraphicsContext();
 
@@ -28,6 +30,8 @@ namespace playground::rendering::d3d12 {
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
         auto ExecuteCommandLists(std::vector<std::shared_ptr<CommandList>> lists) -> void override;
         auto CopyToBackBuffer(std::shared_ptr<RenderTarget> renderTarget) -> void override;
+        auto ReadbackBuffer(void* data, size_t* numBytes) -> void override;
+        auto MouseOverID() -> uint64_t override;
 
     private:
         Microsoft::WRL::ComPtr<ID3D12Device9> _device;
@@ -41,5 +45,9 @@ namespace playground::rendering::d3d12 {
         HANDLE _fenceEvent;
         uint8_t _bufferCount;
         uint8_t _frameIndex = 0;
+
+        bool _isOffscreen;
+        std::unique_ptr<D3D12ReadbackBuffer> _mouseOverBuffer;
+        std::unique_ptr<D3D12ReadbackBuffer> _readbackBuffer;
     };
 }

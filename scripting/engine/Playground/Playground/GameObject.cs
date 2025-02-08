@@ -1,15 +1,22 @@
-﻿namespace Playground;
+﻿using Playground.Internal;
 
-public partial class GameObject
+namespace Playground;
+
+public partial class GameObject : IDisposable
 {
     public GameObject? Parent;
+    public Transform Transform;
     public string Name;
+    public int Layer;
+    public string? Tag;
     
-    public GameObject(string? name = null, GameObject? parent = null)
+    public GameObject(string? name = null, GameObject? parent = null) : this()
     {
         Name = name ?? "Unnamed GameObject";
         Parent = parent;
         OnGameObjectCreated?.Invoke(this);
+        Layer = 0;
+        Tag = null;
     }
 
     ~GameObject()
@@ -23,7 +30,7 @@ public partial class GameObject
 
         if (existing != null)
         {
-            return existing;
+            throw new ComponentAlreadyAttachedException<T>(this);
         }
         
         T component = new T
@@ -49,5 +56,33 @@ public partial class GameObject
         
         _components.Remove(component);
         component.Dispose();
+    }
+
+    public T Retrieve<T>() where T : Component
+    {
+        var component = _components.OfType<T>().FirstOrDefault();
+
+        if (component == null)
+        {
+            throw new ComponentNotFoundException<T>(this);
+        }
+
+        return component;
+    }
+
+    public static GameObject? FindGameObject(string name) => 
+        SceneManager.SceneObjects.FirstOrDefault(objc => objc.Name == name);
+
+    public static void Destroy(GameObject gameObject)
+    {
+        SceneManager.SceneObjects.Remove(gameObject);
+    }
+    
+    public void Dispose()
+    {
+        foreach (var comp in _components)
+        {
+            comp.Dispose();
+        }
     }
 }

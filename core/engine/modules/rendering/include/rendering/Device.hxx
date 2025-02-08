@@ -36,7 +36,7 @@ namespace playground::rendering {
 		virtual auto Flush() -> void = 0;
 
 		// Creation work submission and synchronization
-		virtual auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount) -> std::unique_ptr<GraphicsContext> = 0;
+		virtual auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount, bool offscreen) -> std::unique_ptr<GraphicsContext> = 0;
 		virtual auto CreateUploadContext() -> std::unique_ptr<UploadContext> = 0;
 		virtual auto CreateCommandList(
             CommandListType type,
@@ -48,7 +48,8 @@ namespace playground::rendering {
             uint32_t width,
             uint32_t height,
             TextureFormat format,
-            std::string name = ""
+            std::string name = "",
+            bool isCPUReadable = false
         ) -> std::shared_ptr<RenderTarget> = 0;
 		virtual auto CreateDepthBuffer(
             uint32_t width,
