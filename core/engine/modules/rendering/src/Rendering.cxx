@@ -103,8 +103,15 @@ namespace playground::rendering {
             float4 viewPosition = mul(worldPosition, viewMatrix);
 
             // Transform view position to clip space
-            output.position = mul(viewPosition, projectionMatrix);
+            float4 clipPosition = mul(viewPosition, projectionMatrix);
+
+            // Snap the position to the nearest 0.02 grid in clip space
+            clipPosition.xy = round(clipPosition.xy * 50.0f) / 50.0f;
+
+            // Set the output position
+            output.position = clipPosition;
     
+            // Pass through other attributes
             output.color = input.color;
             output.normal = input.normal;
             output.uv = input.uv;

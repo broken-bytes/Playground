@@ -1,12 +1,8 @@
 ﻿namespace Playground;
 
-public partial class Component : IDisposable
+public partial class Component
 {
     internal bool _isAwake;
     internal bool _isStarted;
-
-    public void Dispose()
-    {
-        
-    }
+    internal bool _isDestroyed;
 }

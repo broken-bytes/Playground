@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Playground.Internal;
+namespace Playground;
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate void LookupTableDelegate(string name, IntPtr address);

@@ -1,4 +1,4 @@
-﻿namespace Playground.Internal;
+﻿namespace Playground;
 
 internal struct PlaygroundConfig
 {

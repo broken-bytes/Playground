@@ -14,12 +14,6 @@ namespace playground::system {
 			throw std::runtime_error("Failed to initialize SDL3");
 		}
 
-        SDL_PropertiesID props = SDL_CreateProperties();
-        SDL_SetPointerProperty(props, SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER, windowHandle);
-        SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
-
-        SDL_CreateWindowWithProperties(props);
-
         return windowHandle;
 	}
 }

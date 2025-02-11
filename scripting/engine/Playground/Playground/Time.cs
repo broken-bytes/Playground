@@ -12,7 +12,7 @@ public static class Time
     internal static void OnTick()
     {
         var nextTick = DateTime.Now;
-        DeltaTime = (nextTick - _lastTick).TotalMilliseconds;
+        DeltaTime = (nextTick - _lastTick).TotalSeconds;
         _lastTick = nextTick;
     }
 }

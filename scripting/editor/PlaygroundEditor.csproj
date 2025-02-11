@@ -10,8 +10,9 @@
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.2.1" />
+    <PackageReference Include="Avalonia" Version="11.2.3" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.1" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.2.3" />
     <PackageReference Include="Avalonia.Svg" Version="11.2.0.2" />
     <PackageReference Include="Avalonia.Svg.Skia" Version="11.2.0.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.1" />
@@ -21,6 +22,7 @@
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
     <PackageReference Include="StbSharp" Version="0.7.2.38" />
     <PackageReference Include="Svg.Skia" Version="2.0.0.4" />
   </ItemGroup>
@@ -34,11 +36,39 @@
         <AvaloniaResource Include="Assets\Icons\cube.png">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
+        <None Remove="Assets\Icons\play.png" />
+        <AvaloniaResource Include="Assets\Icons\play.png" />
+        <AvaloniaResource Include="Assets\Icons\play-solid.png" />
+        <AvaloniaResource Include="Assets\Icons\pause-solid.png" />
+        <None Remove="Assets\Icons\stop-solid.png" />
+        <AvaloniaResource Include="Assets\Icons\stop-solid.png" />
+        <None Remove="Assets\Icons\stop-disabled-solid.png" />
+        <AvaloniaResource Include="Assets\Icons\stop-disabled-solid.png" />
+        <None Remove="Assets\Icons\play-disabled-solid.png" />
+        <AvaloniaResource Include="Assets\Icons\play-disabled-solid.png" />
+        <None Remove="Assets\Fonts\NunitoSans-Italic-VariableFont_YTLC,opsz,wdth,wght.ttf" />
+        <None Include="Assets\Fonts\NunitoSans-Italic" />
+        <None Remove="Assets\Fonts\NunitoSans-VariableFont_YTLC,opsz,wdth,wght.ttf" />
+        <None Include="Assets\Fonts\NunitoSans.ttf" />
+        <None Remove="Assets\Fonts\Rubik-Italic-VariableFont_wght.ttf" />
+        <AvaloniaResource Include="Assets\Fonts\Rubik-Italic.ttf" />
+        <None Remove="Assets\Fonts\Rubik-VariableFont_wght.ttf" />
+        <AvaloniaResource Include="Assets\Fonts\Rubik.ttf" />
     </ItemGroup>
     <ItemGroup>
       <Reference Include="Playground">
         <HintPath>..\engine\Playground\Playground\bin\Debug\net9.0\Playground.dll</HintPath>
       </Reference>
+    </ItemGroup>
+    <ItemGroup>
+      <Compile Update="Hub\HubWindow.axaml.cs">
+        <DependentUpon>HubWindow.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="MainWindow\MainWindow.axaml.cs">
+        <DependentUpon>MainWindow.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
     </ItemGroup>
 
 </Project>

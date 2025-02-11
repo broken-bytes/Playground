@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Playground.Internal;
+namespace Playground;
 
 internal class PlaygroundMainHandler
 {
@@ -41,7 +41,7 @@ internal class PlaygroundMainHandler
         Input.OnUpdate();
         Renderer.OnPreFrame();
         SceneManager.OnUpdate();
-        Renderer.OnUpdate(Time.DeltaTime);
+        Renderer.OnUpdate();
         Renderer.OnPostFrame();
         Time.OnTick();
     }

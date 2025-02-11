@@ -15,9 +15,5 @@ namespace playground::input {
 	}
 
 	auto Update() -> void {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            std::cout << "Event: " << event.type << "|" << event.key.scancode << std::endl;
-        }
 	}
 }

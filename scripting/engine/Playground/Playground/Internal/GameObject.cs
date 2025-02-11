@@ -1,5 +1,4 @@
 ﻿using System.Runtime.InteropServices;
-using Playground.Internal;
 
 namespace Playground;
 
@@ -22,6 +21,7 @@ public partial class GameObject
     internal List<Component> _components = new();
     private uint _id;
     private Transform _transform;
+    internal bool _isDestroyed;
     
     static GameObject()
     {

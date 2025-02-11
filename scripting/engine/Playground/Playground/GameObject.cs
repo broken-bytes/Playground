@@ -1,8 +1,6 @@
-﻿using Playground.Internal;
+﻿namespace Playground;
 
-namespace Playground;
-
-public partial class GameObject : IDisposable
+public partial class GameObject
 {
     public GameObject? Parent;
     public Transform Transform;
@@ -55,7 +53,6 @@ public partial class GameObject : IDisposable
         }
         
         _components.Remove(component);
-        component.Dispose();
     }
 
     public T Retrieve<T>() where T : Component
@@ -75,14 +72,16 @@ public partial class GameObject : IDisposable
 
     public static void Destroy(GameObject gameObject)
     {
-        SceneManager.SceneObjects.Remove(gameObject);
+        SceneManager.Delete(gameObject);
     }
     
-    public void Dispose()
+    public void OnDestroy()
     {
+        _isDestroyed = true;
         foreach (var comp in _components)
         {
-            comp.Dispose();
+            comp._isDestroyed = true;
+            comp.OnDestroy();
         }
     }
 }

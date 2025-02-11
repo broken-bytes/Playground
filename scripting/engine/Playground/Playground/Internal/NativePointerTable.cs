@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Playground.Internal;
+namespace Playground;
 
 internal static class NativePointerTable
 {

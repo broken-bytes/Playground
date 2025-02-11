@@ -1,11 +1,12 @@
 ﻿using System.Diagnostics;
 
-namespace Playground.Internal;
+namespace Playground;
 
 internal static class SceneManager
 {
     internal static double _fixedTimeStep;
     internal static List<GameObject> SceneObjects = new();
+    internal static List<GameObject> ToBeDestroyedObjects = new();
     
     internal static void OnStart()
     {
@@ -41,5 +42,18 @@ internal static class SceneManager
         {
             objc.OnUpdate();
         }
+
+        foreach (var objc in ToBeDestroyedObjects)
+        {
+            SceneObjects.Remove(objc);
+            objc.OnDestroy();
+        }
+        
+        ToBeDestroyedObjects.Clear();
+    }
+
+    internal static void Delete(GameObject objc)
+    {
+        ToBeDestroyedObjects.Add(objc);
     }
 }
