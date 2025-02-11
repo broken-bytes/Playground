@@ -7,7 +7,7 @@ using Playground;
 
 namespace PlaygroundEditor.Controls;
 
-public partial class HierarchyControl : EditorWindow
+public partial class HierarchyControl : UserControl, EditorWindow
 {
     private TreeView _hierarchyTreeView;
     
@@ -25,10 +25,8 @@ public partial class HierarchyControl : EditorWindow
         EditorWindowManager.EditorWindows.Add(this);
     }
 
-    public override void OnEditorUpdate()
+    public void OnEditorUpdate()
     {
-        base.OnEditorUpdate();
-        
         UpdateHierarchy();
     }
 

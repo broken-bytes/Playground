@@ -2,10 +2,7 @@ using Avalonia.Controls;
 
 namespace PlaygroundEditor;
 
-public class EditorWindow : UserControl
+public interface EditorWindow
 {
-    public virtual void OnEditorUpdate()
-    {
-        
-    }
+    public void OnEditorUpdate();
 }
