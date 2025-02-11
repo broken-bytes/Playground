@@ -10,3 +10,4 @@ H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\P
 H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\refint\Playground.dll
 H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.pdb
 H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\ref\Playground.dll
+H:\Projects\Playground\scripting\engine\Playground\Playground\obj\Debug\net9.0\Playground.csproj.AssemblyReference.cache

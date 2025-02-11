@@ -1,10 +1,14 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Xml;
 using System.Xml.Serialization;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Playground;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace PlaygroundEditor;
 
@@ -115,8 +119,53 @@ EndGlobal
   </PropertyGroup>
 </Project>
 ";
-        
         File.WriteAllText($"{projectPath}/Directory.Build.props", buildProps);
+
+        var sceneSerializer = new SerializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
+        
+        var scene = new Scene
+        {
+            Name = "SampleScene",
+            GameObjects = [
+                new SceneGameObject
+                {
+                    UUID = Guid.NewGuid().ToString(),
+                    Tag = "",
+                    Name = "SampleObject",
+                    Components = [
+                        new SceneComponent
+                        {
+                            TypeName = "Transform",
+                            Fields = [
+                                new SceneComponent.Field
+                                {
+                                    Name = "Position",
+                                    Value = new Vector3(0, 0, 0),
+                                },
+                                new SceneComponent.Field
+                                {
+                                    Name = "Rotation",
+                                    Value = new Vector4(0, 0, 0, 1),
+                                },
+                                new SceneComponent.Field
+                                {
+                                    Name = "Scale",
+                                    Value = new Vector3(1, 1, 1),
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+        
+        Directory.CreateDirectory(projectPath + "/content/scenes");
+        
+        var yaml = sceneSerializer.Serialize(scene);
+
+        File.WriteAllText(projectPath + "/content/scenes/SampleScene.pscn", yaml);
         
         return project;
     }

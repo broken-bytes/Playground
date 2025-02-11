@@ -1,11 +1,11 @@
 ﻿namespace Playground;
 
 [Serializable]
-internal class SceneGameObject
+public class SceneGameObject
 {
-    internal string Name;
-    internal string UUID;
-    internal string Tag;
-    internal int Layer;
-    internal List<SceneComponent> Components;
+    public string Name;
+    public string UUID;
+    public string Tag;
+    public int Layer;
+    public List<SceneComponent> Components;
 }

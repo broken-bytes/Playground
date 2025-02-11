@@ -9,19 +9,17 @@ public partial class GameObject
     public delegate void GameObjectDisabledDelegate(GameObject gameObject);
     public delegate void GameObjectDestroyedDelegate(GameObject gameObject);
     
-    internal static event GameObjectCreatedDelegate? OnGameObjectCreated;
-    internal static event GameObjectEnabledDelegate? OnGameObjectEnabled;
-    internal static event GameObjectDisabledDelegate? OnGameObjectDisabled;
-    internal static event GameObjectDestroyedDelegate? OnGameObjectDestroyed;
-    
-    private static UpdateTransformDelegate _updateTransformPtr;
-    
-    private static uint _idCounter;
+    public static event GameObjectCreatedDelegate? OnGameObjectCreated;
+    public static event GameObjectEnabledDelegate? OnGameObjectEnabled;
+    public static event GameObjectDisabledDelegate? OnGameObjectDisabled;
+    public static event GameObjectDestroyedDelegate? OnGameObjectDestroyed;
     
     internal List<Component> _components = new();
+    internal bool _isDestroyed;
+    private List<GameObject> _children = new();
+    private static uint _idCounter;
     private uint _id;
     private Transform _transform;
-    internal bool _isDestroyed;
     
     static GameObject()
     {

@@ -1,10 +1,10 @@
 ﻿namespace Playground;
 
 [Serializable]
-internal struct SceneAmbientConfig
+public struct SceneAmbientConfig
 {
-    internal Colour AmbientColour;
-    internal float AmbientIntensity;
-    internal Colour FogColour;
-    internal float FogIntensity;
+    public Colour AmbientColour;
+    public float AmbientIntensity;
+    public Colour FogColour;
+    public float FogIntensity;
 }

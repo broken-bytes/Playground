@@ -19,7 +19,7 @@ internal class PlaygroundMainHandler
         
     }
 
-    static void OnStart(IntPtr window, uint width, uint height, bool isOffscreen)
+    static void OnStart(IntPtr window, uint width, uint height, bool isOffscreen, string assemblyPath)
     {
         var receiveFunctionTableEntry = new NativePointerTable.ReceiveFunctionTableEntryDelegate(NativePointerTable.Receive);
         var config = new PlaygroundConfig
@@ -30,6 +30,8 @@ internal class PlaygroundMainHandler
             Height = height,
             IsOffscreen = isOffscreen
         };
+        
+        EngineEnvironment.AssemblyPath = assemblyPath;
             
         SceneManager.OnStart();
             

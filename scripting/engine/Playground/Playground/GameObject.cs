@@ -1,16 +1,24 @@
-﻿namespace Playground;
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
+namespace Playground;
 
 public partial class GameObject
 {
     public GameObject? Parent;
     public Transform Transform;
     public string Name;
+    public string UniqueIdentifier { get; internal set; }
     public int Layer;
     public string? Tag;
+    
+    public ReadOnlyCollection<GameObject> Children => new(_children);
     
     public GameObject(string? name = null, GameObject? parent = null) : this()
     {
         Name = name ?? "Unnamed GameObject";
+        UniqueIdentifier = Guid.NewGuid().ToString();
         Parent = parent;
         OnGameObjectCreated?.Invoke(this);
         Layer = 0;
@@ -83,5 +91,12 @@ public partial class GameObject
             comp._isDestroyed = true;
             comp.OnDestroy();
         }
+    }
+
+    public void SetParent(GameObject parent)
+    {
+        SceneManager.SceneObjects.Remove(this);
+        Parent = parent;
+        parent._children.Add(this);
     }
 }

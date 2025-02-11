@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:playgroundEditor="clr-namespace:PlaygroundEditor"
         xmlns:controls="clr-namespace:PlaygroundEditor"
+        xmlns:controls1="clr-namespace:PlaygroundEditor.Controls"
         x:Class="PlaygroundEditor.MainWindow"
         x:DataType="controls:MainWindowViewModel"
         Width="1920" Height="1080"
@@ -71,28 +72,9 @@
             VerticalAlignment="Stretch"
         >
             <!-- Left Panel (Resizable) -->
-            <StackPanel
+            <controls1:HierarchyControl         
                 Grid.Column="0"
-                Grid.Row="0"
-                VerticalAlignment="Stretch"
-                HorizontalAlignment="Stretch"
-                Background="#1E2A47"
-                Name="LeftPanel"
-            >
-                <Panel Background="#16233B" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="4">
-                    <TreeView Foreground="#D1D8E0">
-                        <TreeViewItem Header="Root">
-                            <TreeViewItem>
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <Image Source="avares://PlaygroundEditor/Assets/Icons/cube.png" Width="20" Height="20"/>
-                                    <TextBlock Foreground="White" TextAlignment="Center" Padding="0 1 0 0">Player</TextBlock>
-                                </StackPanel>
-                            </TreeViewItem>
-                            <TreeViewItem Header="Object 2"/>
-                        </TreeViewItem>
-                    </TreeView>
-                </Panel>
-            </StackPanel>
+                Grid.Row="0"/>
 
             <GridSplitter 
                 Grid.RowSpan="2"

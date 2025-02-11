@@ -1,8 +1,8 @@
 ﻿namespace Playground;
 
 [Serializable]
-internal struct Scene
+public struct Scene
 {
-    internal string Name;
-    internal List<SceneGameObject> GameObjects;
+    public string Name;
+    public List<SceneGameObject> GameObjects;
 }

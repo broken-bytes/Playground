@@ -2,15 +2,13 @@
 
 namespace Playground;
 
-internal static class SceneManager
+public static partial class SceneManager
 {
     internal static double _fixedTimeStep;
-    internal static List<GameObject> SceneObjects = new();
     internal static List<GameObject> ToBeDestroyedObjects = new();
     
     internal static void OnStart()
     {
-        Debug.Print("SceneManager: OnStart");
         GameObject.OnGameObjectCreated += (objc) =>
         {
             SceneObjects.Add(objc);

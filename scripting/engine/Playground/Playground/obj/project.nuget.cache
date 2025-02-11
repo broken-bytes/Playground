@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "uldG4AehfjI=",
+  "dgSpecHash": "VjGuOMiH420=",
   "success": true,
   "projectFilePath": "H:\\Projects\\Playground\\scripting\\engine\\Playground\\Playground\\Playground.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\marce\\.nuget\\packages\\yamldotnet\\16.3.0\\yamldotnet.16.3.0.nupkg.sha512"
+  ],
   "logs": []
 }

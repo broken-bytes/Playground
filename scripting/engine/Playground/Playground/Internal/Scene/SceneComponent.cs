@@ -1,9 +1,14 @@
 ﻿namespace Playground;
 
 [Serializable]
-internal struct SceneComponent
+public struct SceneComponent
 {
-    internal string UUID;
-    internal string ComponentUUID;
-    internal Dictionary<string, dynamic> Components;
+    [Serializable]
+    public struct Field
+    {
+        public string Name;
+        public object Value;
+    }
+    public string TypeName;
+    public List<Field> Fields;
 }

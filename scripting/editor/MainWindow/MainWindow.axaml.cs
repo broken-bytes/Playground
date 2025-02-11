@@ -27,16 +27,18 @@ public partial class MainWindow : Window
     private bool _mouseDownForWindowMoving = false;
     private PointerPoint _originalPoint;
     private ProgressBar _backgroundProgressBar;
-    
     private bool _isDragging = false;
-    
     private Thread _engineThread;
+    private Thread _editorThread;
+    private TreeView _hierarchyTreeView;
     
     public MainWindow()
     {
         InitializeComponent();
         
-        DataContext = new MainWindowViewModel(this.FindControl<ProgressBar>("BackgroundProgressBar")!);
+        DataContext = new MainWindowViewModel(
+            this.FindControl<ProgressBar>("BackgroundProgressBar")!
+        );
         
         EditorEnvironment.OnEnterPlayMode += () =>
         {
@@ -46,6 +48,15 @@ public partial class MainWindow : Window
         {
             KeyboardNavigation.SetTabNavigation(this, KeyboardNavigationMode.Cycle);
         };
+
+        _editorThread = new Thread(OnEditorUpdate);
+        _editorThread.Start();
+    }
+
+    private void OnEditorUpdate()
+    {
+        Thread.Sleep(60);
+        EditorWindowManager.OnUpdate();
     }
 
     protected override void OnOpened(EventArgs e)
@@ -115,7 +126,16 @@ public partial class MainWindow : Window
                 IntPtr hwnd = windowImpl.Handle?.Handle ?? IntPtr.Zero;
 
                 // Invoke the static OnStart method with the HWND
-                onStartMethod.Invoke(null, new object[] { embed._handle, (uint)embed.Bounds.Width, (uint)embed.Bounds.Height, false });
+                onStartMethod.Invoke(
+                    null, 
+                    new object[]
+                    {
+                        embed._handle, 
+                        (uint)embed.Bounds.Width, 
+                        (uint)embed.Bounds.Height, 
+                        false,
+                        EditorEnvironment.ProjectPath + @"/.cache/artifacts/bin/GameAssembly/debug/GameAssembly.dll",
+                    });
 
                 Environment.UpdateMethod = onUpdate;
             }
