@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 
 namespace Playground;
 
-public partial class GameObject
+public partial class GameObject : Object
 {
     public GameObject? Parent;
     public Transform Transform;
@@ -77,11 +77,6 @@ public partial class GameObject
 
     public static GameObject? FindGameObject(string name) => 
         SceneManager.SceneObjects.FirstOrDefault(objc => objc.Name == name);
-
-    public static void Destroy(GameObject gameObject)
-    {
-        SceneManager.Delete(gameObject);
-    }
     
     public void OnDestroy()
     {

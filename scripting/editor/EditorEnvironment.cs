@@ -1,9 +1,31 @@
-﻿namespace PlaygroundEditor;
+﻿using System;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
+using Object = Playground.Object;
+
+namespace PlaygroundEditor;
 
 public static class EditorEnvironment
 {
     internal static Project Project;
     internal static string ProjectPath;
+
+    internal static Object? SelectedObject {
+        get => _selectedObject;
+        set {
+            if (value == null) {
+                OnObjectDeselected?.Invoke();
+                _selectedObject = null;
+                
+                return;
+            }
+            
+            OnObjectSelected?.Invoke(value);
+            _selectedObject = value;
+        }
+    }
+    
+    private static Object? _selectedObject;
     
     internal static bool IsPlayMode
     {
@@ -35,14 +57,26 @@ public static class EditorEnvironment
     internal delegate void OnEnterPlayModeDelegate();
     internal delegate void OnExitPlayModeDelegate();
     internal delegate void OnPausePlayModeDelegate();
+    internal delegate void OnObjectSelectedDelegate(Object obj);
+    internal delegate void OnObjectDeselectedDelegate();
     
     internal static OnEnterPlayModeDelegate? OnEnterPlayMode { get; set; }
     internal static OnExitPlayModeDelegate? OnExitPlayMode { get; set; }
     internal static OnPausePlayModeDelegate? OnPausePlayMode { get; set; }
+    internal static OnObjectSelectedDelegate? OnObjectSelected { get; set; }
+    internal static OnObjectDeselectedDelegate? OnObjectDeselected { get; set; }
 
     internal static void EnterPlayMode()
     {
         IsPlayMode = true;
+        
+        // FIXME Debug: test serialization of whole scene
+        var yamlSerializer = new SerializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+        
+        var yaml = yamlSerializer.Serialize(Playground.SceneManager.SceneObjects);
+        Console.WriteLine(yaml);
     }
 
     internal static void ExitPlayMode()

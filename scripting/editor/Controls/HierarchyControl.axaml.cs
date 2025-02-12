@@ -1,15 +1,19 @@
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Playground;
+using Tmds.DBus.Protocol;
 
 namespace PlaygroundEditor.Controls;
 
 public partial class HierarchyControl : UserControl, EditorWindow
 {
     private TreeView _hierarchyTreeView;
+    private Dictionary<object, Object> _treeViewObjects = [];
     
     public HierarchyControl()
     {
@@ -47,12 +51,22 @@ public partial class HierarchyControl : UserControl, EditorWindow
         TreeViewItem treeView = new();
         treeView.Header = objc.Name;
         
+        treeView.PointerPressed += TreeViewOnPointerPressed;
+        
         item.Items.Add(treeView);
 
         foreach (var child in objc.Children)
         {
             InjectGameObjectTreeView(child, treeView);
         }
+    }
+
+    private void TreeViewOnPointerPressed(object? sender, PointerPressedEventArgs e) {
+        if (sender is null) {
+            return;
+        }
+        
+        EditorEnvironment.SelectedObject = _treeViewObjects[sender];
     }
 }
 

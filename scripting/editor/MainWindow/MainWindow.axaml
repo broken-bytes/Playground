@@ -105,6 +105,7 @@
                 HorizontalAlignment="Stretch"
                 Grid.Row="0"
                 Grid.Column="4" Background="#1E2A47">
+                <controls1:InspectorControl/>
             </StackPanel>
             
             <GridSplitter 
