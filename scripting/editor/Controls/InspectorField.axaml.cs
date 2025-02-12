@@ -12,4 +12,3 @@ public partial class InspectorField : UserControl {
         this.FindControl<StackPanel>("FieldContent").Children.Add(content);
     }
 }
-

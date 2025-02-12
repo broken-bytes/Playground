@@ -7,7 +7,6 @@ namespace PlaygroundEditor;
 public static class SceneManager
 {
     internal static object? SceneData;
-    internal static List<GameObject> LiveObjects = new();
     
     static SceneManager()
     {

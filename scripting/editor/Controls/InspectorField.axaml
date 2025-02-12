@@ -4,9 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="PlaygroundEditor.Controls.InspectorField">
-    <Grid Name="Content" ColumnDefinitions="*, 180" HorizontalAlignment="Stretch">
-        <TextBlock Name = "FieldTitle" Grid.Column="0" HorizontalAlignment="Stretch"/>
-        <StackPanel Grid.Column="1" Name = "FieldContent"></StackPanel>
+    <Grid Name="Content" RowDefinitions="24, 24" HorizontalAlignment="Stretch">
+        <TextBlock Name = "FieldTitle" Grid.Row="0" FontFamily="{StaticResource Rubik}" FontWeight="Bold"/>
+        <StackPanel Grid.Row="1" Name = "FieldContent" HorizontalAlignment="Stretch"></StackPanel>
     </Grid>
 </UserControl>
 

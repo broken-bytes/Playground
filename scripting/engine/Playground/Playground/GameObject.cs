@@ -29,24 +29,30 @@ public partial class GameObject : Object
     {
         OnGameObjectDestroyed?.Invoke(this);
     }
-    
-    public T Attach<T>() where T : Component, new()
-    {
-        var existing = _components.OfType<T>().FirstOrDefault();
 
-        if (existing != null)
-        {
+    public void Attach<T>() where T : Component, new() {
+        if (TryRetrieve<T>() is { } comp) {
             throw new ComponentAlreadyAttachedException<T>(this);
         }
         
-        T component = new T
+        _components.Add(
+            new T { GameObject = this }
+        );
+    }
+    
+    public T AttachOrRetrieve<T>() where T : Component, new() {
+        
+        if (TryRetrieve<T>() is { } comp)
+        {
+            return comp;
+        }
+        
+        var component = new T
         {
             GameObject = this
         };
         
         _components.Add(component);
-        
-        component.GameObject = this;
         
         return component;
     }
@@ -63,16 +69,44 @@ public partial class GameObject : Object
         _components.Remove(component);
     }
 
-    public T Retrieve<T>() where T : Component
-    {
+    public T Retrieve<T>(ComponentRetrieveScope scope = ComponentRetrieveScope.Self) where T : Component {
+        if (scope is ComponentRetrieveScope.Parent) {
+            if (Parent == null) {
+                throw new GameObjectHasNoParentException<T>(this);
+            }
+            
+            return Parent.Retrieve<T>();
+        }
+        
         var component = _components.OfType<T>().FirstOrDefault();
 
-        if (component == null)
-        {
+        if (component == null) {
+            if (scope is ComponentRetrieveScope.SelfAndParent or ComponentRetrieveScope.SelfAndChildrenAndParent) {
+                if (Parent?.TryRetrieve<T>() is { } parentComp) {
+                    return parentComp;
+                }
+            }
+            if (scope is ComponentRetrieveScope.SelfAndChildren or ComponentRetrieveScope.SelfAndChildrenAndParent) {
+                foreach (var objc in _children) {
+                    if (objc.TryRetrieve<T>(scope) is { } comp) {
+                        return comp;
+                    }
+                }
+            }
+
             throw new ComponentNotFoundException<T>(this);
         }
 
         return component;
+    }
+
+    public T? TryRetrieve<T>(ComponentRetrieveScope scope = ComponentRetrieveScope.Self) where T : Component {
+        try {
+            return Retrieve<T>(scope);
+        }
+        catch {
+            return null;
+        }
     }
 
     public static GameObject? FindGameObject(string name) => 

@@ -27,6 +27,15 @@ public partial class HierarchyControl : UserControl, EditorWindow
         base.OnLoaded(e);
         
         EditorWindowManager.EditorWindows.Add(this);
+        
+        EditorEnvironment.OnObjectSelected += OnObjectSelected;
+        EditorEnvironment.OnObjectDeselected += OnObjectDeselected;
+    }
+
+    private void OnObjectSelected(Object obj) {
+    }
+    
+    private void OnObjectDeselected() {
     }
 
     public void OnEditorUpdate()
@@ -54,6 +63,8 @@ public partial class HierarchyControl : UserControl, EditorWindow
         treeView.PointerPressed += TreeViewOnPointerPressed;
         
         item.Items.Add(treeView);
+        
+        _treeViewObjects.Add(treeView, objc);
 
         foreach (var child in objc.Children)
         {
