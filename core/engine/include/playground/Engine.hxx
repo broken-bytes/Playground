@@ -11,5 +11,5 @@ extern "C" {
         bool IsOffscreen;
 	} typedef PlaygroundConfig;
 
-	__declspec(dllexport) void PlaygroundMain(const PlaygroundConfig& config);
+	__declspec(dllexport) void PlaygroundCoreMain(const PlaygroundConfig& config);
 }

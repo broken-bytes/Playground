@@ -14,12 +14,8 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
-std::map<std::string, void*> functions = std::map<std::string, void*>();
 
-typedef void (*RenderingPreFrameFunction)();
-typedef void (*RenderingUpdateFunction)(double);
-typedef void (*RenderingPostFrameFunction)();
-typedef void (*RenderingReadBackBuffer)(void* data, size_t* numBytes);
+typedef void(__cdecl* ScriptingLayerStartUp)(void*, uint32_t, uint32_t, bool);
 
 int main() {
 	RENDERDOC_API_1_1_2* rdoc_api = nullptr;
@@ -44,52 +40,19 @@ int main() {
     ptr = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
 #endif
 
-	PlaygroundMain(PlaygroundConfig{
-		.Window = ptr,
-		.Delegate = [](const char* name, void* ptr) {
-            functions.insert({ name, ptr });
-		},
-		.Width = 1280,
-		.Height = 720,
-        .IsOffscreen = true
-		}
-	);
+    // Load the Swift library
+#if _WIN32
+    auto lib = LoadLibrary("Playground.dll");
 
-    RenderingPreFrameFunction preFrameFunction = reinterpret_cast<RenderingPreFrameFunction>(functions["Rendering_PreFrame"]);
-    RenderingUpdateFunction updateFunction = reinterpret_cast<RenderingUpdateFunction>(functions["Rendering_Update"]);
-    RenderingPostFrameFunction postFrameFunction = reinterpret_cast<RenderingPostFrameFunction>(functions["Rendering_PostFrame"]);
-    RenderingReadBackBuffer readBackBuffer = reinterpret_cast<RenderingReadBackBuffer>(functions["Rendering_ReadBackBuffer"]);
-
-    auto now = std::chrono::high_resolution_clock::now();
-    double deltaTime = 0.0;
-
-    bool quit = false;
-
-    uint8_t* data = new uint8_t[1280 * 720 * 4];
-    size_t numBytes = 0;
-
-    while (!quit) {
-
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_EVENT_QUIT)
-            {
-                quit = true;
-            }
-        }
-
-        preFrameFunction();
-        updateFunction(deltaTime);
-        postFrameFunction();
-
-        readBackBuffer(reinterpret_cast<void*>(data), &numBytes);
-
-        stbi_write_jpg("C:\\Users\\marce\\Desktop\\ReadbackBuffer.jpg", 1280, 720, 4, data, 90);
-
-        auto end = std::chrono::high_resolution_clock::now();
-        deltaTime = std::chrono::duration<double>(end - now).count();
+    if (lib == nullptr) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load Playground.dll: %s", GetLastError());
+        return -1;
     }
+
+    auto startUp = (ScriptingLayerStartUp)GetProcAddress(lib, "PlaygroundMain");
+
+    startUp(ptr, 1280, 720, true);
+#endif
 
 	return 0;
 }

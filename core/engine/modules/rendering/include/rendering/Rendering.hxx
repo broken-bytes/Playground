@@ -86,4 +86,8 @@ namespace playground::rendering {
         CameraHandle handle,
         uint32_t texture
     ) -> void;
+
+    auto DestroyCamera(
+        CameraHandle handle
+    ) -> void;
 }

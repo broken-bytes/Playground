@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Xml;
@@ -6,9 +7,11 @@ using System.Xml.Serialization;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using DynamicData;
 using Playground;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using YamlDotNet.Serialization.TypeInspectors;
 
 namespace PlaygroundEditor;
 
@@ -24,7 +27,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
-        }
+        }                                        
 
         base.OnFrameworkInitializationCompleted();
 
@@ -122,48 +125,29 @@ EndGlobal
         File.WriteAllText($"{projectPath}/Directory.Build.props", buildProps);
 
         var sceneSerializer = new SerializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .IncludeNonPublicProperties()
+            .EnablePrivateConstructors()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build();
+
+
+        var list = new List<GameObject>();
+        var objc = new GameObject();
+        objc.Name = "SampleObject";
+        objc.Attach<MeshRenderer>();
+        objc.Attach<SoundEmitter>();
+        objc.Attach<SoundReceiver>();
         
-        var scene = new Scene
-        {
-            Name = "SampleScene",
-            GameObjects = [
-                new SceneGameObject
-                {
-                    UUID = Guid.NewGuid().ToString(),
-                    Tag = "",
-                    Name = "SampleObject",
-                    Components = [
-                        new SceneComponent
-                        {
-                            TypeName = "Transform",
-                            Fields = [
-                                new SceneComponent.Field
-                                {
-                                    Name = "Position",
-                                    Value = new Vector3(0, 0, 0),
-                                },
-                                new SceneComponent.Field
-                                {
-                                    Name = "Rotation",
-                                    Value = new Vector4(0, 0, 0, 1),
-                                },
-                                new SceneComponent.Field
-                                {
-                                    Name = "Scale",
-                                    Value = new Vector3(1, 1, 1),
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        };
+        var objc2 = new GameObject();
+        objc2.Name = "SampleObject2";
+        objc2.SetParent(objc);
+        
+        list.Add(objc);
+        list.Add(objc2);
         
         Directory.CreateDirectory(projectPath + "/content/scenes");
         
-        var yaml = sceneSerializer.Serialize(scene);
+        var yaml = sceneSerializer.Serialize(list);
 
         File.WriteAllText(projectPath + "/content/scenes/SampleScene.pscn", yaml);
         

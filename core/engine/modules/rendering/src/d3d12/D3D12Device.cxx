@@ -85,6 +85,9 @@ namespace playground::rendering::d3d12 {
             throw std::runtime_error("Failed to create D3D12 device");
         }
 
+
+        _device->SetStablePowerState(TRUE);
+
         // Create heaps
         // Start with one heap per type
         // 32 RTVS (2-3 for the back buffers and 30~ for render textures)

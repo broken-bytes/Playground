@@ -39,8 +39,6 @@ namespace playground::rendering {
 	uint8_t frameIndex = 0;
 	std::vector<std::shared_ptr<Frame>> frames = {};
 
-
-
 	// Resource management
 	std::map<uint64_t, std::shared_ptr<VertexBuffer>> vertexBuffers = {};
 	std::map<uint64_t, std::shared_ptr<IndexBuffer>> indexBuffers = {};
@@ -139,13 +137,6 @@ namespace playground::rendering {
     ObjectData objectData;
 
     bool didUpload = false;
-
-    bool textureUploaded = false;
-    bool textureCreated = false;
-
-    std::shared_ptr<Texture> targetTexture = nullptr;
-    std::shared_ptr<VertexBuffer> vertexBuffer = nullptr;
-    std::shared_ptr<IndexBuffer> indexBuffer = nullptr;
 
     std::shared_ptr<Sampler> sampler = nullptr;
 
@@ -259,6 +250,7 @@ namespace playground::rendering {
         graphicsContext->Begin();
         uploadContext->Begin();
 
+        /*
         if (!textureUploaded && textureCreated) {
             uploadContext->Upload(vertexBuffer);
             uploadContext->Upload(indexBuffer);
@@ -268,6 +260,7 @@ namespace playground::rendering {
             graphicsContext->TransitionTexture(targetTexture);
             textureUploaded = true;
         }
+        */
 	}
 
     auto Update(double deltaTime) -> void {
@@ -289,6 +282,7 @@ namespace playground::rendering {
         opaqueCommandList->BindConstantBuffer(cameraBuffer, 0);
         opaqueCommandList->BindConstantBuffer(objectBuffer, 1);
 
+        /*
         if (textureUploaded) {
             opaqueCommandList->BindVertexBuffer(vertexBuffer, 0);
             opaqueCommandList->BindIndexBuffer(indexBuffer);
@@ -303,6 +297,7 @@ namespace playground::rendering {
         for (int x = 0; x < 1; x++) {
             opaqueCommandList->DrawIndexed(indexBuffer->Size(), 0, 0);
         }
+        */
 	}
 
 	auto PostFrame() -> void {
@@ -378,16 +373,15 @@ namespace playground::rendering {
         const UINT vertexBufferSize = mesh.vertices.size();
         const UINT indexBufferSize = mesh.indices.size();
 
+        /*
         vertexBuffer = device->CreateVertexBuffer(mesh.vertices.data(), sizeof(Vertex) * vertexBufferSize, sizeof(Vertex), true);
         indexBuffer = device->CreateIndexBuffer(mesh.indices.data(), indexBufferSize);
+        */
 
-        return { vertexBuffer->Id(), indexBuffer->Id() };
+        return { 0, 0 };
     }
 
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle {
-        targetTexture = device->CreateTexture(texture.Width, texture.Height, texture.Pixels.data());
-
-        textureCreated = true;
 
         return 0;
     }
@@ -453,5 +447,9 @@ namespace playground::rendering {
 
     auto SetCameraRenderTarget(CameraHandle handle, uint32_t texture) -> void {
         cameras[handle]->RenderTargetTextureId = texture;
+    }
+
+    auto DestroyCamera(CameraHandle handle) -> void {
+        // TODO: Implement camera destruction logic
     }
 }

@@ -13,5 +13,5 @@ target_link_libraries(Cooker PRIVATE AssetPipeline AssetLoader cereal::cereal)
 
 # Set the library output directory for all libraries
 set_target_properties(Cooker PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
-set_target_properties(Cooker PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
+set_target_properties(Cooker PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/tools/bin)
 set_target_properties(Cooker PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)

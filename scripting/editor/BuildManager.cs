@@ -91,24 +91,11 @@ internal static class BuildManager
 
     internal static async Task UpdateBuildConfig()
     {
+        
         await Task.Run(() =>
         {
-            // Check all .cs files in folder and subfolders
-            foreach (var entry in Directory.EnumerateFiles(_projectPath + "\\code"))
-            {
-                if (entry.EndsWith(".cs"))
-                {
-                    _filesToBuild.Add(entry);
-                }
-            }
-        
             var projectFileContent = ProjectHeader;
             projectFileContent += "     <ItemGroup>\n";
-            foreach (var file in _filesToBuild)
-            {
-                projectFileContent += $"        <Compile Include=\"{file}\" />\n";
-            }
-        
             projectFileContent += "        <Reference Include=\"Playground\">\n";
             projectFileContent += $"             <HintPath>H:\\\\Projects\\\\Playground\\\\scripting\\\\editor\\\\bin\\\\Debug\\\\net9.0\\\\Playground.dll</HintPath>\n";
             projectFileContent += "        </Reference>\n";
