@@ -40,12 +40,18 @@ namespace playground::rendering {
 	std::vector<std::shared_ptr<Frame>> frames = {};
 
 	// Resource management
-	std::map<uint64_t, std::shared_ptr<VertexBuffer>> vertexBuffers = {};
-	std::map<uint64_t, std::shared_ptr<IndexBuffer>> indexBuffers = {};
-	std::map<uint32_t, std::shared_ptr<Texture>> textures = {};
-	std::map<uint32_t, std::shared_ptr<Shader>> shaders = {};
-	std::map<uint32_t, std::shared_ptr<Material>> materials = {};
-	std::map<uint32_t, std::shared_ptr<Mesh>> meshes = {};
+	std::vector<std::shared_ptr<VertexBuffer>> vertexBuffers = {};
+    std::vector<uint32_t> freeVertexBufferIds = {};
+	std::vector<std::shared_ptr<IndexBuffer>> indexBuffers = {};
+    std::vector<uint32_t> freeIndexBufferIds = {};
+	std::vector<std::shared_ptr<Texture>> textures = {};
+    std::vector<uint32_t> freeTextureIds = {};
+	std::vector<std::shared_ptr<Shader>> shaders = {};
+    std::vector<uint32_t> freeShaderIds = {};
+	std::vector<std::shared_ptr<Material>> materials = {};
+    std::vector<uint32_t> freeMaterialIds = {};
+	std::vector<Mesh> meshes = {};
+    std::vector<uint32_t> freeMeshIds = {};
 
 	std::unique_ptr<GraphicsContext> graphicsContext = nullptr;
     std::unique_ptr<UploadContext> uploadContext = nullptr;
@@ -369,16 +375,46 @@ namespace playground::rendering {
 
 	}
 
-    auto UploadMesh(const assetloader::RawMeshData& mesh) -> std::pair<VertexBufferHandle, IndexBufferHandle> {
+    auto UploadMesh(const assetloader::RawMeshData& mesh) -> uint32_t {
         const UINT vertexBufferSize = mesh.vertices.size();
         const UINT indexBufferSize = mesh.indices.size();
 
-        /*
-        vertexBuffer = device->CreateVertexBuffer(mesh.vertices.data(), sizeof(Vertex) * vertexBufferSize, sizeof(Vertex), true);
-        indexBuffer = device->CreateIndexBuffer(mesh.indices.data(), indexBufferSize);
-        */
+        auto vertexBuffer = device->CreateVertexBuffer(mesh.vertices.data(), sizeof(Vertex) * vertexBufferSize, sizeof(Vertex), true);
+        auto indexBuffer = device->CreateIndexBuffer(mesh.indices.data(), indexBufferSize);
 
-        return { 0, 0 };
+        uint32_t vertexBufferId = 0;
+        if (freeVertexBufferIds.size() > 0) {
+            vertexBufferId = freeVertexBufferIds.back();
+            vertexBuffers[vertexBufferId] = vertexBuffer;
+            freeVertexBufferIds.pop_back();
+        } else {
+            vertexBuffers.push_back(vertexBuffer);
+            vertexBufferId = vertexBuffers.size() - 1;
+        }
+
+        uint32_t indexBufferId = 0;
+        if (freeIndexBufferIds.size() > 0) {
+            indexBufferId = freeIndexBufferIds.back();
+            indexBuffers[indexBufferId] = indexBuffer;
+            freeIndexBufferIds.pop_back();
+        } else {
+            indexBuffers.push_back(indexBuffer);
+            indexBufferId = indexBuffers.size() - 1;
+        }
+
+        uint32_t meshId = 0;
+        if (freeMeshIds.size() > 0) {
+            meshId = freeMeshIds.back();
+            meshes[meshId] = Mesh { vertexBufferId, indexBufferId };
+            freeMeshIds.pop_back();
+        }
+        else {
+            meshes.push_back(Mesh { vertexBufferId, indexBufferId });
+            meshId = meshes.size() - 1;
+            freeMeshIds.push_back(meshId);
+        }
+
+        return meshId;
     }
 
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle {
@@ -386,7 +422,8 @@ namespace playground::rendering {
         return 0;
     }
 
-	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void {
+	auto DrawIndexed(uint32_t meshId, uint32_t materialId) -> void {
+
 	}
 
     auto CreateCamera(

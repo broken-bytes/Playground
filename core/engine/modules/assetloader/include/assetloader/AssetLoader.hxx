@@ -13,7 +13,7 @@ namespace playground::assetloader {
         TEXTURE = 0x54584554
     };
 
-    const char* MagicNumberStringFor(MAGIC_NUMBERS number) {
+    inline const char* MagicNumberStringFor(MAGIC_NUMBERS number) {
         switch (number)
         {
         case playground::assetloader::MAGIC_NUMBERS::MESH:
@@ -27,6 +27,6 @@ namespace playground::assetloader {
         return nullptr;
     }
 
-    std::vector<RawMeshData> LoadMeshes(const std::vector<uint8_t>& buffer);
-    RawTextureData LoadTexture(const std::vector<uint8_t>& buffer);
+    std::vector<RawMeshData> LoadMeshes(std::string& buffer);
+    RawTextureData LoadTexture(std::string& buffer);
 }

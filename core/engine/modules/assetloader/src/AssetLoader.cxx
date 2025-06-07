@@ -8,10 +8,9 @@
 
 namespace playground::assetloader {
 
-    std::vector<RawMeshData> LoadMeshes(const std::vector<uint8_t>& buffer)
+    std::vector<RawMeshData> LoadMeshes(std::string& modelName)
     {
-        std::string inString(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-        std::istringstream iss(inString, std::ios::binary);
+        std::istringstream iss(modelName, std::ios::binary);
 
         std::vector<RawMeshData> loadedMeshes;
         {
@@ -22,9 +21,8 @@ namespace playground::assetloader {
         return loadedMeshes;
     }
 
-    RawTextureData LoadTexture(const std::vector<uint8_t>& buffer) {
-        std::string inString(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-        std::istringstream iss(inString, std::ios::binary);
+    RawTextureData LoadTexture(std::string& textureName) {
+        std::istringstream iss(textureName, std::ios::binary);
 
         RawTextureData loaded;
         {

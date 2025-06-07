@@ -10,6 +10,7 @@
 #include <vector>
 #include <rendering/IndexBufferHandle.hxx>
 #include <rendering/MaterialHandle.hxx>
+#include <rendering/Mesh.hxx>
 #include <rendering/VertexBufferHandle.hxx>
 #include <rendering/TextureHandle.hxx>
 #include <rendering/CameraHandle.hxx>
@@ -34,7 +35,7 @@ namespace playground::rendering {
 	auto UpdateVertexBuffer(VertexBufferHandle buffer, const void* data, size_t size) -> void;
 	auto UpdateIndexBuffer(IndexBufferHandle buffer, const void* data, size_t size) -> void;
 
-    auto UploadMesh(const assetloader::RawMeshData& mesh) -> std::pair<VertexBufferHandle, IndexBufferHandle>;
+    auto UploadMesh(const assetloader::RawMeshData& mesh) -> uint32_t;
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle;
 
 	// Resource destruction

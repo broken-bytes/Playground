@@ -1,10 +1,12 @@
 #include "playground/Engine.hxx"
 #include "playground/SceneManager.hxx"
 #include <chrono>
+#include <string>
 #include <thread>
 #include <audio/Audio.hxx>
 #include <input/Input.hxx>
 #include <rendering/Rendering.hxx>
+#include <rendering/Mesh.hxx>
 #include <system/System.hxx>
 #include <events/Events.hxx>
 #include <events/Event.hxx>
@@ -29,20 +31,6 @@ void Shutdown() {
         }
         });
 
-    
-    auto buffer = playground::io::LoadFileFromArchive(
-        "C:\\Users\\marce\\Desktop\\TestArchive.pak",
-        "Checker"
-    );
-    auto texture = playground::assetloader::LoadTexture(buffer);
-    playground::rendering::UploadTexture(texture);
-
-    auto meshBuffer = playground::io::LoadFileFromArchive(
-        "C:\\Users\\marce\\Desktop\\TestArchive.pak",
-        "Cube"
-    );
-    auto mesh = playground::assetloader::LoadMeshes(meshBuffer);
-    playground::rendering::UploadMesh(mesh.front());
 
     config.Delegate("Playground_CreateGameObject\0", playground::scenemanager::CreateGameObject);
     config.Delegate("Playground_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);

@@ -32,7 +32,7 @@ public class Transform {
     }
     public var euler: Vector3 { rotation.euler }
 
-    internal var native: UnsafeMutablePointer<NativeTransform> = .allocate(capacity: 1)
+    internal var native: UnsafeMutablePointer<NativeTransform>
 
     internal var parent: Transform? {
         gameObject.parent?.transform

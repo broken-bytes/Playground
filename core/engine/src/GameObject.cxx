@@ -10,4 +10,23 @@ namespace playground::gameobjects {
 
         return &go->transform;
     }
+
+    MeshComponent* GetGameObjectMeshComponent(uint32_t id) {
+        auto go = scenemanager::GetGameObject(id);
+
+        if (!go) {
+            return nullptr;
+        }
+
+        return go->meshComponent;
+    }
+
+    AudioSourceComponent* GetGameObjectAudioSourceComponent(uint32_t id) {
+        auto go = scenemanager::GetGameObject(id);
+        if (!go) {
+            return nullptr;
+        }
+
+        return go->audioSourceComponent;
+    }
 }
