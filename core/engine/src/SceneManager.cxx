@@ -13,6 +13,10 @@ namespace playground::scenemanager {
         auto go = new GameObject();
         go->transform = Transform();
 
+        go->transform.position = { 0.0f, 0.0f, 0.0f };
+        go->transform.rotation = { 0.0f, 0.0f, 0.0f, 1.0f };
+        go->transform.scale = { 1.0f, 1.0f, 1.0f };
+
         if (_freeIds.size() > 0) {
             int32_t id = _freeIds.back();
             _freeIds.pop_back();
@@ -33,5 +37,13 @@ namespace playground::scenemanager {
         delete _gameObjects[id];
         _gameObjects[id] = nullptr;
         _freeIds.push_back(id);
+    }
+
+    GameObject* GetGameObject(int32_t id) {
+        if (id < 0 || id >= _gameObjects.size()) {
+            return nullptr;
+        }
+
+        return _gameObjects[id];
     }
 }

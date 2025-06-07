@@ -95,8 +95,13 @@ internal final class Engine: @unchecked Sendable {
 
     private func mainTick() {
         Input.shared.update()
-        print("Main tick \(Time.deltaTime)")
-        // Game logic goes here
+        for x in 0...Int.random(in: 10...1000) {
+            var objc = SceneManager.createGameObject()
+            objc.attach(TestComponent.self)
+            objc.transform.position = .one
+            objc.destroy()
+        }
+        SceneManager.update()
     }
 
     private func audioTickLoop() {
@@ -114,12 +119,10 @@ internal final class Engine: @unchecked Sendable {
     }
 
     private func audioTick() {
-        print("Audio tick")
         // Audio update code here
     }
 
     private func physicsTick() {
-        print("Physics tick")
         // Physics update code here
     }
 

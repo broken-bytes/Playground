@@ -1,12 +1,13 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 
 namespace playground {
     struct Transform {
-        float position[3];
-        float rotation[4];
-        float scale[3];
+        std::array<float, 3> position;
+        std::array<float, 4> rotation;
+        std::array<float, 3> scale;
     };
 
     struct MeshRenderer {
@@ -18,4 +19,9 @@ namespace playground {
         uint32_t id;
         Transform transform;
     };
+
+
+    namespace gameobjects {
+        Transform* GetGameObjectTransform(uint32_t);
+    }
 }

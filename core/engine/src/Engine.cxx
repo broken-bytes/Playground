@@ -45,6 +45,7 @@ void Shutdown() {
     playground::rendering::UploadMesh(mesh.front());
 
     config.Delegate("Playground_CreateGameObject\0", playground::scenemanager::CreateGameObject);
+    config.Delegate("Playground_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
     config.Delegate("Playground_DestroyGameObject\0", playground::scenemanager::DestroyGameObject);
     config.Delegate("Playground_Shutdown\0", Shutdown);
     config.Delegate("Rendering_Init\0", playground::rendering::Init);

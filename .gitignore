@@ -19,3 +19,5 @@ obj/
 
 .idea/
 vcpkg_installed/
+
+.build/

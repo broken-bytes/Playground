@@ -1,19 +1,45 @@
 import Foundation
 
+internal struct NativeTransform {
+    var position: Vector3
+    var rotation: Quaternion
+    var scale: Vector3
+}
+
 public class Transform {
     public unowned var gameObject: GameObject! = nil
 
-    public var position: Vector3 = .zero
-    public var rotation: Quaternion = .identity
-    public var scale: Vector3 = .one
+    public var position: Vector3 {
+        get {
+            native.pointee.position
+        } set {
+            native.pointee.position = newValue
+        }
+    }
+    public var rotation: Quaternion {
+        get {
+            native.pointee.rotation
+        } set {
+            native.pointee.rotation = newValue
+        }
+    }
+    public var scale: Vector3 {
+        get {
+            native.pointee.scale
+        } set {
+            native.pointee.scale = newValue
+        }
+    }
     public var euler: Vector3 { rotation.euler }
+
+    internal var native: UnsafeMutablePointer<NativeTransform> = .allocate(capacity: 1)
 
     internal var parent: Transform? {
         gameObject.parent?.transform
     }
 
-    internal init() {
-
+    internal init(id: UInt32) {
+        native = SceneManager.getTransform(for: id)
     }
 
     public func translate(translation: Vector3) {
