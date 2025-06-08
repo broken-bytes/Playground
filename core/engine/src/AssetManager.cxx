@@ -1,6 +1,7 @@
 #include "playground/AssetManager.hxx"
 #include <assetloader/AssetLoader.hxx>
 #include <rendering/Mesh.hxx>
+#include <rendering/Rendering.hxx>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -8,6 +9,13 @@
 namespace playground::assetmanager {
     std::vector<ModelHandle> _modelHandles = {};
     std::vector<uint32_t> _freeModelHandleIds = {};
+
+    void MarkUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
+        if (handleId < _modelHandles.size()) {
+            _modelHandles[handleId].isUploaded = true;
+            _modelHandles[handleId].refCount--;
+        }
+    }
 
     uint32_t LoadModel(const char* name, uint16_t index) {
         std::string meshName(name);
@@ -39,6 +47,9 @@ namespace playground::assetmanager {
             handleId = _modelHandles.size();
             _modelHandles.push_back(handle);
         }
+
+        handle.refCount++;
+        playground::rendering::QueueUploadModel(rawMeshData, handleId, MarkUploadFinished);
 
         return handleId;
     }

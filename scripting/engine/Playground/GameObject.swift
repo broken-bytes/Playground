@@ -1,5 +1,3 @@
-import Foundation
-
 public class GameObject: Object {
     public protocol GameObjectLifeTimeDelegate: AnyObject {
         func onCreated(gameObject: GameObject)

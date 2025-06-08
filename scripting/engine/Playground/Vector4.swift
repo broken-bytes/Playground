@@ -1,5 +1,3 @@
-import Foundation
-
 public struct Vector4: Comparable, Codable, Equatable, Sendable {
     public let w: Float
     public let x: Float
@@ -7,7 +5,7 @@ public struct Vector4: Comparable, Codable, Equatable, Sendable {
     public let z: Float
 
     public var magnitude: Float {
-        sqrt(w * w + x * x + y * y + z * z)
+        Math.sqrt(w * w + x * x + y * y + z * z)
     }
 
     public static let zero = Vector4(w: 0, x: 0, y: 0, z: 0)

@@ -23,6 +23,7 @@ void Shutdown() {
     playground::input::Init();
     playground::scenemanager::Init();
     auto window = playground::system::Init(config.Window);
+    playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen);
 
     Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
         if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
@@ -31,12 +32,10 @@ void Shutdown() {
         }
         });
 
-
     config.Delegate("Playground_CreateGameObject\0", playground::scenemanager::CreateGameObject);
     config.Delegate("Playground_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
     config.Delegate("Playground_DestroyGameObject\0", playground::scenemanager::DestroyGameObject);
     config.Delegate("Playground_Shutdown\0", Shutdown);
-    config.Delegate("Rendering_Init\0", playground::rendering::Init);
     config.Delegate("Rendering_PreFrame\0", playground::rendering::PreFrame);
     config.Delegate("Rendering_Update\0", playground::rendering::Update);
     config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);

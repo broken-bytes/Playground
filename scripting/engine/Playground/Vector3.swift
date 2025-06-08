@@ -1,5 +1,3 @@
-import Foundation
-
 infix operator ..: MultiplicationPrecedence
 infix operator ^: MultiplicationPrecedence
 
@@ -9,11 +7,11 @@ public struct Vector3: Comparable, Codable, Equatable, Sendable {
     public let z: Float
 
     public var magnitude: Float {
-        sqrt(x * x + y * y + z * z)
+        Math.sqrt(x * x + y * y + z * z)
     }
 
     public var normalized: Vector3 {
-        let len = sqrt(x * x + y * y + z * z)
+        let len = Math.sqrt(x * x + y * y + z * z)
         guard len != 0 else { return self }
 
         return self / len

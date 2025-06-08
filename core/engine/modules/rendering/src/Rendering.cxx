@@ -1,6 +1,7 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <thread>
 #include "rendering/Rendering.hxx"
 #include "rendering/Device.hxx"
 #include "rendering/Frame.hxx"
@@ -16,27 +17,32 @@
 #include <assetloader/AssetLoader.hxx>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
-
-struct ObjectData {
-    glm::mat4 WorldMatrix;
-};
+#include <semaphore>
+#include <queue>
 
 namespace playground::rendering {
-
     struct Config {
         uint32_t Width;
         uint32_t Height;
         bool Offscreen;
     };
 
+    struct ObjectData {
+        glm::mat4 WorldMatrix;
+    };
+
     Config config;
 
-    constexpr uint8_t FRAME_COUNT = 2;
+    // Use triple buffering for rendering (N = Render Thread, N + 1 = Idle, N + 2 = Main Thread)
+    constexpr uint8_t FRAME_COUNT = 3;
 
 	std::shared_ptr<Device> device = nullptr;
 	void* window = nullptr;
 
+    // Frame index used by the render thread
 	uint8_t frameIndex = 0;
+    // Frame index used by the main thread
+    uint8_t logicFrameIndex = 2;
 	std::vector<std::shared_ptr<Frame>> frames = {};
 
 	// Resource management
@@ -52,7 +58,6 @@ namespace playground::rendering {
     std::vector<uint32_t> freeMaterialIds = {};
 	std::vector<Mesh> meshes = {};
     std::vector<uint32_t> freeMeshIds = {};
-
 	std::unique_ptr<GraphicsContext> graphicsContext = nullptr;
     std::unique_ptr<UploadContext> uploadContext = nullptr;
 
@@ -146,67 +151,95 @@ namespace playground::rendering {
 
     std::shared_ptr<Sampler> sampler = nullptr;
 
-	auto Init(void* window, uint32_t width, uint32_t height, bool offscreen) -> void {
-		// Create a device
-		device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
+    bool isRunning = false;
+    std::thread renderThread;
 
-        config.Width = width;
-        config.Height = height;
-        config.Offscreen = offscreen;
+	auto Init(
+        void* window,
+        uint32_t width,
+        uint32_t height,
+        bool offscreen
+    ) -> void {
+        renderThread = std::thread([
+            width,
+            height,
+            offscreen,
+            window
+        ]() {
+            // Create a device
+            device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
 
-		// Create frames (frames hold all render things that need to alter between frames)
-		for (int x = 0; x < FRAME_COUNT; x++)
-		{
-            std::stringstream ss;
-            ss << "Frame " << x;
+#if _WIN32
+            SetThreadDescription(GetCurrentThread(), L"Render Thread");
+#endif
 
-			auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str(), offscreen);
+            config.Width = width;
+            config.Height = height;
+            config.Offscreen = offscreen;
 
-            ss.clear();
-            ss << "DepthBuffer " << x;
+            // Create frames (frames hold all render things that need to alter between frames)
+            for (int x = 0; x < FRAME_COUNT; x++)
+            {
+                std::stringstream ss;
+                ss << "Frame " << x;
 
-			auto depthBuffer = device->CreateDepthBuffer(width, height, ss.str());
+                auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str(), offscreen);
 
-			frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer));
-		}
+                ss.clear();
+                ss << "DepthBuffer " << x;
 
-		// Create all command lists
-		opaqueCommandList = device->CreateCommandList(CommandListType::Graphics, "OpaqueCommandList");
+                auto depthBuffer = device->CreateDepthBuffer(width, height, ss.str());
 
-		transparentCommandList = device->CreateCommandList(CommandListType::Graphics, "TransparentCommandList");
+                frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer));
+            }
 
-		shadowCommandList = device->CreateCommandList(CommandListType::Graphics, "ShadowCommandList");
+            // Create all command lists
+            opaqueCommandList = device->CreateCommandList(CommandListType::Graphics, "OpaqueCommandList");
 
-		uiCommandList = device->CreateCommandList(CommandListType::Graphics, "UICommandList");
+            transparentCommandList = device->CreateCommandList(CommandListType::Graphics, "TransparentCommandList");
 
-		graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT, offscreen);
-        uploadContext = device->CreateUploadContext();
+            shadowCommandList = device->CreateCommandList(CommandListType::Graphics, "ShadowCommandList");
 
-        rootSignature = device->GetRootSignature();
+            uiCommandList = device->CreateCommandList(CommandListType::Graphics, "UICommandList");
 
-        defaultPipelineState = device->CreatePipelineState(vertexShaderCode, pixelShaderCode);
+            graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT, offscreen);
+            uploadContext = device->CreateUploadContext();
 
-		// Create the render passes
-		opaqueRenderPass = std::make_unique<OpaqueRenderPass>(width, height);
+            rootSignature = device->GetRootSignature();
 
-        sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
+            defaultPipelineState = device->CreatePipelineState(vertexShaderCode, pixelShaderCode);
 
-        auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
-        cameras.push_back(std::make_unique<Camera>(camera));
+            // Create the render passes
+            opaqueRenderPass = std::make_unique<OpaqueRenderPass>(width, height);
 
-        cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
+            sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
 
-        objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectData), "ObjectBuffer");
+            auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
+            cameras.push_back(std::make_unique<Camera>(camera));
 
-        glm::mat4 scale = glm::identity<glm::mat4>();
-        glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f));
-        glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 rotationMatrix = glm::mat4_cast(quaternion);
-        glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
-        objectData.WorldMatrix = finalTransform;
+            cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
+
+            objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectData), "ObjectBuffer");
+
+            glm::mat4 scale = glm::identity<glm::mat4>();
+            glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f));
+            glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::mat4 rotationMatrix = glm::mat4_cast(quaternion);
+            glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
+            objectData.WorldMatrix = finalTransform;
+
+            isRunning = true;
+
+            while (isRunning) {
+                PreFrame();
+                Update();
+                PostFrame();
+            }
+        });
 	}
 
 	auto Shutdown() -> void {
+        isRunning = false;
         // Destroy all render passes first as these hold references to queues, buffers etc.
         opaqueRenderPass = nullptr;
 
@@ -256,6 +289,21 @@ namespace playground::rendering {
         graphicsContext->Begin();
         uploadContext->Begin();
 
+        auto modelUploadQueue = frames[frameIndex]->ModelUploadQueue();
+        if (modelUploadQueue.size() > 0) {
+            auto modelUploadJob = modelUploadQueue.back();
+            modelUploadQueue.pop();
+
+            auto meshId = UploadMesh(modelUploadJob.meshes[modelUploadJob.handle]);
+
+            uploadContext->Upload(vertexBuffers[meshId]);
+            uploadContext->Upload(indexBuffers[meshId]);
+            graphicsContext->TransitionVertexBuffer(vertexBuffers[meshId]);
+            graphicsContext->TransitionIndexBuffer(indexBuffers[meshId]);
+        }
+
+        uploadContext->Finish();
+
         /*
         if (!textureUploaded && textureCreated) {
             uploadContext->Upload(vertexBuffer);
@@ -269,21 +317,12 @@ namespace playground::rendering {
         */
 	}
 
-    auto Update(double deltaTime) -> void {
-        uploadContext->Finish();
-
-        if (!didUpload) {
-
-        }
-
+    auto Update() -> void {
         auto cameraData = cameras[0]->GetCameraData();
         cameraBuffer->Update(&cameraData, sizeof(CameraData));
 
-        objectData.WorldMatrix = glm::transpose(glm::rotate(glm::transpose(objectData.WorldMatrix), glm::radians(25.0f) * (float)deltaTime, glm::vec3(1, 1, 0.0f)));
-
         // Update buffer with new data
         objectBuffer->Update(&objectData, sizeof(ObjectData));
-
 
         opaqueCommandList->BindConstantBuffer(cameraBuffer, 0);
         opaqueCommandList->BindConstantBuffer(objectBuffer, 1);
@@ -324,8 +363,7 @@ namespace playground::rendering {
         uiCommandList->Reset();
 
         frameIndex = (frameIndex + 1) % FRAME_COUNT;
-
-        didUpload = true;
+        logicFrameIndex = (logicFrameIndex + 1) % FRAME_COUNT;
 	}
 
     auto ReadbackBuffer(void* data) -> size_t {
@@ -374,6 +412,16 @@ namespace playground::rendering {
 	auto UpdateIndexBuffer(IndexBufferHandle buffer, const void* data, size_t size) -> void {
 
 	}
+
+    auto QueueUploadModel(std::vector<assetloader::RawMeshData>& meshes, uint32_t handle, std::function<void(uint32_t, std::vector<Mesh>)> callback) -> void {
+        auto job = ModelUploadJob {
+            .handle = handle,
+            .meshes = meshes,
+            .callback = callback
+        };
+
+        frames[logicFrameIndex]->ModelUploadQueue().push(job);
+    }
 
     auto UploadMesh(const assetloader::RawMeshData& mesh) -> uint32_t {
         const UINT vertexBufferSize = mesh.vertices.size();

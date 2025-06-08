@@ -26,7 +26,7 @@ namespace playground::rendering::d3d12
         _bufferCount = bufferCount;
         _frameIndex = 0;
 
-        _swapChain = std::make_unique<D3D12SwapChain>(queue, width, height, reinterpret_cast<HWND>(window));
+        _swapChain = std::make_unique<D3D12SwapChain>(bufferCount, queue, width, height, reinterpret_cast<HWND>(window));
 
         device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);

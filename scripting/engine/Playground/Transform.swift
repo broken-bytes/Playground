@@ -1,5 +1,3 @@
-import Foundation
-
 internal struct NativeTransform {
     var position: Vector3
     var rotation: Quaternion

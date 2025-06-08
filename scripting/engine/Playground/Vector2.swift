@@ -1,11 +1,9 @@
-import Foundation
-
 public struct Vector2: Comparable, Codable, Equatable, Sendable {
     public let x: Float
     public let y: Float
 
     public var magnitude: Float {
-        sqrt(x * x + y * y)
+        Math.sqrt(x * x + y * y)
     }
 
     public static let zero = Vector2(x: 0, y: 0)

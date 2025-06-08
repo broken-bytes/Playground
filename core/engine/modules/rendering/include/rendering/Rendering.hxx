@@ -6,6 +6,8 @@
 #undef near
 #undef far
 #include <cstdint>
+#include <functional>
+#include <semaphore>
 #include <string>
 #include <vector>
 #include <rendering/IndexBufferHandle.hxx>
@@ -19,10 +21,15 @@
 
 namespace playground::rendering {
 	// Lifecycle
-	auto Init(void* window, uint32_t width, uint32_t height, bool offscreen) -> void;
+	auto Init(
+        void* window,
+        uint32_t width,
+        uint32_t height,
+        bool offscreen
+    ) -> void;
 	auto Shutdown() -> void;
     auto PreFrame() -> void;
-	auto Update(double deltaTime) -> void;
+	auto Update() -> void;
 	auto PostFrame() -> void;
 
     /// Readback the current frame buffer
@@ -34,6 +41,8 @@ namespace playground::rendering {
 	auto CreateIndexBuffer(const uint32_t* indices, size_t len) -> IndexBufferHandle;
 	auto UpdateVertexBuffer(VertexBufferHandle buffer, const void* data, size_t size) -> void;
 	auto UpdateIndexBuffer(IndexBufferHandle buffer, const void* data, size_t size) -> void;
+
+    auto QueueUploadModel(std::vector<assetloader::RawMeshData>& meshes, uint32_t, std::function<void(uint32_t, std::vector<Mesh>)>) -> void;
 
     auto UploadMesh(const assetloader::RawMeshData& mesh) -> uint32_t;
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle;

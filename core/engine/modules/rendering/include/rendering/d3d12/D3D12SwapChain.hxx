@@ -12,7 +12,7 @@ namespace playground::rendering::d3d12
     class D3D12SwapChain : public Swapchain
     {
     public:
-        D3D12SwapChain(Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue, uint32_t width, uint32_t height, HWND hwnd);
+        D3D12SwapChain(uint8_t frameCount, Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue, uint32_t width, uint32_t height, HWND hwnd);
         ~D3D12SwapChain();
         auto Swap() -> void override;
         auto GetBackBuffer(uint8_t index) -> Microsoft::WRL::ComPtr<ID3D12Resource>;
