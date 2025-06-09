@@ -78,13 +78,16 @@ namespace playground::rendering::d3d12 {
             throw std::runtime_error("Failed to get debug interface");
         }
         pDebugController->EnableDebugLayer();
+        Microsoft::WRL::ComPtr<ID3D12Debug1> debugController1;
+        if (SUCCEEDED(pDebugController.As(&debugController1))) {
+            debugController1->SetEnableGPUBasedValidation(TRUE);
+        }
 #endif
 
         if (FAILED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device))))
         {
             throw std::runtime_error("Failed to create D3D12 device");
         }
-
 
         _device->SetStablePowerState(TRUE);
 
@@ -108,6 +111,11 @@ namespace playground::rendering::d3d12 {
         _samplerHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 8);
 
         _rootSignature = CreateRootSignature();
+
+        _graphicsQueue = CreateCommandQueue(CommandListType::Graphics, "GraphicsQueue");
+        _computeQueue = CreateCommandQueue(CommandListType::Compute, "ComputeQueue");
+        _copyQueue = CreateCommandQueue(CommandListType::Copy, "CopyQueue");
+        _uploadQueue = CreateCommandQueue(CommandListType::Transfer, "UploadQueue");
     }
 
     D3D12Device::~D3D12Device() {
@@ -125,24 +133,26 @@ namespace playground::rendering::d3d12 {
         _dsvHeaps = nullptr;
     }
 
-    auto D3D12Device::CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount, bool offscreen) -> std::unique_ptr<GraphicsContext>
+    auto D3D12Device::CreateGraphicsContext(std::string name, void* window, uint32_t width, uint32_t height, bool offscreen) -> std::shared_ptr<GraphicsContext>
     {
-        return std::make_unique<D3D12GraphicsContext>(
-            _device,
-            CreateCommandQueue(CommandListType::Graphics, "GraphicsQueue"),
+        return std::make_shared<D3D12GraphicsContext>(
+            name,
+            shared_from_this(),
+            _graphicsQueue,
+            _uploadQueue,
             window,
             width,
             height,
-            bufferCount,
             offscreen
         );
     }
 
-    auto D3D12Device::CreateUploadContext() -> std::unique_ptr<UploadContext>
+    auto D3D12Device::CreateUploadContext(std::string name) -> std::shared_ptr<UploadContext>
     {
-        return std::make_unique<D3D12UploadContext>(
-            _device,
-            CreateCommandQueue(CommandListType::Transfer, "UploadQueue")
+        return std::make_shared<D3D12UploadContext>(
+            name, 
+            shared_from_this(),
+            _uploadQueue
         );
     }
 
@@ -151,7 +161,7 @@ namespace playground::rendering::d3d12 {
         std::string name
     ) -> std::shared_ptr<CommandList>
     {
-        return std::make_shared<D3D12CommandList>(shared_from_this(), type, _frameCount, name);
+        return std::make_shared<D3D12CommandList>(shared_from_this(), type, name);
     }
 
     auto D3D12Device::CreateCommandQueue(
@@ -244,9 +254,8 @@ namespace playground::rendering::d3d12 {
 
         _device->CreateRenderTargetView(rtv.Get(), nullptr, nextHandle->GetCPUHandle());
 
-        if (!name.empty()) {
-            rtv->SetName(std::wstring(name.begin(), name.end()).c_str());
-        }
+        rtv->SetName(std::wstring(name.begin(), name.end()).c_str());
+        
 
         return std::make_shared<D3D12RenderTarget>(rtv, nextHandle->GetCPUHandle());
     }
@@ -289,10 +298,7 @@ namespace playground::rendering::d3d12 {
         }
 
         auto nextHandle = _dsvHeaps->NextHandle();
-
-        if (!name.empty()) {
-            depthBuffer->SetName(std::wstring(name.begin(), name.end()).c_str());
-        }
+        depthBuffer->SetName(std::wstring(name.begin(), name.end()).c_str());
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
         dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -354,6 +360,11 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12TextureSampler>(_device, _samplerHeaps->NextHandle(), filtering, wrapping);
     }
 
+    auto D3D12Device::CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window) -> std::shared_ptr<Swapchain> {
+        return std::make_shared<D3D12SwapChain>(bufferCount, _graphicsQueue, width, height, (HWND)window);
+    }
+
+
     auto D3D12Device::CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> {
         auto handle = _srvHeaps->NextHandle();
         return std::make_shared<D3D12ConstantBuffer>(
@@ -413,5 +424,24 @@ namespace playground::rendering::d3d12 {
 
     auto D3D12Device::DestroyShader(uint64_t shaderHandle) -> void
     {
+    }
+
+    auto D3D12Device::WaitForIdleGPU() -> void {
+        Microsoft::WRL::ComPtr<ID3D12Fence> fence;
+        _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+
+        HANDLE fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        UINT64 fenceValue = 1;
+
+        // Signal the GPU to raise the fence when it’s done
+        _graphicsQueue->Signal(fence.Get(), fenceValue);
+
+        // Wait until the GPU hits the fence
+        if (fence->GetCompletedValue() < fenceValue) {
+            fence->SetEventOnCompletion(fenceValue, fenceEvent);
+            WaitForSingleObject(fenceEvent, INFINITE);
+        }
+
+        CloseHandle(fenceEvent);
     }
 }

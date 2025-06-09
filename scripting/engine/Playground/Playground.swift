@@ -4,4 +4,6 @@ internal typealias AssemblyRegisterCallback = @convention(c) (UnsafePointer<CCha
 public func playgroundMain(window: UnsafeRawPointer, width: UInt32, height: UInt32, isDebug: Bool) {
     let engine = Engine(window: window, width: width, height: height, debug: isDebug)
     engine.start()
+
+    Logger.info("Engine finished")
 }

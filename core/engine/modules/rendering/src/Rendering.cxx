@@ -8,7 +8,6 @@
 #include "rendering/VertexBuffer.hxx"
 #include "rendering/DeviceFactory.hxx"
 #include "rendering/Texture.hxx"
-#include "rendering/renderpasses/OpaqueRenderPass.hxx"
 #include "rendering/CommandQueue.hxx"
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/RootSignature.hxx"
@@ -46,6 +45,7 @@ namespace playground::rendering {
 	std::vector<std::shared_ptr<Frame>> frames = {};
 
 	// Resource management
+    std::shared_ptr<Swapchain> swapchain;
 	std::vector<std::shared_ptr<VertexBuffer>> vertexBuffers = {};
     std::vector<uint32_t> freeVertexBufferIds = {};
 	std::vector<std::shared_ptr<IndexBuffer>> indexBuffers = {};
@@ -58,20 +58,9 @@ namespace playground::rendering {
     std::vector<uint32_t> freeMaterialIds = {};
 	std::vector<Mesh> meshes = {};
     std::vector<uint32_t> freeMeshIds = {};
-	std::unique_ptr<GraphicsContext> graphicsContext = nullptr;
-    std::unique_ptr<UploadContext> uploadContext = nullptr;
-
-	std::shared_ptr<CommandList> opaqueCommandList = nullptr;
-	std::shared_ptr<CommandList> transparentCommandList = nullptr;
-	std::shared_ptr<CommandList> shadowCommandList = nullptr;
-	std::shared_ptr<CommandList> uiCommandList = nullptr;
-
-	std::unique_ptr<OpaqueRenderPass> opaqueRenderPass = nullptr;
 
     std::shared_ptr<RootSignature> rootSignature = nullptr;
-
     std::shared_ptr<PipelineState> defaultPipelineState = nullptr;
-
     std::vector<std::unique_ptr<Camera>> cameras = {};
 
     std::shared_ptr<ConstantBuffer> cameraBuffer = nullptr;
@@ -181,36 +170,27 @@ namespace playground::rendering {
             for (int x = 0; x < FRAME_COUNT; x++)
             {
                 std::stringstream ss;
-                ss << "Frame " << x;
+                ss << "COLOUR_" << x;
 
                 auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str(), offscreen);
 
                 ss.clear();
-                ss << "DepthBuffer " << x;
+                ss << "DEPTH_" << x;
 
                 auto depthBuffer = device->CreateDepthBuffer(width, height, ss.str());
 
-                frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer));
+                auto gfxName = "GraphicsContext_" + std::to_string(x);
+                auto ulName = "UploadContext_" + std::to_string(x);
+
+                auto graphicsContext = device->CreateGraphicsContext(gfxName, window, width, height, offscreen);
+                auto uploadContext = device->CreateUploadContext(ulName);
+
+                frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext));
             }
-
-            // Create all command lists
-            opaqueCommandList = device->CreateCommandList(CommandListType::Graphics, "OpaqueCommandList");
-
-            transparentCommandList = device->CreateCommandList(CommandListType::Graphics, "TransparentCommandList");
-
-            shadowCommandList = device->CreateCommandList(CommandListType::Graphics, "ShadowCommandList");
-
-            uiCommandList = device->CreateCommandList(CommandListType::Graphics, "UICommandList");
-
-            graphicsContext = device->CreateGraphicsContext(window, width, height, FRAME_COUNT, offscreen);
-            uploadContext = device->CreateUploadContext();
 
             rootSignature = device->GetRootSignature();
 
             defaultPipelineState = device->CreatePipelineState(vertexShaderCode, pixelShaderCode);
-
-            // Create the render passes
-            opaqueRenderPass = std::make_unique<OpaqueRenderPass>(width, height);
 
             sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
 
@@ -220,6 +200,8 @@ namespace playground::rendering {
             cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
 
             objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectData), "ObjectBuffer");
+
+            swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
 
             glm::mat4 scale = glm::identity<glm::mat4>();
             glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f));
@@ -235,61 +217,37 @@ namespace playground::rendering {
                 Update();
                 PostFrame();
             }
+
+            device->WaitForIdleGPU();
+
+            // Destroy all resources (render targets, depth buffers, etc)
+            for (auto& frame : frames)
+            {
+                frame = nullptr;
+            }
+
+            vertexBuffers = {};
+            indexBuffers = {};
+
+            // Cleanup
+            device = nullptr;
+            swapchain = nullptr;
         });
 	}
 
 	auto Shutdown() -> void {
         isRunning = false;
-        // Destroy all render passes first as these hold references to queues, buffers etc.
-        opaqueRenderPass = nullptr;
-
-        // Clear the contexts -> These hold swapchains and other resources
-        graphicsContext = nullptr;
-        uploadContext = nullptr;
-
-        // Close all command lists
-        opaqueCommandList->Close();
-        transparentCommandList->Close();
-        shadowCommandList->Close();
-        uiCommandList->Close();
-
-        opaqueCommandList = nullptr;
-        transparentCommandList = nullptr;
-        shadowCommandList = nullptr;
-        uiCommandList = nullptr;
-
-        // Destroy all resources (render targets, depth buffers, etc)
-        for (auto& frame : frames)
-        {
-            frame = nullptr;
-        }
-
-		// Cleanup
-		device = nullptr;
 	}
 
 	auto PreFrame() -> void {
-		auto renderTarget = frames[frameIndex]->RenderTarget();
-		auto depthBuffer = frames[frameIndex]->DepthBuffer();
-
-        opaqueCommandList->Begin();
-        transparentCommandList->Begin();
-        shadowCommandList->Begin();
-        uiCommandList->Begin();
-
-        opaqueCommandList->SetRootSignature(rootSignature);
-        opaqueCommandList->SetPipelineState(defaultPipelineState);
-        opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
-        transparentCommandList->SetRootSignature(rootSignature);
-        shadowCommandList->SetRootSignature(rootSignature);
-        uiCommandList->SetRootSignature(rootSignature);
-
-		opaqueRenderPass->Begin(opaqueCommandList, renderTarget, depthBuffer);
-
-        graphicsContext->Begin();
+        auto backBufferIndex = swapchain->BackBufferIndex();
+        auto uploadContext = frames[backBufferIndex]->UploadContext();
         uploadContext->Begin();
 
-        auto modelUploadQueue = frames[frameIndex]->ModelUploadQueue();
+        auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
+        graphicsContext->Begin();
+
+        auto modelUploadQueue = frames[backBufferIndex]->ModelUploadQueue();
         if (modelUploadQueue.size() > 0) {
             auto modelUploadJob = modelUploadQueue.back();
             modelUploadQueue.pop();
@@ -298,77 +256,46 @@ namespace playground::rendering {
 
             uploadContext->Upload(vertexBuffers[meshId]);
             uploadContext->Upload(indexBuffers[meshId]);
-            graphicsContext->TransitionVertexBuffer(vertexBuffers[meshId]);
-            graphicsContext->TransitionIndexBuffer(indexBuffers[meshId]);
         }
 
         uploadContext->Finish();
-
-        /*
-        if (!textureUploaded && textureCreated) {
-            uploadContext->Upload(vertexBuffer);
-            uploadContext->Upload(indexBuffer);
-            graphicsContext->TransitionVertexBuffer(vertexBuffer);
-            graphicsContext->TransitionIndexBuffer(indexBuffer);
-            uploadContext->Upload(targetTexture);
-            graphicsContext->TransitionTexture(targetTexture);
-            textureUploaded = true;
-        }
-        */
 	}
 
     auto Update() -> void {
+        auto backBufferIndex = swapchain->BackBufferIndex();
+
+        auto renderTarget = frames[backBufferIndex]->RenderTarget();
+        auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
+
+        auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
+
+        graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
+
         auto cameraData = cameras[0]->GetCameraData();
         cameraBuffer->Update(&cameraData, sizeof(CameraData));
 
-        // Update buffer with new data
         objectBuffer->Update(&objectData, sizeof(ObjectData));
 
-        opaqueCommandList->BindConstantBuffer(cameraBuffer, 0);
-        opaqueCommandList->BindConstantBuffer(objectBuffer, 1);
-
-        /*
-        if (textureUploaded) {
-            opaqueCommandList->BindVertexBuffer(vertexBuffer, 0);
-            opaqueCommandList->BindIndexBuffer(indexBuffer);
-            opaqueCommandList->BindTexture(targetTexture, 1);
-        }
-        opaqueCommandList->BindSampler(sampler, 2);
-
-        opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
-
-		opaqueRenderPass->Execute();
-
-        for (int x = 0; x < 1; x++) {
-            opaqueCommandList->DrawIndexed(indexBuffer->Size(), 0, 0);
-        }
-        */
+        graphicsContext->EndRenderPass();
 	}
 
 	auto PostFrame() -> void {
-		opaqueRenderPass->End();
-
-        opaqueCommandList->Close();
-        transparentCommandList->Close();
-        shadowCommandList->Close();
-        uiCommandList->Close();
-
-        graphicsContext->ExecuteCommandLists({ opaqueCommandList });
-        graphicsContext->CopyToBackBuffer(frames[frameIndex]->RenderTarget());
+        auto backBufferIndex = swapchain->BackBufferIndex();
+        auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
+        graphicsContext->CopyToSwapchainBackBuffer(frames[backBufferIndex]->RenderTarget(), swapchain);
 		graphicsContext->Finish();
 
-        opaqueCommandList->Reset();
-        transparentCommandList->Reset();
-        shadowCommandList->Reset();
-        uiCommandList->Reset();
+        swapchain->Swap();
 
-        frameIndex = (frameIndex + 1) % FRAME_COUNT;
-        logicFrameIndex = (logicFrameIndex + 1) % FRAME_COUNT;
+        logicFrameIndex = (backBufferIndex + 2) % FRAME_COUNT;
 	}
 
     auto ReadbackBuffer(void* data) -> size_t {
+        auto graphicsContext = frames[frameIndex]->GraphicsContext();
+
         size_t numBytes = 0;
-        graphicsContext->ReadbackBuffer(data, &numBytes);
+        // TODO: Create readback buffer via renderer not graphcis context
+        //graphicsContext->ReadbackBuffer(data, &numBytes);
 
         return numBytes;
     }

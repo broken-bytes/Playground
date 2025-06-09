@@ -5,6 +5,7 @@
 #include <cassert>
 #include <filesystem>
 #include <map>
+#include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 #include <playground/Engine.hxx>
 #include <assetpipeline/assetpipeline.hxx>
@@ -17,7 +18,7 @@
 
 typedef void(__cdecl* ScriptingLayerStartUp)(void*, uint32_t, uint32_t, bool);
 
-int main() {
+int SDL_main(int argc, char** argv) {
 	RENDERDOC_API_1_1_2* rdoc_api = nullptr;
 
 	// At init, on windows
@@ -53,6 +54,8 @@ int main() {
 
     startUp(ptr, 1280, 720, true);
 #endif
+
+    SDL_HideWindow(window);
 
 	return 0;
 }

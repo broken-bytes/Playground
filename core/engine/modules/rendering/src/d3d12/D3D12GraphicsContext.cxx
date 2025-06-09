@@ -1,10 +1,18 @@
 #include <SDL3/SDL.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+#include <pix.h>
+#include <cassert>
 #include "rendering/Context.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12CommandAllocator.hxx"
 #include "rendering/d3d12/D3D12CommandList.hxx"
+#include "rendering/d3d12/D3D12DepthBuffer.hxx"
+#include "rendering/d3d12/D3D12Material.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
+#include "rendering/d3d12/D3D12SwapChain.hxx"
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
@@ -12,63 +20,143 @@
 namespace playground::rendering::d3d12
 {
     D3D12GraphicsContext::D3D12GraphicsContext(
-        Microsoft::WRL::ComPtr<ID3D12Device9> device,
-        Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue,
+        std::string name,
+        std::shared_ptr<D3D12Device> device,
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> transferQueue,
         void* window,
         uint32_t width,
         uint32_t height,
-        uint32_t bufferCount,
         bool isOffscreen
     )
     {
-        _device = device;
-        _queue = queue;
-        _bufferCount = bufferCount;
-        _frameIndex = 0;
+        _device = device->GetDevice();
+        _graphicsQueue = graphicsQueue;
+        _transferQueue = transferQueue;
+        _opaqueCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_OPAQUE_COMMAND_LIST"));
+        _transparentCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_TRANSPARENT_COMMAND_LIST"));
+        _shadowCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_SHADOW_COMMAND_LIST"));
+        _transferCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_TRANSFER_COMMAND_LIST"));
 
-        _swapChain = std::make_unique<D3D12SwapChain>(bufferCount, queue, width, height, reinterpret_cast<HWND>(window));
+        // Close command lists
+        _opaqueCommandList->Close();
+        _transparentCommandList->Close();
+        _shadowCommandList->Close();
+        _transferCommandList->Close();
 
-        device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
+        _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-
-        if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)))) {
-            throw std::runtime_error("Failed to create command allocator");
-        }
-
-        if (FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)))) {
-            throw std::runtime_error("Failed to create command list");
-        }
-
-        _commandList->SetName(L"GraphicsContextList");
 
         _isOffscreen = isOffscreen;
 
-        if (_isOffscreen) {
-            _readbackBuffer = std::make_unique<D3D12ReadbackBuffer>(device, width, height);
-        }
-
-        _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(device, 1, 1);
+        _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(_device, 1, 1);
     }
 
     D3D12GraphicsContext::~D3D12GraphicsContext()
     {
-        _queue->Signal(_fence.Get(), _fenceValue);
-
-        // Wait until the GPU has finished execution
-        if (_fence->GetCompletedValue() < _fenceValue) {
-            _fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
-            WaitForSingleObject(_fenceEvent, INFINITE);
-        }
+        _opaqueCommandList->Close();
+        _transparentCommandList->Close();
+        _shadowCommandList->Close();
+        _transferCommandList->Close();
     }
 
     auto D3D12GraphicsContext::Begin() -> void
     {
-       
+        PIXBeginEvent(PIX_COLOR_INDEX(0), "Begin Graphics Context");
+        // Reset all command lists so they can be in recording state
+        _opaqueCommandList->Reset();
+        _transparentCommandList->Reset();
+        _shadowCommandList->Reset();
+        _transferCommandList->Reset();
+    }
+
+    auto D3D12GraphicsContext::BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {
+        PIXBeginEvent(PIX_COLOR_INDEX((int)pass + 2), "Begin Opaque Pass");
+        assert(_currentPassList == nullptr && "A render pass was already started. Did you forget to end it?");
+
+        D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
+        rtDesc.cpuDescriptor = std::static_pointer_cast<D3D12RenderTarget>(colour)->Handle();
+        rtDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+        rtDesc.BeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
+            .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+            .Color = { 0.2f, 0.6f, 0.3f, 1 },
+        };
+        rtDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
+        D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsDesc = {};
+        dsDesc.cpuDescriptor = std::static_pointer_cast<D3D12DepthBuffer>(depth)->Handle();
+        dsDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+        dsDesc.DepthBeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE {
+            .DepthStencil = D3D12_DEPTH_STENCIL_VALUE {
+                .Depth = 1,
+                .Stencil = 0,
+            },
+        };
+        dsDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
+        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+
+        switch (pass) {
+            case RenderPass::Opaque:
+                _currentPassList = _opaqueCommandList;
+                break;
+            case RenderPass::Transparent:
+                _currentPassList = _transparentCommandList;
+                break;
+            case RenderPass::Shadow:
+                _currentPassList = _shadowCommandList;
+                break;
+            default:
+                _currentPassList = _opaqueCommandList;
+                break;
+        }
+
+        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
+    }
+
+    auto D3D12GraphicsContext::EndRenderPass() -> void {
+        assert(_currentPassList != nullptr && "No render pass was started. Did you forget to start one?");
+
+        _currentPassList->Native()->EndRenderPass();
+        _currentPassList = nullptr;
+        PIXEndEvent();
+    }
+
+    auto D3D12GraphicsContext::BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
+        _currentPassList->BindVertexBuffer(buffer, 0);
+    }
+
+    auto D3D12GraphicsContext::BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void {
+        _currentPassList->BindIndexBuffer(buffer);
+    }
+
+    auto D3D12GraphicsContext::BindInstanceBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
+        _currentPassList->BindVertexBuffer(buffer, 1);
+    }
+
+    auto D3D12GraphicsContext::BindMaterial(std::shared_ptr<Material> material) -> void {
+        auto list = _currentPassList->Native();
+        auto dxMat = std::static_pointer_cast<D3D12Material>(material);
+        list->SetGraphicsRootSignature(dxMat->rootsignature.Get());
+        list->SetPipelineState(dxMat->pso.Get());
     }
 
     auto D3D12GraphicsContext::Finish() -> void
     {
-        _queue->Signal(_fence.Get(), _fenceValue);
+        _opaqueCommandList->Close();
+        _transparentCommandList->Close();
+        _shadowCommandList->Close();
+        _transferCommandList->Close();
+
+        std::vector<ID3D12CommandList*> lists;
+        lists.push_back(_opaqueCommandList->Native().Get());
+        lists.push_back(_transparentCommandList->Native().Get());
+        lists.push_back(_shadowCommandList->Native().Get());
+        lists.push_back(_transferCommandList->Native().Get());
+
+        _graphicsQueue->ExecuteCommandLists(lists.size(), lists.data());
+
+        _graphicsQueue->Signal(_fence.Get(), _fenceValue);
 
         // Wait until the GPU has finished execution
         if (_fence->GetCompletedValue() < _fenceValue) {
@@ -78,12 +166,7 @@ namespace playground::rendering::d3d12
 
         _fenceValue++;
 
-        _swapChain->Swap();
-
-        _frameIndex = (_frameIndex + 1) % _bufferCount;
-
-        _commandAllocator->Reset();
-        _commandList->Reset(_commandAllocator.Get(), nullptr);
+        PIXEndEvent();
     }
 
     auto D3D12GraphicsContext::TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void {
@@ -94,7 +177,7 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_INDEX_BUFFER
         );
 
-        _commandList->ResourceBarrier(1, &barrier);
+        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
     }
 
     auto D3D12GraphicsContext::TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
@@ -105,7 +188,7 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
         );
 
-        _commandList->ResourceBarrier(1, &barrier);
+        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
     }
 
     auto D3D12GraphicsContext::TransitionTexture(std::shared_ptr<Texture> texture) -> void
@@ -117,75 +200,30 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
         );
 
-        _commandList->ResourceBarrier(1, &barrier);
+        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
     }
 
-    auto D3D12GraphicsContext::ExecuteCommandLists(std::vector<std::shared_ptr<CommandList>> lists) -> void
-    {
-        std::vector<ID3D12CommandList*> commandLists;
-        for (auto& list : lists) {
-            commandLists.push_back(std::static_pointer_cast<D3D12CommandList>(list)->Native().Get());
-        }
-        _queue->ExecuteCommandLists(commandLists.size(), commandLists.data());
-    }
-
-    auto D3D12GraphicsContext::CopyToBackBuffer(std::shared_ptr<RenderTarget> renderTarget) -> void
-    {
-
-        Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer;
-
-        if (!_isOffscreen) {
-            backBuffer = _swapChain->GetBackBuffer(_frameIndex);
-        }
-        else {
-            backBuffer = _readbackBuffer->Buffer();
-        }
+    auto D3D12GraphicsContext::CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void {
+        Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer = std::static_pointer_cast<D3D12SwapChain>(swapchain)->GetCurrentBackBuffer();
 
         auto copyFromBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get(),
+            std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             D3D12_RESOURCE_STATE_COPY_SOURCE
         );
 
-        _commandList->ResourceBarrier(1, &copyFromBarrier);
+        _transferCommandList->Native()->ResourceBarrier(1, &copyFromBarrier);
 
-        if (!_isOffscreen) {
-            auto copyBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                backBuffer.Get(),
-                D3D12_RESOURCE_STATE_PRESENT,
-                D3D12_RESOURCE_STATE_COPY_DEST
-            );
-            _commandList->ResourceBarrier(1, &copyBarrier);
-        }
+        auto copyBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            backBuffer.Get(),
+            D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_COPY_DEST
+        );
+        _transferCommandList->Native()->ResourceBarrier(1, &copyBarrier);
+        
 
-        // Swapchain can just copy as we are doing texture -> texture
-        if (!_isOffscreen) {
-            // Copy the render target to the swap chain's back buffer
-            _commandList->CopyResource(backBuffer.Get(), std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get());
-        }
-        // Readback buffer needs to use a copy texture region as we are doing texture -> buffer
-        else {
-            auto d3d312RenderTarget = std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get();
-            D3D12_RESOURCE_DESC textureDesc = d3d312RenderTarget->GetDesc();
-            UINT64 totalBytes = 0;
-            D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-            UINT numRows = 0;
-            UINT64 rowSizeInBytes = 0;
-            D3D12_SUBRESOURCE_FOOTPRINT subresourceFootprint = {};
-            _device->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footprint, &numRows, &rowSizeInBytes, &totalBytes);
-
-            D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
-            srcLocation.pResource = d3d312RenderTarget;
-            srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-            srcLocation.SubresourceIndex = 0;
-
-            D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
-            dstLocation.pResource = _readbackBuffer->Buffer().Get();
-            dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-            dstLocation.PlacedFootprint = footprint;
-
-            _commandList->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, nullptr);
-        }
+        // Copy the render target to the swap chain's back buffer
+        _transferCommandList->Native()->CopyResource(backBuffer.Get(), std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get());
 
         auto presentBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
             backBuffer.Get(),
@@ -194,29 +232,56 @@ namespace playground::rendering::d3d12
         );
 
         // Transition the back buffer back to PRESENT state
-        _commandList->ResourceBarrier(1, &presentBarrier);
+        _transferCommandList->Native()->ResourceBarrier(1, &presentBarrier);
 
         auto renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            std::static_pointer_cast<D3D12RenderTarget>(renderTarget)->Resource().Get(),
+            std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get(),
             D3D12_RESOURCE_STATE_COPY_SOURCE,
             D3D12_RESOURCE_STATE_RENDER_TARGET
         );
 
-        _commandList->ResourceBarrier(1, &renderTargetBarrier);
-
-        _commandList->Close();
-        std::vector<ID3D12CommandList*> commandLists;
-        commandLists.push_back(_commandList.Get());
-        _queue->ExecuteCommandLists(1, commandLists.data());
+        _transferCommandList->Native()->ResourceBarrier(1, &renderTargetBarrier);
     }
 
-    auto D3D12GraphicsContext::ReadbackBuffer(void* data, size_t* numBytes) -> void
-    {
-        if (!_isOffscreen) {
-            throw std::runtime_error("Readback buffer is only supported in offscreen mode");
-        }
+    auto D3D12GraphicsContext::CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> readbackBuffer) -> void {
+        Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer = std::static_pointer_cast<D3D12RenderTarget>(source)->Resource();
 
-        _readbackBuffer->Read(data, numBytes);
+        auto copyFromBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_COPY_SOURCE
+        );
+
+        _transferCommandList->Native()->ResourceBarrier(1, &copyFromBarrier);
+       
+        auto d3d312RenderTarget = std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get();
+        D3D12_RESOURCE_DESC textureDesc = d3d312RenderTarget->GetDesc();
+        UINT64 totalBytes = 0;
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+        UINT numRows = 0;
+        UINT64 rowSizeInBytes = 0;
+        D3D12_SUBRESOURCE_FOOTPRINT subresourceFootprint = {};
+        _device->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footprint, &numRows, &rowSizeInBytes, &totalBytes);
+
+        D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
+        srcLocation.pResource = d3d312RenderTarget;
+        srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        srcLocation.SubresourceIndex = 0;
+
+        D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
+        dstLocation.pResource = std::static_pointer_cast<D3D12ReadbackBuffer>(readbackBuffer)->Buffer().Get();
+        dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        dstLocation.PlacedFootprint = footprint;
+
+        _transferCommandList->Native()->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, nullptr);
+        
+        auto renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get(),
+            D3D12_RESOURCE_STATE_COPY_SOURCE,
+            D3D12_RESOURCE_STATE_RENDER_TARGET
+        );
+
+        _transferCommandList->Native()->ResourceBarrier(1, &renderTargetBarrier);
     }
 
     auto D3D12GraphicsContext::MouseOverID() -> uint64_t

@@ -19,9 +19,8 @@ namespace playground::rendering::d3d12 {
 	D3D12CommandList::D3D12CommandList(
         std::shared_ptr<D3D12Device> device,
         CommandListType type,
-        uint8_t frameCount,
         std::string name
-    ) : CommandList(type), _frameIndex(0), _device(device) {
+    ) : CommandList(type), _device(device) {
 		// Create the command list
 		D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
@@ -41,25 +40,24 @@ namespace playground::rendering::d3d12 {
 				break;
 		}
 
-        for (int x = 0; x < frameCount; x++) {
-            ComPtr<ID3D12CommandAllocator> commandAllocator;
+        ComPtr<ID3D12CommandAllocator> commandAllocator;
 
-            if (FAILED(device->GetDevice()->CreateCommandAllocator(listType, IID_PPV_ARGS(&commandAllocator))))
-            {
-                throw std::exception("Failed to create command allocator");
-            }
-
-            std::stringstream ss;
-            ss << name << " Command Allocator " << x;
-
-            auto name = ss.str();
-
-            commandAllocator->SetName(std::wstring(name.begin(), name.end()).c_str());
-
-            _commandAllocators.push_back(commandAllocator);
+        if (FAILED(device->GetDevice()->CreateCommandAllocator(listType, IID_PPV_ARGS(&commandAllocator))))
+        {
+            throw std::exception("Failed to create command allocator");
         }
 
-		auto result = device->GetDevice()->CreateCommandList(0, listType, _commandAllocators[0].Get(), nullptr, IID_PPV_ARGS(&_list));
+        std::stringstream ss;
+        ss << name << "_ALLOCATOR";
+
+        auto nameAlloc = ss.str();
+
+        commandAllocator->SetName(std::wstring(nameAlloc.begin(), nameAlloc.end()).c_str());
+
+        _commandAllocator = commandAllocator;
+        
+
+		auto result = device->GetDevice()->CreateCommandList(0, listType, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_list));
 		if (FAILED(result))
 		{
 			throw std::exception("Failed to create command list");
@@ -69,7 +67,7 @@ namespace playground::rendering::d3d12 {
         _name = name;
     }
 
-	auto D3D12CommandList::Native() -> ComPtr<ID3D12GraphicsCommandList> {
+	auto D3D12CommandList::Native() -> ComPtr<ID3D12GraphicsCommandList7> {
           return _list;
     }
 
@@ -92,9 +90,8 @@ namespace playground::rendering::d3d12 {
 	}
 
     auto D3D12CommandList::Reset() -> void {
-        _commandAllocators[_frameIndex]->Reset();
-        _list->Reset(_commandAllocators[_frameIndex].Get(), nullptr);
-        _frameIndex = (_frameIndex + 1) % _commandAllocators.size();
+        _commandAllocator->Reset();
+        _list->Reset(_commandAllocator.Get(), nullptr);
     }
 
     auto D3D12CommandList::SetRenderTarget(std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {

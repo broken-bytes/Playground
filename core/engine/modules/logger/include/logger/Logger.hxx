@@ -5,9 +5,9 @@
 #include <string_view>
 
 namespace playground::logging::logger {
-	auto SetLogger(std::shared_ptr<ILogger> logger) -> void;
-	auto Info(std::string_view message) -> void;
-	auto Warn(std::string_view message) -> void;
-	auto Error(std::string_view message) -> void;
+	auto AddLogger(std::shared_ptr<ILogger> logger) -> void;
+	auto Info(const char* message) -> void;
+	auto Warn(const char* message) -> void;
+	auto Error(const char* message) -> void;
 	auto SetLogLevel(LogLevel level) -> void;
 }

@@ -16,7 +16,6 @@ public enum SceneManager {
     }
 
     internal static func update() {
-        print("Objects in scene: \(gameObjects.count)")
         // - Run Logic
 
         // - Post Logic

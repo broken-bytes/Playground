@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include "rendering/CommandList.hxx"
 #include "rendering/CommandListType.hxx"
 #include "rendering/CommandQueue.hxx"
@@ -18,7 +19,6 @@
 #include "rendering/VertexBuffer.hxx"
 #include "rendering/DepthBuffer.hxx"
 #include "rendering/RootSignature.hxx"
-#include "rendering/Rendering.hxx"
 #include "rendering/PipelineState.hxx"
 #include "rendering/Sampler.hxx"
 
@@ -36,8 +36,8 @@ namespace playground::rendering {
 		virtual auto Flush() -> void = 0;
 
 		// Creation work submission and synchronization
-		virtual auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount, bool offscreen) -> std::unique_ptr<GraphicsContext> = 0;
-		virtual auto CreateUploadContext() -> std::unique_ptr<UploadContext> = 0;
+		virtual auto CreateGraphicsContext(std::string name, void* window, uint32_t width, uint32_t height, bool offscreen) -> std::shared_ptr<GraphicsContext> = 0;
+		virtual auto CreateUploadContext(std::string name) -> std::shared_ptr<UploadContext> = 0;
 		virtual auto CreateCommandList(
             CommandListType type,
             std::string name = ""
@@ -78,8 +78,10 @@ namespace playground::rendering {
         virtual auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> = 0;
         virtual auto CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> = 0;
         virtual auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> = 0;
+        virtual auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window) -> std::shared_ptr<Swapchain> = 0;
 		// Deleting resources
 		virtual auto DestroyShader(uint64_t shaderHandle) -> void = 0;
+        virtual auto WaitForIdleGPU() -> void = 0;
 
     protected:
         uint8_t _frameCount;

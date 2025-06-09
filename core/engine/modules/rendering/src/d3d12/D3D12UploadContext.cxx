@@ -1,8 +1,13 @@
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+#include <pix.h>
 #include "rendering/d3d12/D3D12UploadContext.hxx"
 
 namespace playground::rendering::d3d12 {
     D3D12UploadContext::D3D12UploadContext(
-        Microsoft::WRL::ComPtr<ID3D12Device> device,
+        std::string name,
+        std::shared_ptr<D3D12Device> device,
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue
     ) : _queue(queue)
     {
@@ -10,21 +15,21 @@ namespace playground::rendering::d3d12 {
         _indexBuffers = {};
         _vertexBuffers = {};
 
-        device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
+        device->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
-        if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&_commandAllocator)))) {
-            throw std::runtime_error("Failed to create command allocator");
-        }
+        auto clName = name + "_TRANSFER_COMMAND_LIST";
 
-        if (FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_list)))) {
-            throw std::runtime_error("Failed to create command list");
-        }
+        _list = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Transfer, clName));
 
-        _list->SetName(L"UploadCommandList");
+        // Close command list
+        _list->Close();
     }
 
     auto D3D12UploadContext::Begin() -> void {
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Begin Upload Context");
+
+        _list->Reset();
         for (auto& buffer : _indexBuffers) {
             std::static_pointer_cast<D3D12IndexBuffer>(buffer)->Free();
         }
@@ -43,12 +48,13 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12UploadContext::Finish() -> void {
+        auto list = _list->Native();
         for (auto& buffer : _indexBuffers) {
             auto d3d12Buffer = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->Buffer();
             auto uploadBuffer = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->StagingBuffer();
             auto size = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->View().SizeInBytes;
             // Copy upload buffer to GPU memory
-            _list->CopyBufferRegion(d3d12Buffer.Get(), 0, uploadBuffer.Get(), 0, size);
+            list->CopyBufferRegion(d3d12Buffer.Get(), 0, uploadBuffer.Get(), 0, size);
         }
 
         for (auto& buffer : _vertexBuffers) {
@@ -56,20 +62,20 @@ namespace playground::rendering::d3d12 {
             auto uploadBuffer = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->StagingBuffer();
             auto size = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->View().SizeInBytes;
             // Copy upload buffer to GPU memory
-            _list->CopyBufferRegion(d3d12Buffer.Get(), 0, uploadBuffer.Get(), 0, size);
+            list->CopyBufferRegion(d3d12Buffer.Get(), 0, uploadBuffer.Get(), 0, size);
         }
 
         for (auto& texture : _textures) {
             auto d3d12Texture = std::static_pointer_cast<D3D12Texture>(texture)->Texture();
             auto textureUploadBuffer = std::static_pointer_cast<D3D12Texture>(texture)->StagingBuffer();
             auto textureData = std::static_pointer_cast<D3D12Texture>(texture)->TextureData();
-            UpdateSubresources(_list.Get(), d3d12Texture.Get(), textureUploadBuffer.Get(), 0, 0, 1, &textureData);
+            UpdateSubresources(list.Get(), d3d12Texture.Get(), textureUploadBuffer.Get(), 0, 0, 1, &textureData);
         }
 
         _list->Close();
 
         std::vector<ID3D12CommandList*> commandLists;
-        commandLists.push_back(_list.Get());
+        commandLists.push_back(list.Get());
 
         _queue->ExecuteCommandLists(commandLists.size(), commandLists.data());
 
@@ -83,8 +89,7 @@ namespace playground::rendering::d3d12 {
 
         _fenceValue++;
 
-        _commandAllocator->Reset();
-        _list->Reset(_commandAllocator.Get(), nullptr);
+        PIXEndEvent();
     }
 
     auto D3D12UploadContext::Upload(std::shared_ptr<Texture> texture) -> void {

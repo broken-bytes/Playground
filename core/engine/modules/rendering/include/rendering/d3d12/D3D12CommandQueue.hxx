@@ -22,7 +22,6 @@ namespace playground::rendering::d3d12 {
         auto Native() -> Microsoft::WRL::ComPtr<ID3D12CommandQueue>;
 
         void Execute(const std::vector<std::shared_ptr<rendering::CommandList>>&) override;
-        void Signal(rendering::Fence& fence, uint64_t value) override;
 
     private:
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _queue;

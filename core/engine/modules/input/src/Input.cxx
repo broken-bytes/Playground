@@ -14,6 +14,9 @@ namespace playground::input {
 		}
 	}
 
+    auto Shutdown() -> void {
+    }
+
     auto Update() -> void {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -21,18 +24,18 @@ namespace playground::input {
             case SDL_EVENT_KEY_DOWN:
             case SDL_EVENT_KEY_UP: {
                 auto keyEvent = reinterpret_cast<SDL_KeyboardEvent*>(&event);
-                
+
                 break;
             }
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
             case SDL_EVENT_MOUSE_BUTTON_UP: {
                 auto mouseButtonEvent = reinterpret_cast<SDL_MouseButtonEvent*>(&event);
-               
+
                 break;
             }
             case SDL_EVENT_QUIT: {
                 events::SystemEvent quitEvent(events::SystemEventType::Quit);
-               
+                playground::events::Emit(&quitEvent);
                 break;
             }
             default:

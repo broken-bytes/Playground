@@ -40,7 +40,6 @@ namespace playground::rendering {
 
 	class Material {
 	public:
-		std::map<ShaderType, std::shared_ptr<Shader>> shaders;
 		std::map<std::string, uint64_t> textures;
 		std::map<std::string, float> floats;
 		std::map<std::string, uint32_t> ints;
@@ -50,7 +49,6 @@ namespace playground::rendering {
 		std::map<std::string, std::array<float, 4>> vec4s;
 
 		Material(
-			std::map<ShaderType, std::shared_ptr<Shader>> shaders,
 			std::map<std::string, uint64_t> textures,
 			std::map<std::string, float> floats,
 			std::map<std::string, uint32_t> ints,
@@ -58,7 +56,7 @@ namespace playground::rendering {
 			std::map<std::string, std::array<float, 2>> vec2s,
 			std::map<std::string, std::array<float, 3>> vec3s,
 			std::map<std::string, std::array<float, 4>> vec4s
-		) : shaders(shaders), 
+		) : 
 			textures(textures), 
 			floats(floats), 
 			ints(ints), 

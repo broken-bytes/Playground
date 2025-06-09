@@ -13,9 +13,19 @@
 #include <events/SystemEvent.hxx>
 #include <assetloader/AssetLoader.hxx>
 #include <io/IO.hxx>
+#include <logger/ConsoleLogger.hxx>
+#include <logger/Logger.hxx>
+
+typedef void(*ScriptingEventCallback)(playground::events::Event* event);
 
 void Shutdown() {
     playground::rendering::Shutdown();
+}
+
+void SubscribeToEventsFromScripting(playground::events::EventType type, ScriptingEventCallback callback) {
+    Subscribe(type, [callback](playground::events::Event* event) {
+        callback(event);
+    });
 }
 
 [[noreturn]] void PlaygroundCoreMain(const PlaygroundConfig& config) {
@@ -28,9 +38,12 @@ void Shutdown() {
     Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
         if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
             playground::rendering::Shutdown();
-            exit(0);
+            playground::input::Shutdown();
         }
         });
+
+    playground::logging::logger::AddLogger(std::make_shared<playground::logging::ConsoleLogger>());
+    playground::logging::logger::SetLogLevel(LogLevel::Info);
 
     config.Delegate("Playground_CreateGameObject\0", playground::scenemanager::CreateGameObject);
     config.Delegate("Playground_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
@@ -50,4 +63,8 @@ void Shutdown() {
     config.Delegate("Rendering_SetCameraTarget\0", playground::rendering::SetCameraRenderTarget);
     config.Delegate("Rendering_DestroyCamera\0", playground::rendering::DestroyCamera);
     config.Delegate("Input_Update\0", playground::input::Update);
+    config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
+    config.Delegate("Logger_Info", playground::logging::logger::Info);
+    config.Delegate("Logger_Warn", playground::logging::logger::Info);
+    config.Delegate("Logger_Error", playground::logging::logger::Info);
 }

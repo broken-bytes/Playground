@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <sstream>
 #include <SDL3/SDL.h>
 #include "rendering/d3d12/D3D12SwapChain.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
@@ -8,16 +9,6 @@ namespace playground::rendering::d3d12
     D3D12SwapChain::D3D12SwapChain(uint8_t frameCount, Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue, uint32_t width, uint32_t height, HWND hwnd)
     {
         UINT dxgiFactoryFlags = 0;
-#if _DEBUG
-        Microsoft::WRL::ComPtr<ID3D12Debug> debugController;
-        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-        {
-            debugController->EnableDebugLayer();
-
-            // Enable additional debug layers.
-            dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-        }
-#endif
         Microsoft::WRL::ComPtr<IDXGIFactory4> factory;
         CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory));
 
@@ -52,6 +43,14 @@ namespace playground::rendering::d3d12
         {
             throw std::runtime_error("Failed to cast swap chain");
         }
+
+        _frameCount = frameCount;
+
+        for (int x = 0; x < frameCount; x++) {
+            std::wstringstream ss;
+            ss << "BACK_BUFFER_" << x;
+            GetBackBuffer(x)->SetName(ss.str().c_str());
+        }
     }
 
     D3D12SwapChain::~D3D12SwapChain()
@@ -64,10 +63,19 @@ namespace playground::rendering::d3d12
         _swapChain->Present(0, 0);
     }
 
+    auto D3D12SwapChain::GetCurrentBackBuffer() -> Microsoft::WRL::ComPtr<ID3D12Resource> {
+        UINT idx = _swapChain->GetCurrentBackBufferIndex();
+        return GetBackBuffer(idx);
+    }
+
     auto D3D12SwapChain::GetBackBuffer(uint8_t index) -> Microsoft::WRL::ComPtr<ID3D12Resource> {
         Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer;
         _swapChain->GetBuffer(index, IID_PPV_ARGS(&backBuffer));
 
         return backBuffer;
+    }
+
+    auto D3D12SwapChain::BackBufferIndex() -> uint8_t {
+        return _swapChain->GetCurrentBackBufferIndex();
     }
 }

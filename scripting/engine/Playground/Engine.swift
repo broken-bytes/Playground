@@ -10,7 +10,6 @@ internal final class Engine: @unchecked Sendable {
     private let height: UInt32
     private let offscreen: Bool
 
-    private var isRunning = true
     let clock = ContinuousClock()
     private var lastTickTime: ContinuousClock.Instant
 
@@ -26,29 +25,33 @@ internal final class Engine: @unchecked Sendable {
         }, width: width, height: height, isOffscreen: false)
 
         initEngineCore(config: &config)
-
-        start()
     }
 
     func start() {
+        Logger.start()
+        EngineEnvironment.isRunning = true
         SceneManager.start()
-        Input.shared.start()
+        Input.start()
+        EventHandler.start()
 
+        Logger.info("Engine created")
         mainLoop()
     }
 
     private func mainLoop() {
-        while isRunning {
+        Logger.info("Is running: \(EngineEnvironment.isRunning)")
+        while EngineEnvironment.isRunning {
             let now = clock.now
             Time.deltaTime = Double(lastTickTime.duration(to: now).components.attoseconds) / 1000000000000000000.0
             lastTickTime = now
 
             mainTick()
         }
+        Logger.info("Is running: \(EngineEnvironment.isRunning)")
     }
 
     private func mainTick() {
-        Input.shared.update()
+        Input.update()
         for x in 0...Int.random(in: 10...1000) {
             var objc = SceneManager.createGameObject()
             objc.attach(TestComponent.self)

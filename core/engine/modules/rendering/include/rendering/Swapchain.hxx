@@ -9,5 +9,6 @@ namespace playground::rendering {
 	public:
 		virtual ~Swapchain() = default;
 		virtual auto Swap() -> void = 0;
+        virtual auto BackBufferIndex() -> uint8_t = 0;
 	};
 }

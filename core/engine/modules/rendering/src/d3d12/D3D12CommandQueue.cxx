@@ -33,9 +33,4 @@ namespace playground::rendering::d3d12 {
             listsToExecute.emplace_back(reinterpret_cast<D3D12CommandList*>(list.get())->Native().Get());
         }
     }
-
-    void D3D12CommandQueue::Signal(rendering::Fence& fence, uint64_t value)
-    {
-
-    }
 }

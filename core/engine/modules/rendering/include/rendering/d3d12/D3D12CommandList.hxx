@@ -13,10 +13,9 @@ namespace playground::rendering::d3d12 {
         D3D12CommandList(
             std::shared_ptr<D3D12Device> device,
             CommandListType type,
-            uint8_t frameCount,
             std::string name
         );
-		auto Native() -> Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>;
+		auto Native() -> Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList7>;
 		~D3D12CommandList() final;
 		auto Begin() -> void override;
 		auto Close() -> void override;
@@ -40,8 +39,7 @@ namespace playground::rendering::d3d12 {
 	private:
         std::shared_ptr<D3D12Device> _device;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList7> _list;;
-        std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> _commandAllocators;
-        uint8_t _frameIndex;
+        Microsoft::WRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
         std::string _name;
 	};
 }

@@ -19,6 +19,11 @@ namespace playground::logging {
 	ConsoleLogger::ConsoleLogger() {
         AllocConsole();
 		SetStdHandle(STD_OUTPUT_HANDLE, GetStdHandle(STD_OUTPUT_HANDLE));
+        FILE* dummy;
+        freopen_s(&dummy, "CONOUT$", "w", stdout);
+        freopen_s(&dummy, "CONOUT$", "w", stderr);
+        freopen_s(&dummy, "CONIN$", "r", stdin);
+        std::ios::sync_with_stdio();
 	}
 
 	ConsoleLogger::~ConsoleLogger() {

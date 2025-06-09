@@ -6,7 +6,7 @@
 #include <dxgi1_4.h>
 #include <dxgi1_5.h>
 #include <wrl.h>
-
+#include <string>
 #include "rendering/Device.hxx"
 #include "rendering/d3d12/D3D12HeapManager.hxx"
 
@@ -17,8 +17,8 @@ namespace playground::rendering::d3d12 {
         ~D3D12Device();
 
         auto Flush() -> void override;
-        auto CreateGraphicsContext(void* window, uint32_t width, uint32_t height, uint8_t bufferCount, bool offscreen) -> std::unique_ptr<GraphicsContext> override;
-        auto CreateUploadContext() -> std::unique_ptr<UploadContext> override;
+        auto CreateGraphicsContext(std::string name, void* window, uint32_t width, uint32_t height, bool offscreen) -> std::shared_ptr<GraphicsContext> override;
+        auto CreateUploadContext(std::string name) -> std::shared_ptr<UploadContext> override;
         auto CreateCommandList(
             CommandListType type,
             std::string name
@@ -48,10 +48,12 @@ namespace playground::rendering::d3d12 {
         auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void override;
         auto CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> override;
         auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> override;
+        auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window)->std::shared_ptr<Swapchain> override;
         auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> override;
         auto GetRootSignature() -> std::shared_ptr<RootSignature> override;
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
+        auto WaitForIdleGPU() -> void override;
 
         auto GetDevice() -> Microsoft::WRL::ComPtr<ID3D12Device9> {
             return _device;
@@ -73,6 +75,10 @@ namespace playground::rendering::d3d12 {
         std::unique_ptr<D3D12HeapManager> _samplerHeaps;
         std::unique_ptr<D3D12HeapManager> _dsvHeaps;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _rootSignature;
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> _graphicsQueue;
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> _computeQueue;
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> _copyQueue;
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> _uploadQueue;
 
         auto CreateCommandQueue(
             CommandListType type,

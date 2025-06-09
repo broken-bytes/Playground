@@ -1,20 +1,15 @@
 
-public actor Input {
+public enum Input {
     internal typealias InputUpdate = @convention(c) () -> Void
-    internal static let shared = Input()
 
-    private nonisolated(unsafe) var updatePtr: InputUpdate!
+    private static nonisolated(unsafe) var updatePtr: InputUpdate!
 
-    internal init() {
-
-    }
-
-    internal nonisolated func start() {
+    internal static nonisolated func start() {
         updatePtr = NativeLookupTable.shared.getFunctionPointer(by: "Input_Update")
     }
 
 
-    internal nonisolated func update() {
+    internal static nonisolated func update() {
         updatePtr()
     }
 }

@@ -3,8 +3,8 @@
 #include "events/Event.hxx"
 
 namespace playground::events {
-	enum class SystemEventType {
-		Quit,
+	enum class SystemEventType: uint32_t {
+		Quit = 0,
 		WindowResize,
 		WindowMove,
 		WindowFocus,
