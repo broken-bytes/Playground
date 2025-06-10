@@ -11,13 +11,6 @@ enum EventHandler {
             let systemEvent = event.assumingMemoryBound(to: SystemEvent.self).pointee
 
             Logger.info("The event is \(systemEvent.systemType)")
-
-            switch systemEvent.systemType {
-                case .quit:
-                    EngineEnvironment.isRunning = false
-                default:
-                    fatalError("Wrong event \(systemEvent.systemType)")
-            }
         }
     }
 }

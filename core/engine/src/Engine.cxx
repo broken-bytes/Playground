@@ -15,8 +15,13 @@
 #include <io/IO.hxx>
 #include <logger/ConsoleLogger.hxx>
 #include <logger/Logger.hxx>
+#include <profiler/Profiler.hxx>
+#include <tracy/Tracy.hpp>
+
 
 typedef void(*ScriptingEventCallback)(playground::events::Event* event);
+
+bool isRunning = true;
 
 void Shutdown() {
     playground::rendering::Shutdown();
@@ -39,11 +44,14 @@ void SubscribeToEventsFromScripting(playground::events::EventType type, Scriptin
         if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
             playground::rendering::Shutdown();
             playground::input::Shutdown();
+            isRunning = false;
         }
         });
 
     playground::logging::logger::AddLogger(std::make_shared<playground::logging::ConsoleLogger>());
     playground::logging::logger::SetLogLevel(LogLevel::Info);
+
+    playground::profiler::Init();
 
     config.Delegate("Playground_CreateGameObject\0", playground::scenemanager::CreateGameObject);
     config.Delegate("Playground_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
@@ -67,4 +75,24 @@ void SubscribeToEventsFromScripting(playground::events::EventType type, Scriptin
     config.Delegate("Logger_Info", playground::logging::logger::Info);
     config.Delegate("Logger_Warn", playground::logging::logger::Info);
     config.Delegate("Logger_Error", playground::logging::logger::Info);
+
+    playground::profiler::RegisterThread("Game");
+
+    static const char* CPU_FRAME = "CPU:Update";
+
+    while (isRunning) {
+        FrameMarkStart(CPU_FRAME);
+        {
+            ZoneScopedN("Input", tracy::Color::AliceBlue);
+            playground::input::Update();
+        }
+        {
+            ZoneScopedN("Scripts", tracy::Color::LightSeaGreen);
+            config.updateCallback();
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        FrameMarkEnd(CPU_FRAME);
+    }
+
+    playground::profiler::Shutdown();
 }

@@ -16,6 +16,8 @@
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
+#include <profiler/Profiler.hxx>
+#include <tracy/Tracy.hpp>
 
 namespace playground::rendering::d3d12
 {
@@ -50,6 +52,8 @@ namespace playground::rendering::d3d12
         _isOffscreen = isOffscreen;
 
         _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(_device, 1, 1);
+
+        _tracyCtx = tracy::CreateD3D12Context(_device.Get(), _graphicsQueue.Get());
     }
 
     D3D12GraphicsContext::~D3D12GraphicsContext()
@@ -156,6 +160,8 @@ namespace playground::rendering::d3d12
 
         _graphicsQueue->ExecuteCommandLists(lists.size(), lists.data());
 
+        TracyD3D12Collect(_tracyCtx);
+
         _graphicsQueue->Signal(_fence.Get(), _fenceValue);
 
         // Wait until the GPU has finished execution
@@ -165,7 +171,7 @@ namespace playground::rendering::d3d12
         }
 
         _fenceValue++;
-
+        
         PIXEndEvent();
     }
 

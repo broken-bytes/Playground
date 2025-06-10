@@ -13,6 +13,9 @@
 #include "rendering/d3d12/D3D12Swapchain.hxx"
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyD3D12.hpp>
+
 
 namespace playground::rendering::d3d12 {
     class D3D12GraphicsContext : public rendering::GraphicsContext {
@@ -61,5 +64,6 @@ namespace playground::rendering::d3d12 {
 
         bool _isOffscreen;
         std::unique_ptr<D3D12ReadbackBuffer> _mouseOverBuffer;
+        tracy::D3D12QueueCtx* _tracyCtx;
     };
 }

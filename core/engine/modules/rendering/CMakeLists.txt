@@ -8,6 +8,10 @@ target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/mod
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/logger/include)
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/math/include)
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/io/include)
+target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/profiler/include)
+
+target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
+
 
 # Temporary for testing
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
@@ -21,7 +25,7 @@ find_package(Stb REQUIRED)
 
 target_include_directories(Rendering PRIVATE ${Stb_INCLUDE_DIR})
 
-target_link_libraries(Rendering PUBLIC Logger AssetLoader)
+target_link_libraries(Rendering PUBLIC Logger AssetLoader Profiler)
 target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm-header-only freeimage::FreeImage freeimage::FreeImagePlus Microsoft::DirectXShaderCompiler)
 
 if (WIN32)

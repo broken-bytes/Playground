@@ -15,7 +15,6 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
-
 typedef void(__cdecl* ScriptingLayerStartUp)(void*, uint32_t, uint32_t, bool);
 
 int SDL_main(int argc, char** argv) {

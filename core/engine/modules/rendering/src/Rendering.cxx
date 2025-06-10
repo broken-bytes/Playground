@@ -18,6 +18,8 @@
 #include <stb_image_write.h>
 #include <semaphore>
 #include <queue>
+#include <profiler/Profiler.hxx>
+#include <tracy/Tracy.hpp>
 
 namespace playground::rendering {
     struct Config {
@@ -210,12 +212,20 @@ namespace playground::rendering {
             glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
             objectData.WorldMatrix = finalTransform;
 
+            tracy::SetThreadName("Render Thread");
+
             isRunning = true;
 
+            static const char* GPU_FRAME = "GPU: Update";
+
             while (isRunning) {
+                FrameMarkStart(GPU_FRAME);
                 PreFrame();
                 Update();
                 PostFrame();
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                FrameMarkEnd(GPU_FRAME);
+
             }
 
             device->WaitForIdleGPU();
@@ -240,6 +250,7 @@ namespace playground::rendering {
 	}
 
 	auto PreFrame() -> void {
+        ZoneScopedN("RenderThread: Pre Frame");
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto uploadContext = frames[backBufferIndex]->UploadContext();
         uploadContext->Begin();
@@ -262,6 +273,7 @@ namespace playground::rendering {
 	}
 
     auto Update() -> void {
+        ZoneScopedN("RenderThread: Update");
         auto backBufferIndex = swapchain->BackBufferIndex();
 
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
@@ -280,6 +292,7 @@ namespace playground::rendering {
 	}
 
 	auto PostFrame() -> void {
+        ZoneScopedN("RenderThread: Post Frame");
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
         graphicsContext->CopyToSwapchainBackBuffer(frames[backBufferIndex]->RenderTarget(), swapchain);

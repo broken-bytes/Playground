@@ -1,4 +1,5 @@
 internal typealias LookupTableDelegate = @convention(c) (UnsafePointer<CChar>, UnsafeRawPointer) -> Void
+internal typealias UpdateDelegate = @convention(c) () -> Void
 
 internal struct PlaygroundCoreConfig {
     let window: UnsafeRawPointer
@@ -6,4 +7,5 @@ internal struct PlaygroundCoreConfig {
     let width: UInt32
     let height: UInt32
     let isOffscreen: Bool
+    let onUpdate: UpdateDelegate
 }
