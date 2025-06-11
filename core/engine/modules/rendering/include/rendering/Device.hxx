@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include "rendering/CommandList.hxx"
@@ -18,8 +19,6 @@
 #include "rendering/IndexBuffer.hxx"
 #include "rendering/VertexBuffer.hxx"
 #include "rendering/DepthBuffer.hxx"
-#include "rendering/RootSignature.hxx"
-#include "rendering/PipelineState.hxx"
 #include "rendering/Sampler.hxx"
 
 namespace playground::rendering {
@@ -56,21 +55,7 @@ namespace playground::rendering {
             uint32_t height,
             std::string name = ""
         ) -> std::shared_ptr<DepthBuffer> = 0;
-		virtual auto CreateMaterial(
-			std::map<ShaderType, std::shared_ptr<Shader>> shaders,
-			std::map<std::string, uint64_t> textures = {},
-			std::map<std::string, float> floats = {},
-			std::map<std::string, uint32_t> ints = {},
-			std::map<std::string, bool> bools = {},
-			std::map<std::string, std::array<float, 2>> vec2s = {},
-			std::map<std::string, std::array<float, 3>> vec3s = {},
-			std::map<std::string, std::array<float, 4>> vec4s = {}
-		) -> std::shared_ptr<Material> = 0;
-		virtual auto CreatePipelineState(
-            const std::string& vertexShader,
-            const std::string& pixelShader
-		) -> std::shared_ptr<PipelineState> = 0;
-        virtual auto GetRootSignature() -> std::shared_ptr<RootSignature> = 0;
+		virtual auto CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material> = 0;
 		virtual auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> = 0;
 		virtual auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void = 0;
 		virtual auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> = 0;

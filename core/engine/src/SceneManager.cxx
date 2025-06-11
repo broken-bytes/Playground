@@ -1,4 +1,5 @@
 #include "playground/SceneManager.hxx"
+#include "playground/AssetManager.hxx"
 #include <rendering/Rendering.hxx>
 #include <assetloader/AssetLoader.hxx>
 
@@ -18,13 +19,25 @@ namespace playground::scenemanager {
                 continue;
             }
 
-            if (go->meshComponent != nullptr) {
-                if (go->meshComponent->isUploaded) {
-                    auto meshId = go->meshComponent->gpuMeshId;
-                    auto materialId = go->meshComponent->gpuMaterialId;
+            assetmanager::ModelHandle* modelToDraw = 0;
+            assetmanager::MaterialHandle* materialToDraw = 0;
 
-                    // TODO: Create draw call for the mesh
+            if (go->meshComponent != nullptr) {
+                modelToDraw = assetmanager::LoadModel(go->meshComponent->modelName);
+                if (modelToDraw->state != assetmanager::ResourceState::Uploaded) {
+                    continue;
                 }
+
+                materialToDraw = assetmanager::LoadMaterial(go->meshComponent->materialName);
+
+                if (materialToDraw->state != assetmanager::ResourceState::Uploaded) {
+                    continue;
+                }
+
+                auto mesh = modelToDraw->meshes[go->meshComponent->subMeshIndex];
+                auto material = materialToDraw->material;;
+
+                rendering::DrawIndexed(mesh.vertexBuffer, mesh.indexBuffer, material);
             }
         }
     }

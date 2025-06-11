@@ -8,6 +8,9 @@
 #include <wrl.h>
 #include <dxcapi.h>
 #include <string>
+#include <map>
+#include <iostream>
+#include "rendering/d3d12/D3D12Material.hxx"
 #include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12UploadContext.hxx"
@@ -20,8 +23,6 @@
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
-#include "rendering/d3d12/D3D12RootSignature.hxx"
-#include "rendering/d3d12/D3D12PipelineState.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
@@ -29,6 +30,61 @@
 using namespace Microsoft::WRL;
 
 namespace playground::rendering::d3d12 {
+    inline Microsoft::WRL::ComPtr<IDxcBlob> CompileShaderWithDxc(
+        const std::string& shaderCode, const std::wstring& entryPoint, const std::wstring& target)
+    {
+        Microsoft::WRL::ComPtr<IDxcUtils> utils;
+        Microsoft::WRL::ComPtr<IDxcCompiler3> compiler;
+        Microsoft::WRL::ComPtr<IDxcBlobEncoding> sourceBlob;
+        Microsoft::WRL::ComPtr<IDxcResult> result;
+
+        // Initialize DXC Compiler and Utility
+        DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utils));
+        DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
+
+        // Create a blob from the shader source string
+        utils->CreateBlob(shaderCode.c_str(), (uint32_t)shaderCode.size(), DXC_CP_UTF8, &sourceBlob);
+
+        // Create a DxcBuffer to pass to Compile()
+        DxcBuffer sourceBuffer;
+        sourceBuffer.Ptr = sourceBlob->GetBufferPointer();
+        sourceBuffer.Size = sourceBlob->GetBufferSize();
+        sourceBuffer.Encoding = DXC_CP_UTF8;
+
+        // Define compiler arguments
+        const wchar_t* arguments[] = {
+            L"-E", entryPoint.c_str(),
+            L"-T", target.c_str(),
+            L"-O3",
+            L"-Zi"
+        };
+
+        // Compile the shader
+        HRESULT hr = compiler->Compile(
+            &sourceBuffer, // Use DxcBuffer instead of IDxcBlob*
+            arguments, _countof(arguments),
+            nullptr, // No include handler
+            IID_PPV_ARGS(&result)
+        );
+
+        if (FAILED(hr)) {
+            throw std::runtime_error("DXC Compilation failed.");
+        }
+
+        // Retrieve compiled shader blob
+        Microsoft::WRL::ComPtr<IDxcBlobUtf8> errors;
+        if (FAILED(result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr))) {
+            throw std::runtime_error("Failed to retrieve error messages.");
+        }
+        if (errors && errors->GetStringLength() > 0) {
+            OutputDebugStringA(errors->GetStringPointer()); // Print error messages
+        }
+
+        Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob;
+        result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
+        return shaderBlob;
+    }
+
     ComPtr<IDXGIAdapter1> GetHardwareAdapter() {
         UINT dxgiFactoryFlags = 0;
 #ifdef _DEBUG
@@ -91,6 +147,7 @@ namespace playground::rendering::d3d12 {
 
         _device->SetStablePowerState(TRUE);
 
+
         // Create heaps
         // Start with one heap per type
         // 32 RTVS (2-3 for the back buffers and 30~ for render textures)
@@ -116,11 +173,22 @@ namespace playground::rendering::d3d12 {
         _computeQueue = CreateCommandQueue(CommandListType::Compute, "ComputeQueue");
         _copyQueue = CreateCommandQueue(CommandListType::Copy, "CopyQueue");
         _uploadQueue = CreateCommandQueue(CommandListType::Transfer, "UploadQueue");
+
+#if ENABLE_PROFILER
+        _tracyCtx = tracy::CreateD3D12Context(_device.Get(), _graphicsQueue.Get());
+#endif
     }
 
     D3D12Device::~D3D12Device() {
         _adapter = nullptr;
         Flush();
+
+#if ENABLE_PROFILER
+        tracy::DestroyD3D12Context(_tracyCtx);
+#endif
+
+        _device = nullptr;
+
         Microsoft::WRL::ComPtr<IDXGIDebug1> dxgiDebug;
         if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)))) {
             dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
@@ -131,6 +199,13 @@ namespace playground::rendering::d3d12 {
         _rtvHeaps = nullptr;
         _srvHeaps = nullptr;
         _dsvHeaps = nullptr;
+        _samplerHeaps = nullptr;
+        _rootSignature = nullptr;
+        _graphicsQueue = nullptr;
+        _computeQueue = nullptr;
+        _copyQueue = nullptr;
+        _uploadQueue = nullptr;
+        _adapter = nullptr;
     }
 
     auto D3D12Device::CreateGraphicsContext(std::string name, void* window, uint32_t width, uint32_t height, bool offscreen) -> std::shared_ptr<GraphicsContext>
@@ -138,12 +213,16 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12GraphicsContext>(
             name,
             shared_from_this(),
+            _rootSignature,
             _graphicsQueue,
             _uploadQueue,
             window,
             width,
             height,
             offscreen
+#if ENABLE_PROFILER
+            ,_tracyCtx
+#endif
         );
     }
 
@@ -310,23 +389,79 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12DepthBuffer>(depthBuffer, nextHandle->GetCPUHandle());
     }
 
-    auto D3D12Device::CreateMaterial(std::map<ShaderType, std::shared_ptr<Shader>> shaders,
-        std::map<std::string, uint64_t> textures, std::map<std::string, float> floats,
-        std::map<std::string, uint32_t> ints, std::map<std::string, bool> bools,
-        std::map<std::string, std::array<float, 2>> vec2s, std::map<std::string, std::array<float, 3>> vec3s,
-        std::map<std::string, std::array<float, 4>> vec4s) -> std::shared_ptr<Material>
+    auto D3D12Device::CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material>
     {
-        return nullptr;
+        auto pso = CreatePipelineState(vertexShader, pixelShader, _rootSignature);
+        auto material = std::make_shared<D3D12Material>(pso);
+
+        return material;
     }
 
-    auto D3D12Device::CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader) -> std::shared_ptr<PipelineState>
+    auto D3D12Device::CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature) -> Microsoft::WRL::ComPtr<ID3D12PipelineState>
     {
-        return std::make_shared<D3D12PipelineState>(_device, _rootSignature, vertexShader, pixelShader);
-    }
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+        ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 
-    auto D3D12Device::GetRootSignature() -> std::shared_ptr<RootSignature>
-    {
-        return std::make_shared<D3D12RootSignature>(_rootSignature);
+        psoDesc.pRootSignature = rootSignature.Get();
+
+        auto vertexShaderBlob = CompileShaderWithDxc(vertexShader, L"VSMain", L"vs_6_0");
+        auto pixelShaderBlob = CompileShaderWithDxc(pixelShader, L"PSMain", L"ps_6_0");
+
+        D3D12_SHADER_BYTECODE vertexShaderBytecode = {};
+        vertexShaderBytecode.pShaderBytecode = vertexShaderBlob.Get()->GetBufferPointer();
+        vertexShaderBytecode.BytecodeLength = vertexShaderBlob.Get()->GetBufferSize();
+
+        D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
+        pixelShaderBytecode.pShaderBytecode = pixelShaderBlob.Get()->GetBufferPointer();
+        pixelShaderBytecode.BytecodeLength = pixelShaderBlob.Get()->GetBufferSize();
+
+        // Load compiled shaders
+        psoDesc.VS = vertexShaderBytecode;
+        psoDesc.PS = pixelShaderBytecode;
+
+        // Rasterizer state (Default)
+        D3D12_RASTERIZER_DESC rasterizerDesc = {};
+        rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+        rasterizerDesc.FrontCounterClockwise = FALSE;
+        rasterizerDesc.DepthClipEnable = TRUE;
+
+        psoDesc.RasterizerState = rasterizerDesc;
+
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        depthStencilDesc.DepthEnable = TRUE;
+        depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+        depthStencilDesc.StencilEnable = FALSE;
+
+        // Attach depth-stencil state
+        psoDesc.DepthStencilState = depthStencilDesc;
+        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.SampleMask = UINT_MAX;
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.NumRenderTargets = 1;
+        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+        psoDesc.SampleDesc.Count = 1;
+        psoDesc.SampleDesc.Quality = 0;
+
+        D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+
+        psoDesc.InputLayout = { inputLayout, _countof(inputLayout) };
+
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+        // Create the PSO
+        HRESULT hr = _device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create PSO");
+        }
+
+        return pipelineState;
     }
 
     auto D3D12Device::CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer>

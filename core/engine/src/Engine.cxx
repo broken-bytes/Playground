@@ -17,14 +17,20 @@
 #include <logger/Logger.hxx>
 #include <profiler/Profiler.hxx>
 #include <tracy/Tracy.hpp>
-
+#include <thread>
 
 typedef void(*ScriptingEventCallback)(playground::events::Event* event);
 
 bool isRunning = true;
 
+std::thread renderThread;
+
 void Shutdown() {
+    isRunning = false;
+
+    playground::input::Shutdown();
     playground::rendering::Shutdown();
+    renderThread.join();
 }
 
 void SubscribeToEventsFromScripting(playground::events::EventType type, ScriptingEventCallback callback) {
@@ -33,25 +39,27 @@ void SubscribeToEventsFromScripting(playground::events::EventType type, Scriptin
     });
 }
 
-[[noreturn]] void PlaygroundCoreMain(const PlaygroundConfig& config) {
+void PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::audio::Init();
     playground::input::Init();
     playground::scenemanager::Init();
     auto window = playground::system::Init(config.Window);
-    playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen);
+    renderThread = std::thread([window, config] {
+        playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen);
+     });
 
     Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
         if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
-            playground::rendering::Shutdown();
-            playground::input::Shutdown();
-            isRunning = false;
+            Shutdown();
         }
         });
 
     playground::logging::logger::AddLogger(std::make_shared<playground::logging::ConsoleLogger>());
     playground::logging::logger::SetLogLevel(LogLevel::Info);
 
-    playground::profiler::Init();
+#if ENABLE_PROFILER
+    tracy::StartupProfiler();
+#endif
 
     config.Delegate("Playground_CreateGameObject\0", playground::scenemanager::CreateGameObject);
     config.Delegate("Playground_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
@@ -76,23 +84,27 @@ void SubscribeToEventsFromScripting(playground::events::EventType type, Scriptin
     config.Delegate("Logger_Warn", playground::logging::logger::Info);
     config.Delegate("Logger_Error", playground::logging::logger::Info);
 
-    playground::profiler::RegisterThread("Game");
+    tracy::SetThreadName("Game");
 
     static const char* CPU_FRAME = "CPU:Update";
 
     while (isRunning) {
+        FrameMark;
         FrameMarkStart(CPU_FRAME);
         {
-            ZoneScopedN("Input", tracy::Color::AliceBlue);
+            ZoneScopedN("Input");
+            ZoneColor(tracy::Color::AliceBlue);
             playground::input::Update();
         }
         {
-            ZoneScopedN("Scripts", tracy::Color::LightSeaGreen);
+            ZoneScopedN("Scripts");
+            ZoneColor(tracy::Color::LightSeaGreen);
             config.updateCallback();
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
         FrameMarkEnd(CPU_FRAME);
     }
 
-    playground::profiler::Shutdown();
+#if ENABLE_PROFILER
+    tracy::ShutdownProfiler();
+#endif
 }

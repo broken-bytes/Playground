@@ -1,69 +1,26 @@
 #pragma once
 
 #include "Shader.hxx"
-
-#include <cereal/cereal.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/map.hpp>
-#include <cereal/types/string.hpp>
-#include <cereal/types/vector.hpp>
-
 #include <glm/glm.hpp>
-
+#include <array>
 #include <cstdint>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <string>
 
 namespace playground::rendering {
-	struct MaterialData {
-	public:
-		uint32_t vertexShaderId;
-		uint32_t pixelShaderId;
-
-		std::map<std::string, uint64_t> textures;
-		std::map<std::string, float> floats;
-		std::map<std::string, uint32_t> ints;
-		std::map<std::string, bool> bools;
-		std::map<std::string, std::array<float, 2>> vec2s;
-		std::map<std::string, std::array<float, 3>> vec3s;
-		std::map<std::string, std::array<float, 4>> vec4s;
-
-	private:
-		friend class cereal::access;
-
-		template <class Archive>
-		void serialize(Archive& Data) {
-			Data(vertexShaderId, pixelShaderId, textures, floats, ints, bools, vec2s, vec3s, vec4s);
-		}
-	};
-
 	class Material {
-	public:
-		std::map<std::string, uint64_t> textures;
-		std::map<std::string, float> floats;
-		std::map<std::string, uint32_t> ints;
-		std::map<std::string, bool> bools;
-		std::map<std::string, std::array<float, 2>> vec2s;
-		std::map<std::string, std::array<float, 3>> vec3s;
-		std::map<std::string, std::array<float, 4>> vec4s;
+        struct MaterialBuffer {
+            std::array<float, 16> floats; // Reserved -> 0: DeltaTime, 1: SinTime, 2: CosTime, 3: TimeSinceStart 4: Transparency
+            std::array<int, 16> ints; // Reserved -> 0: ObjectID, 1: Frame Index
+            std::array<glm::vec2, 16> vec2s; // Reserved: 0: UV Scale, 1: UV Offset, 2: Screen Size
+            std::array<glm::vec3, 16> vec3s; // Reserved: 0: World Position
+            std::array<glm::vec3, 16> vec4s; 
+            std::array<uint32_t, 8> textures;
+        };
 
-		Material(
-			std::map<std::string, uint64_t> textures,
-			std::map<std::string, float> floats,
-			std::map<std::string, uint32_t> ints,
-			std::map<std::string, bool> bools,
-			std::map<std::string, std::array<float, 2>> vec2s,
-			std::map<std::string, std::array<float, 3>> vec3s,
-			std::map<std::string, std::array<float, 4>> vec4s
-		) : 
-			textures(textures), 
-			floats(floats), 
-			ints(ints), 
-			bools(bools), 
-			vec2s(vec2s), 
-			vec3s(vec3s), 
-			vec4s(vec4s) {}
+	public:
+		Material() {}
 	};
 }
 

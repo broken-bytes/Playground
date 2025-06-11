@@ -18,18 +18,23 @@
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include <profiler/Profiler.hxx>
 #include <tracy/Tracy.hpp>
+#include <tracy/TracyD3D12.hpp>
 
 namespace playground::rendering::d3d12
 {
     D3D12GraphicsContext::D3D12GraphicsContext(
         std::string name,
         std::shared_ptr<D3D12Device> device,
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> opaqueRootSignature,
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> transferQueue,
         void* window,
         uint32_t width,
         uint32_t height,
         bool isOffscreen
+#if ENABLE_PROFILER
+        , tracy::D3D12QueueCtx* ctx
+#endif
     )
     {
         _device = device->GetDevice();
@@ -49,11 +54,15 @@ namespace playground::rendering::d3d12
         _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
+        _opaqueRootSignature = opaqueRootSignature;
+
         _isOffscreen = isOffscreen;
 
         _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(_device, 1, 1);
 
-        _tracyCtx = tracy::CreateD3D12Context(_device.Get(), _graphicsQueue.Get());
+#if ENABLE_PROFILER
+        _tracyCtx = ctx;
+#endif
     }
 
     D3D12GraphicsContext::~D3D12GraphicsContext()
@@ -67,6 +76,8 @@ namespace playground::rendering::d3d12
     auto D3D12GraphicsContext::Begin() -> void
     {
         PIXBeginEvent(PIX_COLOR_INDEX(0), "Begin Graphics Context");
+        ZoneScopedN("RenderThread: GFX Begin");
+        ZoneColor(tracy::Color::Orange3);
         // Reset all command lists so they can be in recording state
         _opaqueCommandList->Reset();
         _transparentCommandList->Reset();
@@ -76,7 +87,12 @@ namespace playground::rendering::d3d12
 
     auto D3D12GraphicsContext::BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {
         PIXBeginEvent(PIX_COLOR_INDEX((int)pass + 2), "Begin Opaque Pass");
+        ZoneScopedN("RenderThread: Begin Opaque Pass");
+        ZoneColor(tracy::Color::Orange2);
         assert(_currentPassList == nullptr && "A render pass was already started. Did you forget to end it?");
+
+        _opaqueCommandList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
+
 
         D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
         rtDesc.cpuDescriptor = std::static_pointer_cast<D3D12RenderTarget>(colour)->Handle();
@@ -103,6 +119,7 @@ namespace playground::rendering::d3d12
         switch (pass) {
             case RenderPass::Opaque:
                 _currentPassList = _opaqueCommandList;
+                _opaqueCommandList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
                 break;
             case RenderPass::Transparent:
                 _currentPassList = _transparentCommandList;
@@ -120,7 +137,8 @@ namespace playground::rendering::d3d12
 
     auto D3D12GraphicsContext::EndRenderPass() -> void {
         assert(_currentPassList != nullptr && "No render pass was started. Did you forget to start one?");
-
+        ZoneScopedN("RenderThread: End Opaque Pass");
+        ZoneColor(tracy::Color::Orange2);
         _currentPassList->Native()->EndRenderPass();
         _currentPassList = nullptr;
         PIXEndEvent();
@@ -141,12 +159,13 @@ namespace playground::rendering::d3d12
     auto D3D12GraphicsContext::BindMaterial(std::shared_ptr<Material> material) -> void {
         auto list = _currentPassList->Native();
         auto dxMat = std::static_pointer_cast<D3D12Material>(material);
-        list->SetGraphicsRootSignature(dxMat->rootsignature.Get());
         list->SetPipelineState(dxMat->pso.Get());
     }
 
     auto D3D12GraphicsContext::Finish() -> void
     {
+        ZoneScopedN("RenderThread: GFX Finish");
+        ZoneColor(tracy::Color::Orange3);
         _opaqueCommandList->Close();
         _transparentCommandList->Close();
         _shadowCommandList->Close();

@@ -11,8 +11,6 @@
 #include "rendering/CPUResourceHandle.hxx"
 #include "rendering/RenderTarget.hxx"
 #include "rendering/DepthBuffer.hxx"
-#include "rendering/RootSignature.hxx"
-#include "rendering/PipelineState.hxx"
 #include "rendering/ConstantBuffer.hxx"
 #include "rendering/Texture.hxx"
 #include "rendering/Sampler.hxx"
@@ -39,8 +37,6 @@ namespace playground::rendering {
 		) -> void = 0;
 		virtual auto SetScissorRect(uint32_t left, uint32_t top, uint32_t right, uint32_t bottom) -> void = 0;
 		virtual auto SetPrimitiveTopology(PrimitiveTopology topology) -> void = 0;
-        virtual auto SetRootSignature(std::shared_ptr<RootSignature>& rootSignature) -> void = 0;
-        virtual auto SetPipelineState(std::shared_ptr<PipelineState>& pipelineState) -> void = 0;
 		virtual auto SetMaterial(std::shared_ptr<Material>& material) -> void = 0;
 		virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void = 0;
 		virtual auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void = 0;

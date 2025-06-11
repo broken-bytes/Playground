@@ -10,7 +10,6 @@
 #include "rendering/Texture.hxx"
 #include "rendering/CommandQueue.hxx"
 #include "rendering/GraphicsContext.hxx"
-#include "rendering/RootSignature.hxx"
 #include "rendering/Camera.hxx"
 #include "rendering/Sampler.hxx"
 #include <assetloader/AssetLoader.hxx>
@@ -28,8 +27,16 @@ namespace playground::rendering {
         bool Offscreen;
     };
 
-    struct ObjectData {
+    struct ObjectBuffer {
         glm::mat4 WorldMatrix;
+    };
+
+    struct SimulationBuffer {
+        float deltaTime;
+        float sinTime;
+        float cosTime;
+        float timeSinceStart;
+        int frameIndex;
     };
 
     Config config;
@@ -61,8 +68,6 @@ namespace playground::rendering {
 	std::vector<Mesh> meshes = {};
     std::vector<uint32_t> freeMeshIds = {};
 
-    std::shared_ptr<RootSignature> rootSignature = nullptr;
-    std::shared_ptr<PipelineState> defaultPipelineState = nullptr;
     std::vector<std::unique_ptr<Camera>> cameras = {};
 
     std::shared_ptr<ConstantBuffer> cameraBuffer = nullptr;
@@ -136,7 +141,7 @@ namespace playground::rendering {
         }
         )";
 
-    ObjectData objectData;
+    ObjectBuffer objectData;
 
     bool didUpload = false;
 
@@ -151,98 +156,89 @@ namespace playground::rendering {
         uint32_t height,
         bool offscreen
     ) -> void {
-        renderThread = std::thread([
-            width,
-            height,
-            offscreen,
-            window
-        ]() {
-            // Create a device
-            device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
+        // Create a device
+        device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
 
 #if _WIN32
-            SetThreadDescription(GetCurrentThread(), L"Render Thread");
+        SetThreadDescription(GetCurrentThread(), L"Render Thread");
 #endif
 
-            config.Width = width;
-            config.Height = height;
-            config.Offscreen = offscreen;
+        config.Width = width;
+        config.Height = height;
+        config.Offscreen = offscreen;
 
-            // Create frames (frames hold all render things that need to alter between frames)
-            for (int x = 0; x < FRAME_COUNT; x++)
-            {
-                std::stringstream ss;
-                ss << "COLOUR_" << x;
+        // Create frames (frames hold all render things that need to alter between frames)
+        for (int x = 0; x < FRAME_COUNT; x++)
+        {
+            std::stringstream ss;
+            ss << "COLOUR_" << x;
 
-                auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str(), offscreen);
+            auto rendertarget = device->CreateRenderTarget(width, height, TextureFormat::BGRA8, ss.str(), offscreen);
 
-                ss.clear();
-                ss << "DEPTH_" << x;
+            ss.clear();
+            ss << "DEPTH_" << x;
 
-                auto depthBuffer = device->CreateDepthBuffer(width, height, ss.str());
+            auto depthBuffer = device->CreateDepthBuffer(width, height, ss.str());
 
-                auto gfxName = "GraphicsContext_" + std::to_string(x);
-                auto ulName = "UploadContext_" + std::to_string(x);
+            auto gfxName = "GraphicsContext_" + std::to_string(x);
+            auto ulName = "UploadContext_" + std::to_string(x);
 
-                auto graphicsContext = device->CreateGraphicsContext(gfxName, window, width, height, offscreen);
-                auto uploadContext = device->CreateUploadContext(ulName);
+            auto graphicsContext = device->CreateGraphicsContext(gfxName, window, width, height, offscreen);
+            auto uploadContext = device->CreateUploadContext(ulName);
 
-                frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext));
-            }
+            frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext));
+        }
 
-            rootSignature = device->GetRootSignature();
+        sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
 
-            defaultPipelineState = device->CreatePipelineState(vertexShaderCode, pixelShaderCode);
+        auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
+        cameras.push_back(std::make_unique<Camera>(camera));
 
-            sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
+        cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
 
-            auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
-            cameras.push_back(std::make_unique<Camera>(camera));
+        objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectBuffer), "ObjectBuffer");
 
-            cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
+        swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
 
-            objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectData), "ObjectBuffer");
+        glm::mat4 scale = glm::identity<glm::mat4>();
+        glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f));
+        glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 rotationMatrix = glm::mat4_cast(quaternion);
+        glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
+        objectData.WorldMatrix = finalTransform;
 
-            swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
+        tracy::SetThreadName("Render Thread");
 
-            glm::mat4 scale = glm::identity<glm::mat4>();
-            glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f));
-            glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            glm::mat4 rotationMatrix = glm::mat4_cast(quaternion);
-            glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
-            objectData.WorldMatrix = finalTransform;
+        isRunning = true;
 
-            tracy::SetThreadName("Render Thread");
+        static const char* GPU_FRAME = "GPU: Update";
 
-            isRunning = true;
+        while (isRunning) {
+            FrameMarkStart(GPU_FRAME);
+            PreFrame();
+            Update();
+            PostFrame();
+            FrameMarkEnd(GPU_FRAME);
+        }
 
-            static const char* GPU_FRAME = "GPU: Update";
+        device->WaitForIdleGPU();
 
-            while (isRunning) {
-                FrameMarkStart(GPU_FRAME);
-                PreFrame();
-                Update();
-                PostFrame();
-                std::this_thread::sleep_for(std::chrono::milliseconds(2));
-                FrameMarkEnd(GPU_FRAME);
+        // Destroy all resources (render targets, depth buffers, etc)
+        for (auto& frame : frames)
+        {
+            frame = nullptr;
+        }
 
-            }
+        sampler = nullptr;
 
-            device->WaitForIdleGPU();
+        vertexBuffers = {};
+        indexBuffers = {};
 
-            // Destroy all resources (render targets, depth buffers, etc)
-            for (auto& frame : frames)
-            {
-                frame = nullptr;
-            }
+        swapchain = nullptr;
+        // Cleanup
+        device = nullptr;
 
-            vertexBuffers = {};
-            indexBuffers = {};
-
-            // Cleanup
-            device = nullptr;
-            swapchain = nullptr;
-        });
+        std::cout << "Render thread shutdown complete." << std::endl;
 	}
 
 	auto Shutdown() -> void {
@@ -251,6 +247,7 @@ namespace playground::rendering {
 
 	auto PreFrame() -> void {
         ZoneScopedN("RenderThread: Pre Frame");
+        ZoneColor(tracy::Color::Orange);
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto uploadContext = frames[backBufferIndex]->UploadContext();
         uploadContext->Begin();
@@ -274,6 +271,7 @@ namespace playground::rendering {
 
     auto Update() -> void {
         ZoneScopedN("RenderThread: Update");
+        ZoneColor(tracy::Color::Orange1);
         auto backBufferIndex = swapchain->BackBufferIndex();
 
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
@@ -286,13 +284,14 @@ namespace playground::rendering {
         auto cameraData = cameras[0]->GetCameraData();
         cameraBuffer->Update(&cameraData, sizeof(CameraData));
 
-        objectBuffer->Update(&objectData, sizeof(ObjectData));
+        objectBuffer->Update(&objectData, sizeof(ObjectBuffer));
 
         graphicsContext->EndRenderPass();
 	}
 
 	auto PostFrame() -> void {
         ZoneScopedN("RenderThread: Post Frame");
+        ZoneColor(tracy::Color::Orange2);
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
         graphicsContext->CopyToSwapchainBackBuffer(frames[backBufferIndex]->RenderTarget(), swapchain);
@@ -312,20 +311,6 @@ namespace playground::rendering {
 
         return numBytes;
     }
-
-	auto LoadShader(
-		const std::string& code,
-		ShaderType type
-	) -> uint32_t {
-		//const auto shader = device->CompileShader(code, type);
-		//shaders[shader->id] = shader;
-
-        return 0;
-	}
-
-	auto UnloadShader(uint64_t shader) -> void {
-		device->DestroyShader(shader);
-	}
 
 	auto CreateVertexBuffer(const void* data, size_t size, size_t stride, bool isStatic) -> VertexBufferHandle {
 		auto buffer = device->CreateVertexBuffer(data, size, stride, isStatic);
@@ -410,9 +395,14 @@ namespace playground::rendering {
         return 0;
     }
 
-	auto DrawIndexed(uint32_t meshId, uint32_t materialId) -> void {
+	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void {
 
 	}
+
+    auto CreateMaterial(std::string& vertexShaderCode, std::string& pixelShaderCode) -> uint32_t {
+        auto material = device->CreateMaterial(vertexShaderCode, pixelShaderCode);
+        return 0;
+    }
 
     auto CreateCamera(
         float fov,

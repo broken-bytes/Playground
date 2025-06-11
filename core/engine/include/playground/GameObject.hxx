@@ -1,8 +1,10 @@
 #pragma once
 
+#include "playground/AssetManager.hxx"
 #include <assetloader/RawMeshData.hxx>
 #include <array>
 #include <cstdint>
+#include <string_view>
 
 namespace playground {
     struct Transform {
@@ -12,11 +14,9 @@ namespace playground {
     };
 
     struct MeshComponent {
-        bool isUploaded;
-        std::string meshName;
+        std::string modelName;
         uint16_t subMeshIndex;
-        uint32_t gpuMeshId;
-        uint32_t gpuMaterialId;
+        std::string materialName;
         assetloader::RawMeshData* meshData;
     };
 
@@ -28,14 +28,16 @@ namespace playground {
 
     struct GameObject {
         uint32_t id;
+        uint32_t parentId;
+        std::vector<uint32_t> children;
         Transform transform;
         MeshComponent* meshComponent;
         AudioSourceComponent* audioSourceComponent;
     };
 
-
     namespace gameobjects {
         Transform* GetGameObjectTransform(uint32_t);
+        MeshComponent* AddMeshComponent(uint32_t id, const char* modelName, uint16_t subMeshIndex, const char* materialName);
         MeshComponent* GetGameObjectMeshComponent(uint32_t);
         AudioSourceComponent* GetGameObjectAudioSourceComponent(uint32_t);
     }

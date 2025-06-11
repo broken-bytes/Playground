@@ -11,6 +11,11 @@ project(${PROJECT_NAME})
 
 enable_testing()
 
+if(ENABLE_PROFILER)
+    add_compile_definitions(ENABLE_TRACY)
+    add_compile_definitions(ENABLE_PROFILER)
+endif()
+
 # Set the output directory for the build
 set(OUTPUT_DIR ${CMAKE_SOURCE_DIR}/out)
 

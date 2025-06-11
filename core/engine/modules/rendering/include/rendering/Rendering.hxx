@@ -9,6 +9,7 @@
 #include <functional>
 #include <semaphore>
 #include <string>
+#include <map>
 #include <vector>
 #include <rendering/IndexBufferHandle.hxx>
 #include <rendering/MaterialHandle.hxx>
@@ -18,6 +19,8 @@
 #include <rendering/CameraHandle.hxx>
 #include <assetloader/RawMeshData.hxx>
 #include <assetloader/RawTextureData.hxx>
+#include <assetloader/RawMaterialData.hxx>
+#include <assetloader/RawShaderData.hxx>
 
 namespace playground::rendering {
 	// Lifecycle
@@ -46,11 +49,9 @@ namespace playground::rendering {
 
     auto UploadMesh(const assetloader::RawMeshData& mesh) -> uint32_t;
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle;
+    auto CreateMaterial(std::string& vertexShaderCode, std::string& pixelShaderCode) -> uint32_t;
 
-	// Resource destruction
-	auto UnloadShader(uint64_t shader) -> void;
 	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void;
-
 
     auto CreateCamera(
         float fov,

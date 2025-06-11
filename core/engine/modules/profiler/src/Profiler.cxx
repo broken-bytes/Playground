@@ -18,11 +18,15 @@ namespace playground::profiler {
     static TracyD3D12Ctx tracyD3D12Context = nullptr;
 
     void Init() {
+#if ENABLE_PROFILER
         tracy::StartupProfiler();
+#endif
     }
 
     void Shutdown() {
+#if ENABLE_PROFILER
         tracy::ShutdownProfiler();
+#endif
     }
 
     void RegisterThread(const char* name) {

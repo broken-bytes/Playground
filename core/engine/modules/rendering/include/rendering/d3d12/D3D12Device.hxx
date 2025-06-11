@@ -9,6 +9,8 @@
 #include <string>
 #include "rendering/Device.hxx"
 #include "rendering/d3d12/D3D12HeapManager.hxx"
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyD3D12.hpp>
 
 namespace playground::rendering::d3d12 {
     class D3D12Device : public rendering::Device, public std::enable_shared_from_this<D3D12Device> {
@@ -36,12 +38,8 @@ namespace playground::rendering::d3d12 {
             uint32_t height,
             std::string name
         ) -> std::shared_ptr<DepthBuffer> override;
-        auto CreateMaterial(std::map<ShaderType, std::shared_ptr<Shader>> shaders,
-            std::map<std::string, uint64_t> textures, std::map<std::string, float> floats,
-            std::map<std::string, uint32_t> ints, std::map<std::string, bool> bools,
-            std::map<std::string, std::array<float, 2>> vec2s, std::map<std::string, std::array<float, 3>> vec3s,
-            std::map<std::string, std::array<float, 4>> vec4s) -> std::shared_ptr<Material> override;
-        auto CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader) -> std::shared_ptr<PipelineState> override;
+        auto CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material> override;
+        auto CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature) -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
         auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> override;
         auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void override;
         auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> override;
@@ -50,7 +48,6 @@ namespace playground::rendering::d3d12 {
         auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> override;
         auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window)->std::shared_ptr<Swapchain> override;
         auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> override;
-        auto GetRootSignature() -> std::shared_ptr<RootSignature> override;
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
         auto WaitForIdleGPU() -> void override;
@@ -80,6 +77,9 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _copyQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _uploadQueue;
 
+#if ENABLE_PROFILER
+        tracy::D3D12QueueCtx* _tracyCtx;
+#endif
         auto CreateCommandQueue(
             CommandListType type,
             std::string name

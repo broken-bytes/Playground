@@ -23,12 +23,16 @@ namespace playground::rendering::d3d12 {
         D3D12GraphicsContext(
             std::string name,
             std::shared_ptr<D3D12Device> device,
+            Microsoft::WRL::ComPtr<ID3D12RootSignature> opaqueRootSignature,
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> transferQueue,
             void* window,
             uint32_t width,
             uint32_t height,
             bool isOffscreen
+#if ENABLE_PROFILER
+            ,tracy::D3D12QueueCtx* ctx
+#endif
         );
         ~D3D12GraphicsContext();
 
@@ -52,6 +56,7 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _graphicsQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _transferQueue;
         Microsoft::WRL::ComPtr<ID3D12Fence> _fence;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> _opaqueRootSignature;
         std::shared_ptr<D3D12CommandAllocator> _commandAllocator;
         std::shared_ptr<D3D12CommandList> _opaqueCommandList;
         std::shared_ptr<D3D12CommandList> _transparentCommandList;
@@ -64,6 +69,8 @@ namespace playground::rendering::d3d12 {
 
         bool _isOffscreen;
         std::unique_ptr<D3D12ReadbackBuffer> _mouseOverBuffer;
+#if ENABLE_PROFILER
         tracy::D3D12QueueCtx* _tracyCtx;
+#endif
     };
 }

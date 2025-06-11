@@ -6,8 +6,6 @@
 #include "rendering/d3d12/D3D12DepthBuffer.hxx"
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
-#include "rendering/d3d12/D3D12RootSignature.hxx"
-#include "rendering/d3d12/D3D12PipelineState.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
@@ -164,16 +162,6 @@ namespace playground::rendering::d3d12 {
             break;
         }
 	}
-
-    auto D3D12CommandList::SetRootSignature(std::shared_ptr<RootSignature>& rootSignature) -> void
-    {
-        _list->SetGraphicsRootSignature(std::static_pointer_cast<D3D12RootSignature>(rootSignature)->GetRootSignature().Get());
-    }
-
-    auto D3D12CommandList::SetPipelineState(std::shared_ptr<PipelineState>& pipelineState) -> void
-    {
-        _list->SetPipelineState(std::static_pointer_cast<D3D12PipelineState>(pipelineState)->GetPipelineState().Get());
-    }
 
 	auto D3D12CommandList::SetMaterial(std::shared_ptr<Material>& material) -> void
 	{

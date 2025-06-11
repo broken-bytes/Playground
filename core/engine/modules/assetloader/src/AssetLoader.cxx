@@ -8,9 +8,9 @@
 
 namespace playground::assetloader {
 
-    std::vector<RawMeshData> LoadMeshes(std::string& modelName)
+    std::vector<RawMeshData> LoadMeshes(std::string_view modelName)
     {
-        std::istringstream iss(modelName, std::ios::binary);
+        std::istringstream iss(std::string(modelName), std::ios::binary);
 
         std::vector<RawMeshData> loadedMeshes;
         {
@@ -21,10 +21,34 @@ namespace playground::assetloader {
         return loadedMeshes;
     }
 
-    RawTextureData LoadTexture(std::string& textureName) {
-        std::istringstream iss(textureName, std::ios::binary);
+    RawTextureData LoadTexture(std::string_view textureName) {
+        std::istringstream iss(std::string(textureName), std::ios::binary);
 
         RawTextureData loaded;
+        {
+            cereal::BinaryInputArchive iarchive(iss);
+            iarchive(loaded);
+        }
+
+        return loaded;
+    }
+
+    RawMaterialData LoadMaterial(std::string_view materialName) {
+        std::istringstream iss(std::string(materialName), std::ios::binary);
+
+        RawMaterialData loaded;
+        {
+            cereal::BinaryInputArchive iarchive(iss);
+            iarchive(loaded);
+        }
+
+        return loaded;
+    }
+
+    RawShaderData LoadShader(std::string_view shaderName) {
+        std::istringstream iss(std::string(shaderName), std::ios::binary);
+
+        RawShaderData loaded;
         {
             cereal::BinaryInputArchive iarchive(iss);
             iarchive(loaded);

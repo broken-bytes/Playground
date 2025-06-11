@@ -4,8 +4,6 @@
 #include <wrl.h>
 #include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/CommandList.hxx"
-#include "rendering/RootSignature.hxx"
-#include "rendering/PipelineState.hxx"
 
 namespace playground::rendering::d3d12 {
 	class D3D12CommandList : public rendering::CommandList {
@@ -27,8 +25,6 @@ namespace playground::rendering::d3d12 {
 			uint32_t maxDepth) -> void override;
 		auto SetScissorRect(uint32_t left, uint32_t top, uint32_t right, uint32_t bottom) -> void override;
 		auto SetPrimitiveTopology(PrimitiveTopology topology) -> void override;
-        auto SetRootSignature(std::shared_ptr<RootSignature>& rootSignature) -> void override;
-        auto SetPipelineState(std::shared_ptr<PipelineState>& pipelineState) -> void override;
 		auto SetMaterial(std::shared_ptr<Material>& material) -> void override;
 		auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void override;
 		auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void override;
