@@ -15,24 +15,32 @@ namespace playground::assetmanager {
     void MarkModelUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
         if (handleId < _modelHandles.size()) {
             _modelHandles[handleId]->state = ResourceState::Uploaded;
+            _modelHandles[handleId]->meshes = std::move(meshes);
             _modelHandles[handleId]->refCount--;
         }
     }
 
-    ModelHandle* LoadModel(std::string_view name) {
+    void MarkMaterialUploadFinished(uint32_t handleId, uint32_t materialId) {
+        if (handleId < _materialHandles.size()) {
+            _materialHandles[handleId]->state = ResourceState::Uploaded;
+            _materialHandles[handleId]->material = materialId;
+            _materialHandles[handleId]->refCount--;
+        }
+    }
+
+    ModelHandle* LoadModel(const char* name) {
         auto hash = shared::Hash(name);
 
         ModelHandle* handle;
         for (uint32_t i = 0; i < _modelHandles.size(); ++i) {
             handle = _modelHandles[i];
             if (handle->hash == hash) {
-                if (handle->state == ResourceState::Uploaded) {
+                if (handle->state == ResourceState::Uploaded || handle->state == ResourceState::Loading || handle->state == ResourceState::Created) {
                     handle->refCount++;
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto rawMeshData = playground::assetloader::LoadMeshes(name);
-                    handle->rawMeshData = rawMeshData;
                     handle->refCount = 1;
                     handle->state = ResourceState::Created;
                     playground::rendering::QueueUploadModel(rawMeshData, i, MarkModelUploadFinished);
@@ -49,7 +57,6 @@ namespace playground::assetmanager {
             .state = ResourceState::Created,
             .refCount = 1,
             .meshes = {},
-            .rawMeshData = rawMeshData,
         };
 
         uint32_t handleId;
@@ -61,7 +68,7 @@ namespace playground::assetmanager {
         return _modelHandles[handleId];
     }
 
-    MaterialHandle* LoadMaterial(std::string_view name) {
+    MaterialHandle* LoadMaterial(const char* name) {
         auto hash = shared::Hash(name);
 
         MaterialHandle* handle;
@@ -80,8 +87,12 @@ namespace playground::assetmanager {
                     auto vertexShader = assetloader::LoadShader(rawMaterialData.vertexShaderName);
                     auto pixelShader = assetloader::LoadShader(rawMaterialData.pixelShaderName);
 
-                    auto materialId = playground::rendering::CreateMaterial(vertexShader.blob, pixelShader.blob);
-                    handle->material = materialId;
+                    rendering::QueueUploadMaterial(
+                        vertexShader.blob,
+                        pixelShader.blob,
+                        i,
+                        MarkMaterialUploadFinished
+                    );
 
                     return handle;
                 }
@@ -92,23 +103,29 @@ namespace playground::assetmanager {
         auto vertexShader = playground::assetloader::LoadShader(rawMaterialData.vertexShaderName);
         auto pixelShader = playground::assetloader::LoadShader(rawMaterialData.pixelShaderName);
 
-        auto material = playground::rendering::CreateMaterial(vertexShader.blob, pixelShader.blob);
-
         auto newHandle = new MaterialHandle {
             .hash = hash,
             .state = ResourceState::Created,
             .refCount = 1,
-            .material = material,
+            .material = 0,
         };
 
         uint32_t handleId;
         handleId = _materialHandles.size();
         _materialHandles.push_back(newHandle);
 
+        rendering::QueueUploadMaterial(
+            vertexShader.blob,
+            pixelShader.blob,
+            handleId,
+            MarkMaterialUploadFinished
+        );
+
+
         return _materialHandles[handleId];
     }
 
-    ShaderHandle* LoadShader(std::string_view name) {
+    ShaderHandle* LoadShader(const char* name) {
         auto hash = shared::Hash(name);
 
         ShaderHandle* handle;

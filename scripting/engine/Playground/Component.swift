@@ -35,7 +35,8 @@ public class Component {
     internal var isAwake: Bool = false
     internal var isStarted: Bool = false
     internal var isDestroyed: Bool = false
-    public unowned(unsafe) var gameObject: GameObject?
+    public internal(set) unowned(unsafe) var gameObject: GameObject!
 
-    public required init() {}
+    public required init() {
+    }
 }

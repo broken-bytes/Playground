@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 project(PlaygroundScripting LANGUAGES Swift)
 
 set(CMAKE_OBJECT_PATH_MAX 200)
+set(CMAKE_SWIFT_FLAGS_DEBUG "-g -Xlinker -DEBUG -Xlinker /INCREMENTAL:NO")
 
 include(ExternalProject)
 

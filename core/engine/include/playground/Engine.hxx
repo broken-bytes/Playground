@@ -3,6 +3,7 @@
 extern "C" {
     typedef void (__cdecl *LookupTableDelegate)(const char*, void*);
     typedef void(__cdecl *ScriptUpdateCallback)();
+    typedef void(__cdecl *ScriptStartupCallback)();
 
 	struct {
 		void* Window;
@@ -11,6 +12,8 @@ extern "C" {
 		uint32_t Height;
         bool IsOffscreen;
         ScriptUpdateCallback updateCallback;
+        ScriptStartupCallback startupCallback;
+
 	} typedef PlaygroundConfig;
 
 	__declspec(dllexport) void PlaygroundCoreMain(const PlaygroundConfig& config);

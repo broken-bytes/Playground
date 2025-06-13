@@ -56,7 +56,7 @@ namespace playground::assetmanager {
         playground::audio::AudioClip audio;
     };
 
-    ModelHandle* LoadModel(std::string_view name);
-    MaterialHandle* LoadMaterial(std::string_view name);
-    ShaderHandle* LoadShader(std::string_view name);
+    ModelHandle* LoadModel(const char* name);
+    MaterialHandle* LoadMaterial(const char* name);
+    ShaderHandle* LoadShader(const char* name);
 }

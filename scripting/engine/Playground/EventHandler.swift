@@ -5,7 +5,7 @@ enum EventHandler {
     private static nonisolated(unsafe) var subscribePtr: SubscribeToEventPtr!
 
     internal static func start() {
-        subscribePtr = NativeLookupTable.shared.getFunctionPointer(by: "Events_Subscribe")
+        subscribePtr = NativeLookupTable.getFunctionPointer(by: "Events_Subscribe")
 
         subscribePtr(EventType.system.rawValue ) { event in
             let systemEvent = event.assumingMemoryBound(to: SystemEvent.self).pointee

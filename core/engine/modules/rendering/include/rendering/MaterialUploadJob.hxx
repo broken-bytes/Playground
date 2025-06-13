@@ -3,13 +3,15 @@
 #include "rendering/Mesh.hxx"
 #include <assetloader/RawMeshData.hxx>
 #include <cstdint>
+#include <string>
 #include <functional>
 #include <vector>
 
 namespace playground::rendering {
-    struct ModelUploadJob {
+    struct MaterialUploadJob {
         uint32_t handle;
-        std::vector<assetloader::RawMeshData> meshes;
-        std::function<void(uint32_t, std::vector<Mesh>)> callback;
+        std::string vertexShaderBlob;
+        std::string pixelShaderBlob;
+        std::function<void(uint32_t, uint32_t)> callback;
     };
 }

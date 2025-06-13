@@ -8,6 +8,7 @@
 #include "rendering/DepthBuffer.hxx"
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/ModelUploadJob.hxx"
+#include "rendering/MaterialUploadJob.hxx"
 #include "rendering/UploadContext.hxx"
 
 namespace playground::rendering
@@ -51,6 +52,11 @@ namespace playground::rendering
             return _modelUploadQueue;
         }
 
+        auto MaterialUploadQueue() -> std::queue<MaterialUploadJob>&
+        {
+            return _materialUploadQueue;
+        }
+
         auto GraphicsContext() -> std::shared_ptr<GraphicsContext> {
             return _graphicsContext;
         }
@@ -63,6 +69,7 @@ namespace playground::rendering
         std::shared_ptr<rendering::RenderTarget> _renderTarget;
         std::shared_ptr<rendering::DepthBuffer> _depth;
         std::queue<ModelUploadJob> _modelUploadQueue;
+        std::queue<MaterialUploadJob> _materialUploadQueue;
         std::shared_ptr<rendering::GraphicsContext> _graphicsContext;
         std::shared_ptr<rendering::UploadContext> _uploadContext;
     };

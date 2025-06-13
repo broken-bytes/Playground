@@ -1,0 +1,4 @@
+{
+  "vertexShaderName": "default.vs.hlsl",
+  "pixelShaderName": "default.ps.hlsl"
+}

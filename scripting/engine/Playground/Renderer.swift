@@ -13,6 +13,7 @@ public enum Renderer {
     internal typealias SetCameraRotation = @convention(c) (UnsafePointer<CChar>) -> Void
     internal typealias SetCameraRenderTarget = @convention(c) (UnsafePointer<CChar>) -> Void
     internal typealias DestroyCamera = @convention(c) (UInt32) -> Void
+    internal typealias LoadModel = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer
 
     private static nonisolated(unsafe) var startPtr: RendererStart!
     private static nonisolated(unsafe) var preFramePtr: RendererPreFraame!
@@ -27,12 +28,16 @@ public enum Renderer {
     private static nonisolated(unsafe) var setCameraRotation: SetCameraRotation!
     private static nonisolated(unsafe) var setCameraRenderTarget: SetCameraRenderTarget!
     private static nonisolated(unsafe) var destroyCamera: DestroyCamera!
+    private static nonisolated(unsafe) var loadModelPtr: LoadModel!
+    private static nonisolated(unsafe) var loadMaterialPtr: LoadModel!
 
     internal static func start(window: UnsafeRawPointer, width: UInt32, height: UInt32, offscreen: Bool) {
-        startPtr = NativeLookupTable.shared.getFunctionPointer(by: "Rendering_Init")
-        preFramePtr = NativeLookupTable.shared.getFunctionPointer(by: "Rendering_PreFrame")
-        updatePtr = NativeLookupTable.shared.getFunctionPointer(by: "Rendering_Update")
-        postFramePtr = NativeLookupTable.shared.getFunctionPointer(by: "Rendering_PostFrame")
+        startPtr = NativeLookupTable.getFunctionPointer(by: "Rendering_Init")
+        preFramePtr = NativeLookupTable.getFunctionPointer(by: "Rendering_PreFrame")
+        updatePtr = NativeLookupTable.getFunctionPointer(by: "Rendering_Update")
+        postFramePtr = NativeLookupTable.getFunctionPointer(by: "Rendering_PostFrame")
+        loadModelPtr = NativeLookupTable.getFunctionPointer(by: "AssetManager_LoadModel")
+        loadMaterialPtr = NativeLookupTable.getFunctionPointer(by: "AssetManager_LoadMaterial")
 
         startPtr(window, width, height, offscreen)
     }
@@ -47,5 +52,11 @@ public enum Renderer {
 
     internal static func postFrame() {
         postFramePtr()
+    }
+
+    internal static func loadModel(with name: String) -> UnsafeMutableRawPointer {
+        name.withCString {
+            loadModelPtr($0)
+        }
     }
 }

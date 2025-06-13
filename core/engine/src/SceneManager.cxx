@@ -23,18 +23,17 @@ namespace playground::scenemanager {
             assetmanager::MaterialHandle* materialToDraw = 0;
 
             if (go->meshComponent != nullptr) {
-                modelToDraw = assetmanager::LoadModel(go->meshComponent->modelName);
-                if (modelToDraw->state != assetmanager::ResourceState::Uploaded) {
+                modelToDraw = reinterpret_cast<assetmanager::ModelHandle*>(go->meshComponent->model);
+                if (modelToDraw == nullptr || modelToDraw->state != assetmanager::ResourceState::Uploaded) {
                     continue;
                 }
 
-                materialToDraw = assetmanager::LoadMaterial(go->meshComponent->materialName);
-
-                if (materialToDraw->state != assetmanager::ResourceState::Uploaded) {
+                materialToDraw = reinterpret_cast<assetmanager::MaterialHandle*>(go->meshComponent->material);
+                if (materialToDraw == nullptr || materialToDraw->state != assetmanager::ResourceState::Uploaded) {
                     continue;
                 }
 
-                auto mesh = modelToDraw->meshes[go->meshComponent->subMeshIndex];
+                auto mesh = modelToDraw->meshes[go->meshComponent->meshId];
                 auto material = materialToDraw->material;;
 
                 rendering::DrawIndexed(mesh.vertexBuffer, mesh.indexBuffer, material);
@@ -42,16 +41,7 @@ namespace playground::scenemanager {
         }
     }
 
-    int32_t CreateGameObject() {
-        auto go = new GameObject();
-        go->transform = Transform();
-        go->meshComponent = nullptr;
-        go->audioSourceComponent = nullptr;
-
-        go->transform.position = { 0.0f, 0.0f, 0.0f };
-        go->transform.rotation = { 0.0f, 0.0f, 0.0f, 1.0f };
-        go->transform.scale = { 1.0f, 1.0f, 1.0f };
-
+    int32_t AddGameObject(GameObject* go) {
         if (_freeIds.size() > 0) {
             int32_t id = _freeIds.back();
             _freeIds.pop_back();

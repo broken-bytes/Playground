@@ -1,8 +1,8 @@
 #include <iostream>
 #include <assetpipeline/AssetPipeline.hxx>
 #include <assetpipeline/loaders/ModelLoader.hxx>
+#include <assetpipeline/loaders/MaterialLoader.hxx>
 #include <assetpipeline/loaders/TextureLoader.hxx>
-
 
 int main(int argc, char** argv) {
     // 1: Asset Path
@@ -36,5 +36,13 @@ int main(int argc, char** argv) {
         buffer = playground::editor::assetpipeline::CookTexture(texture);
 
         playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
+    } else if (std::strcmp(argv[3], "Material") == 0) {
+        auto material = playground::editor::assetpipeline::loaders::materialloader::LoadFromFile(argv[1]);
+        buffer = playground::editor::assetpipeline::CookMaterial(material);
+        playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
+    }
+    else {
+        std::cout << "Unknown asset type: " << argv[3] << std::endl;
+        return -1;
     }
 }

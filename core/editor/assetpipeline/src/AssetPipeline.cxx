@@ -9,6 +9,7 @@
 #include <sstream>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/string.hpp>
 
@@ -83,6 +84,21 @@ namespace playground::editor::assetpipeline {
 
         return buffer;
     }
+
+    auto CookMaterial(assetloader::RawMaterialData materialData) -> std::vector<uint8_t> {
+        std::ostringstream oss;
+        {
+            cereal::BinaryOutputArchive oarchive(oss);
+            oarchive(materialData);
+        }
+
+        // Convert the serialized output to a vector<uint8_t>
+        std::string outString = oss.str();
+        std::vector<uint8_t> buffer(outString.begin(), outString.end());
+
+        return buffer;
+    }
+
 
     auto CookTexture(assetloader::RawTextureData textureData) -> std::vector<uint8_t> {
         std::ostringstream oss(std::ios::binary);

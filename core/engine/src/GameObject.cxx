@@ -4,6 +4,25 @@
 #include <shared/Hasher.hxx>
 
 namespace playground::gameobjects {
+    GameObject* CreateGameObject() {
+        auto go = new GameObject();
+        go->transform = Transform();
+        go->meshComponent = nullptr;
+        go->audioSourceComponent = nullptr;
+
+        go->transform.position = { 0.0f, 0.0f, 0.0f };
+        go->transform.rotation = { 0.0f, 0.0f, 0.0f, 1.0f };
+        go->transform.scale = { 1.0f, 1.0f, 1.0f };
+
+        go->id = scenemanager::AddGameObject(go);
+
+        return go;
+    }
+
+    void DestroyGameObject(GameObject* go) {
+        scenemanager::DestroyGameObject(go->id);
+    }
+
     Transform* GetGameObjectTransform(uint32_t id) {
         GameObject* go = scenemanager::GetGameObject(id);
         if (!go) {
@@ -32,12 +51,13 @@ namespace playground::gameobjects {
         return go->audioSourceComponent;
     }
 
-    MeshComponent* AddMeshComponent(uint32_t id, const char* modelName, uint16_t subMeshIndex, const char* materialName) {
+    MeshComponent* AddMeshComponent(uint32_t id, void* modelHandle, uint16_t meshId, void* materialHandle) {
         auto mesh = new MeshComponent();
 
-        mesh->modelName = modelName;
-        mesh->subMeshIndex = subMeshIndex;
-        mesh->materialName = materialName;
+        mesh->model = modelHandle;
+        mesh->meshId = meshId;
+        mesh->material = materialHandle;
+
         scenemanager::GetGameObject(id)->meshComponent = mesh;
 
         return mesh;

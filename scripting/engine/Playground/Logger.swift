@@ -6,9 +6,9 @@ public enum Logger {
     internal static nonisolated(unsafe) var errorPtr: Log!
 
     internal static nonisolated func start() {
-        infoPtr = NativeLookupTable.shared.getFunctionPointer(by: "Logger_Info")
-        warnPtr = NativeLookupTable.shared.getFunctionPointer(by: "Logger_Warn")
-        errorPtr = NativeLookupTable.shared.getFunctionPointer(by: "Logger_Error")
+        infoPtr = NativeLookupTable.getFunctionPointer(by: "Logger_Info")
+        warnPtr = NativeLookupTable.getFunctionPointer(by: "Logger_Warn")
+        errorPtr = NativeLookupTable.getFunctionPointer(by: "Logger_Error")
     }
 
     public static func info(_ message: String) {

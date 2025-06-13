@@ -1,5 +1,5 @@
 #include "assetloader/AssetLoader.hxx"
-
+#include <io/IO.hxx>
 #include <stdexcept>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/binary.hpp>
@@ -8,9 +8,39 @@
 
 namespace playground::assetloader {
 
+    std::vector<uint8_t> TryLoadFile(std::string fileName) {
+        auto filelIst = io::GetFileList(std::filesystem::current_path());
+        auto paks = std::vector<std::filesystem::path>();
+        for (const auto& file : filelIst) {
+            if (file.is_regular_file() && file.path().extension() == ".pak") {
+                paks.push_back(file.path());
+            }
+        }
+
+        std::vector<uint8_t> data;
+
+        for (const auto& pak : paks) {
+            if (io::CheckIfFileExists(pak.string(), fileName.data())) {
+                data = io::LoadFileFromArchive(pak.string().c_str(), fileName.data());
+
+                return data;
+            }
+        }
+
+        return {};
+    }
+
     std::vector<RawMeshData> LoadMeshes(std::string_view modelName)
     {
-        std::istringstream iss(std::string(modelName), std::ios::binary);
+        auto data = TryLoadFile(std::string(modelName));
+
+        if (data.empty()) {
+            throw std::runtime_error("Failed to load mesh data for model: " + std::string(modelName));
+        }
+
+        std::string binaryStr(data.begin(), data.end());
+
+        std::istringstream iss(binaryStr, std::ios::binary);
 
         std::vector<RawMeshData> loadedMeshes;
         {
@@ -22,7 +52,15 @@ namespace playground::assetloader {
     }
 
     RawTextureData LoadTexture(std::string_view textureName) {
-        std::istringstream iss(std::string(textureName), std::ios::binary);
+        auto data = TryLoadFile(std::string(textureName));
+
+        if (data.empty()) {
+            throw std::runtime_error("Failed to load data for tetxure: " + std::string(textureName));
+        }
+
+        std::string binaryStr(data.begin(), data.end());
+
+        std::istringstream iss(binaryStr, std::ios::binary);
 
         RawTextureData loaded;
         {
@@ -34,7 +72,15 @@ namespace playground::assetloader {
     }
 
     RawMaterialData LoadMaterial(std::string_view materialName) {
-        std::istringstream iss(std::string(materialName), std::ios::binary);
+        auto data = TryLoadFile(std::string(materialName));
+
+        if (data.empty()) {
+            throw std::runtime_error("Failed to load data for material: " + std::string(materialName));
+        }
+
+        std::string binaryStr(data.begin(), data.end());
+
+        std::istringstream iss(binaryStr, std::ios::binary);
 
         RawMaterialData loaded;
         {
@@ -46,13 +92,18 @@ namespace playground::assetloader {
     }
 
     RawShaderData LoadShader(std::string_view shaderName) {
-        std::istringstream iss(std::string(shaderName), std::ios::binary);
+        auto data = TryLoadFile(std::string(shaderName));
 
-        RawShaderData loaded;
-        {
-            cereal::BinaryInputArchive iarchive(iss);
-            iarchive(loaded);
+        if (data.empty()) {
+            throw std::runtime_error("Failed to load data for shader: " + std::string(shaderName));
         }
+
+        std::string binaryStr(data.begin(), data.end());
+
+        std::istringstream iss(binaryStr, std::ios::binary);
+
+        RawShaderData loaded = {};
+        loaded.blob = binaryStr;
 
         return loaded;
     }

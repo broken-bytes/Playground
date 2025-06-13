@@ -1,6 +1,5 @@
 #pragma once
 
-#include "playground/AssetManager.hxx"
 #include <assetloader/RawMeshData.hxx>
 #include <array>
 #include <cstdint>
@@ -14,9 +13,9 @@ namespace playground {
     };
 
     struct MeshComponent {
-        std::string modelName;
-        uint16_t subMeshIndex;
-        std::string materialName;
+        void* model;
+        uint16_t meshId;
+        void* material;
         assetloader::RawMeshData* meshData;
     };
 
@@ -36,8 +35,10 @@ namespace playground {
     };
 
     namespace gameobjects {
+        GameObject* CreateGameObject();
+        void DestroyGameObject(GameObject* go);
         Transform* GetGameObjectTransform(uint32_t);
-        MeshComponent* AddMeshComponent(uint32_t id, const char* modelName, uint16_t subMeshIndex, const char* materialName);
+        MeshComponent* AddMeshComponent(uint32_t id, void* modelHandle, uint16_t meshId, void* materialHandle);
         MeshComponent* GetGameObjectMeshComponent(uint32_t);
         AudioSourceComponent* GetGameObjectAudioSourceComponent(uint32_t);
     }

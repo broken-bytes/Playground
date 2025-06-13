@@ -19,6 +19,7 @@
 #include <queue>
 #include <profiler/Profiler.hxx>
 #include <tracy/Tracy.hpp>
+#include <future>
 
 namespace playground::rendering {
     struct Config {
@@ -154,7 +155,8 @@ namespace playground::rendering {
         void* window,
         uint32_t width,
         uint32_t height,
-        bool offscreen
+        bool offscreen,
+        std::promise<void>& rendererReadyPromise
     ) -> void {
         // Create a device
         device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
@@ -211,6 +213,8 @@ namespace playground::rendering {
 
         isRunning = true;
 
+        rendererReadyPromise.set_value();
+
         static const char* GPU_FRAME = "GPU: Update";
 
         while (isRunning) {
@@ -252,21 +256,24 @@ namespace playground::rendering {
         auto uploadContext = frames[backBufferIndex]->UploadContext();
         uploadContext->Begin();
 
-        auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
-        graphicsContext->Begin();
-
         auto modelUploadQueue = frames[backBufferIndex]->ModelUploadQueue();
-        if (modelUploadQueue.size() > 0) {
-            auto modelUploadJob = modelUploadQueue.back();
+        while (modelUploadQueue.size() > 0) {
+            auto modelUploadJob = std::move(modelUploadQueue.back());
             modelUploadQueue.pop();
 
-            auto meshId = UploadMesh(modelUploadJob.meshes[modelUploadJob.handle]);
+            UploadModel(modelUploadJob);
+        }
 
-            uploadContext->Upload(vertexBuffers[meshId]);
-            uploadContext->Upload(indexBuffers[meshId]);
+        auto materialUploadQueue = frames[backBufferIndex]->MaterialUploadQueue();
+        while (materialUploadQueue.size() > 0) {
+            auto materialUploadJob = std::move(materialUploadQueue.back());
+            materialUploadQueue.pop();
+
+            CreateMaterial(materialUploadJob);
         }
 
         uploadContext->Finish();
+        frames[backBufferIndex]->ModelUploadQueue() = {};
 	}
 
     auto Update() -> void {
@@ -278,6 +285,7 @@ namespace playground::rendering {
         auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
 
         auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
+        graphicsContext->Begin();
 
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
 
@@ -338,7 +346,7 @@ namespace playground::rendering {
 
 	}
 
-    auto QueueUploadModel(std::vector<assetloader::RawMeshData>& meshes, uint32_t handle, std::function<void(uint32_t, std::vector<Mesh>)> callback) -> void {
+    auto QueueUploadModel(std::vector<assetloader::RawMeshData> meshes, uint32_t handle, std::function<void(uint32_t, std::vector<Mesh>)> callback) -> void {
         auto job = ModelUploadJob {
             .handle = handle,
             .meshes = meshes,
@@ -348,46 +356,70 @@ namespace playground::rendering {
         frames[logicFrameIndex]->ModelUploadQueue().push(job);
     }
 
-    auto UploadMesh(const assetloader::RawMeshData& mesh) -> uint32_t {
-        const UINT vertexBufferSize = mesh.vertices.size();
-        const UINT indexBufferSize = mesh.indices.size();
+    auto QueueUploadMaterial(std::string vertexShaderCode, std::string pixelShaderCode, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
+        auto job = MaterialUploadJob{
+            .handle = handle,
+            .vertexShaderBlob = vertexShaderCode,
+            .pixelShaderBlob = pixelShaderCode,
+            .callback = callback
+        };
 
-        auto vertexBuffer = device->CreateVertexBuffer(mesh.vertices.data(), sizeof(Vertex) * vertexBufferSize, sizeof(Vertex), true);
-        auto indexBuffer = device->CreateIndexBuffer(mesh.indices.data(), indexBufferSize);
+        frames[logicFrameIndex]->MaterialUploadQueue().push(job);
+    }
 
-        uint32_t vertexBufferId = 0;
-        if (freeVertexBufferIds.size() > 0) {
-            vertexBufferId = freeVertexBufferIds.back();
-            vertexBuffers[vertexBufferId] = vertexBuffer;
-            freeVertexBufferIds.pop_back();
-        } else {
-            vertexBuffers.push_back(vertexBuffer);
-            vertexBufferId = vertexBuffers.size() - 1;
+    auto UploadModel(ModelUploadJob job) -> void {
+        auto meshes = std::vector<Mesh>();
+        for (auto& mesh : job.meshes) {
+            const UINT vertexBufferSize = mesh.vertices.size();
+            const UINT indexBufferSize = mesh.indices.size();
+
+            auto vertexBuffer = device->CreateVertexBuffer(mesh.vertices.data(), sizeof(Vertex) * vertexBufferSize, sizeof(Vertex), true);
+            auto indexBuffer = device->CreateIndexBuffer(mesh.indices.data(), indexBufferSize);
+
+            uint32_t vertexBufferId = 0;
+            if (freeVertexBufferIds.size() > 0) {
+                vertexBufferId = freeVertexBufferIds.back();
+                vertexBuffers[vertexBufferId] = vertexBuffer;
+                freeVertexBufferIds.pop_back();
+            }
+            else {
+                vertexBuffers.push_back(vertexBuffer);
+                vertexBufferId = vertexBuffers.size() - 1;
+            }
+
+            uint32_t indexBufferId = 0;
+            if (freeIndexBufferIds.size() > 0) {
+                indexBufferId = freeIndexBufferIds.back();
+                indexBuffers[indexBufferId] = indexBuffer;
+                freeIndexBufferIds.pop_back();
+            }
+            else {
+                indexBuffers.push_back(indexBuffer);
+                indexBufferId = indexBuffers.size() - 1;
+            }
+
+            uint32_t meshId = 0;
+            if (freeMeshIds.size() > 0) {
+                meshId = freeMeshIds.back();
+                meshes[meshId] = Mesh{ vertexBufferId, indexBufferId };
+                freeMeshIds.pop_back();
+            }
+            else {
+                meshes.push_back(Mesh{ vertexBufferId, indexBufferId });
+                meshId = meshes.size() - 1;
+                freeMeshIds.push_back(meshId);
+            }
+
+            auto backBufferIndex = swapchain->BackBufferIndex();
+            auto uploadContext = frames[backBufferIndex]->UploadContext();
+
+            uploadContext->Upload(vertexBuffer);
+            uploadContext->Upload(indexBuffer);
+
+            meshes.push_back(Mesh{ vertexBufferId, indexBufferId });
         }
 
-        uint32_t indexBufferId = 0;
-        if (freeIndexBufferIds.size() > 0) {
-            indexBufferId = freeIndexBufferIds.back();
-            indexBuffers[indexBufferId] = indexBuffer;
-            freeIndexBufferIds.pop_back();
-        } else {
-            indexBuffers.push_back(indexBuffer);
-            indexBufferId = indexBuffers.size() - 1;
-        }
-
-        uint32_t meshId = 0;
-        if (freeMeshIds.size() > 0) {
-            meshId = freeMeshIds.back();
-            meshes[meshId] = Mesh { vertexBufferId, indexBufferId };
-            freeMeshIds.pop_back();
-        }
-        else {
-            meshes.push_back(Mesh { vertexBufferId, indexBufferId });
-            meshId = meshes.size() - 1;
-            freeMeshIds.push_back(meshId);
-        }
-
-        return meshId;
+        job.callback(job.handle, meshes);
     }
 
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle {
@@ -399,9 +431,21 @@ namespace playground::rendering {
 
 	}
 
-    auto CreateMaterial(std::string& vertexShaderCode, std::string& pixelShaderCode) -> uint32_t {
-        auto material = device->CreateMaterial(vertexShaderCode, pixelShaderCode);
-        return 0;
+    auto CreateMaterial(MaterialUploadJob job) -> void {
+        auto material = device->CreateMaterial(job.vertexShaderBlob, job.pixelShaderBlob);
+
+        uint32_t materialId = 0;
+        if (freeVertexBufferIds.size() > 0) {
+            materialId = freeMeshIds.back();
+            materials[materialId] = material;
+            freeMeshIds.pop_back();
+        }
+        else {
+            materials.push_back(material);
+            materialId = materials.size() - 1;
+        }
+
+        job.callback(job.handle, materialId);
     }
 
     auto CreateCamera(

@@ -6,6 +6,10 @@ public class GameObject: Object {
         func onDestroyed(gameObject: GameObject)
     }
 
+    struct NativeGameObjectHandle {
+        let id: UInt32
+    }
+
     internal let _transform: Transform
     public var transform: Transform {
         checkLifetime()
@@ -15,7 +19,7 @@ public class GameObject: Object {
 
     public internal(set) var name: String = ""
     internal weak var parent: GameObject? = nil
-    internal let id: UInt32
+    internal let handle: UnsafeMutablePointer<NativeGameObjectHandle>!
     internal var isDestroyed = false
     internal var isDirty = false
 
@@ -28,11 +32,11 @@ public class GameObject: Object {
 
     @MainActor
     private static var delegates: [GameObjectLifeTimeDelegate] = []
-    private var components: [Component] = []
+    internal var components: [Component] = []
 
-    internal init(id: UInt32) {
-        self.id = id
-        _transform = Transform(id: id)
+    internal init(handle: UnsafeMutablePointer<NativeGameObjectHandle>) {
+        self.handle = handle
+        _transform = Transform(id: handle.pointee.id)
     }
 
     public func destroy() {
@@ -40,12 +44,15 @@ public class GameObject: Object {
         self.isDirty = true
     }
 
-    public func attach<T>(_ component: T.Type) where T: Component {
+    public func attach<T>(_ component: T.Type) -> T where T: Component {
         checkLifetime()
 
-        let component = T()
+        var component = T()
+        component.gameObject = self
 
         components.append(component)
+
+        return component
     }
 
     public func retrieve<T>() -> T? where T: Component {

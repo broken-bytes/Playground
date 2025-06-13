@@ -1,4 +1,5 @@
 #include "playground/Engine.hxx"
+#include "playground/AssetManager.hxx"
 #include "playground/SceneManager.hxx"
 #include <chrono>
 #include <string>
@@ -18,6 +19,7 @@
 #include <profiler/Profiler.hxx>
 #include <tracy/Tracy.hpp>
 #include <thread>
+#include <future>
 
 typedef void(*ScriptingEventCallback)(playground::events::Event* event);
 
@@ -44,8 +46,12 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::input::Init();
     playground::scenemanager::Init();
     auto window = playground::system::Init(config.Window);
-    renderThread = std::thread([window, config] {
-        playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen);
+
+    std::promise<void> rendererReadyPromise;
+    std::future<void> rendererReadyFuture = rendererReadyPromise.get_future();
+
+    renderThread = std::thread([window, config, &rendererReadyPromise] {
+        playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen, rendererReadyPromise);
      });
 
     Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
@@ -61,10 +67,18 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     tracy::StartupProfiler();
 #endif
 
-    config.Delegate("Playground_CreateGameObject\0", playground::scenemanager::CreateGameObject);
-    config.Delegate("Playground_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
-    config.Delegate("Playground_DestroyGameObject\0", playground::scenemanager::DestroyGameObject);
-    config.Delegate("Playground_Shutdown\0", Shutdown);
+    config.Delegate("Logger_Info", playground::logging::logger::Info);
+    config.Delegate("Logger_Warn", playground::logging::logger::Info);
+    config.Delegate("Logger_Error", playground::logging::logger::Info);
+
+    config.Delegate("GameObject_CreateGameObject\0", playground::gameobjects::CreateGameObject);
+    config.Delegate("GameObject_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
+    config.Delegate("GameObject_AddMeshComponent\0", playground::gameobjects::AddMeshComponent);
+    config.Delegate("GameObject_DestroyGameObject\0", playground::gameobjects::DestroyGameObject);
+
+    config.Delegate("AssetManager_LoadModel\0", playground::assetmanager::LoadModel);
+    config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial);
+
     config.Delegate("Rendering_PreFrame\0", playground::rendering::PreFrame);
     config.Delegate("Rendering_Update\0", playground::rendering::Update);
     config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);
@@ -78,13 +92,19 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Rendering_SetCameraRotation\0", playground::rendering::SetCameraRotation);
     config.Delegate("Rendering_SetCameraTarget\0", playground::rendering::SetCameraRenderTarget);
     config.Delegate("Rendering_DestroyCamera\0", playground::rendering::DestroyCamera);
+
     config.Delegate("Input_Update\0", playground::input::Update);
+
     config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
-    config.Delegate("Logger_Info", playground::logging::logger::Info);
-    config.Delegate("Logger_Warn", playground::logging::logger::Info);
-    config.Delegate("Logger_Error", playground::logging::logger::Info);
 
     tracy::SetThreadName("Game");
+
+    playground::logging::logger::Info("Playground Core Engine started.");
+    playground::logging::logger::Info("Initializing Scripting Layer...");
+
+    rendererReadyFuture.wait();
+
+    config.startupCallback();
 
     static const char* CPU_FRAME = "CPU:Update";
 
@@ -100,6 +120,7 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
             ZoneScopedN("Scripts");
             ZoneColor(tracy::Color::LightSeaGreen);
             config.updateCallback();
+            playground::scenemanager::Update();
         }
         FrameMarkEnd(CPU_FRAME);
     }

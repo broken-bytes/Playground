@@ -17,10 +17,14 @@
 #include <rendering/VertexBufferHandle.hxx>
 #include <rendering/TextureHandle.hxx>
 #include <rendering/CameraHandle.hxx>
+#include "rendering/ModelUploadJob.hxx"
+#include "rendering/MaterialUploadJob.hxx"
 #include <assetloader/RawMeshData.hxx>
 #include <assetloader/RawTextureData.hxx>
 #include <assetloader/RawMaterialData.hxx>
 #include <assetloader/RawShaderData.hxx>
+#include <tuple>
+#include <future>
 
 namespace playground::rendering {
 	// Lifecycle
@@ -28,7 +32,8 @@ namespace playground::rendering {
         void* window,
         uint32_t width,
         uint32_t height,
-        bool offscreen
+        bool offscreen,
+        std::promise<void>& rendererReadyPromise
     ) -> void;
 	auto Shutdown() -> void;
     auto PreFrame() -> void;
@@ -45,11 +50,12 @@ namespace playground::rendering {
 	auto UpdateVertexBuffer(VertexBufferHandle buffer, const void* data, size_t size) -> void;
 	auto UpdateIndexBuffer(IndexBufferHandle buffer, const void* data, size_t size) -> void;
 
-    auto QueueUploadModel(std::vector<assetloader::RawMeshData>& meshes, uint32_t, std::function<void(uint32_t, std::vector<Mesh>)>) -> void;
+    auto QueueUploadModel(std::vector<assetloader::RawMeshData> meshes, uint32_t, std::function<void(uint32_t, std::vector<Mesh>)>) -> void;
+    auto QueueUploadMaterial(std::string vertexShaderCode, std::string pixelShaderCode, uint32_t handle, std::function<void(uint32_t, uint32_t)>) -> void;
 
-    auto UploadMesh(const assetloader::RawMeshData& mesh) -> uint32_t;
+    auto UploadModel(ModelUploadJob job) -> void;
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle;
-    auto CreateMaterial(std::string& vertexShaderCode, std::string& pixelShaderCode) -> uint32_t;
+    auto CreateMaterial(MaterialUploadJob job) -> void;
 
 	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void;
 

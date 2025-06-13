@@ -35,6 +35,7 @@ namespace playground::rendering::d3d12 {
         }
 
         for (auto& buffer : _vertexBuffers) {
+            OutputDebugStringA(("Freeing vertex buffer: " + std::to_string(buffer->Id()) + "\n").c_str());
             std::static_pointer_cast<D3D12VertexBuffer>(buffer)->Free();
         }
 

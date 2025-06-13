@@ -5,7 +5,7 @@ public enum Input {
     private static nonisolated(unsafe) var updatePtr: InputUpdate!
 
     internal static nonisolated func start() {
-        updatePtr = NativeLookupTable.shared.getFunctionPointer(by: "Input_Update")
+        updatePtr = NativeLookupTable.getFunctionPointer(by: "Input_Update")
     }
 
 
