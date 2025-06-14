@@ -1,23 +1,23 @@
 internal enum ECSHandler {
     internal typealias IteratorDelegate = @convention(c) (UnsafeMutableRawPointer) -> Void
-    internal typealias CreateEntity = @convention(c) (UnsafeMutablePointer<CChar>) -> Void
+    internal typealias CreateEntity = @convention(c) (UnsafePointer<CChar>) -> UInt64
     internal typealias DestroyEntity = @convention(c) (UInt64) -> Void
     internal typealias SetParent = @convention(c) (UInt64, UInt64) -> Void
     internal typealias GetParent = @convention(c) (UInt64) -> UInt64
-    internal typealias GetEntityByName = @convention(c) (UnsafeMutablePointer<CChar>) -> UInt64
-    internal typealias RegisterComponent = @convention(c) (UnsafeMutablePointer<CChar>, UInt64, UInt64) -> UInt64
+    internal typealias GetEntityByName = @convention(c) (UnsafePointer<CChar>) -> UInt64
+    internal typealias RegisterComponent = @convention(c) (UnsafePointer<CChar>, UInt64, UInt64) -> UInt64
     internal typealias AddComponent = @convention(c) (UInt64, UInt64) -> Void
     internal typealias SetComponent = @convention(c) (UInt64, UInt64, UnsafeMutableRawPointer) -> Void
-    internal typealias GetComponent = @convention(c) (UInt64, UInt64) -> UnsafeRawPointer
+    internal typealias GetComponent = @convention(c) (UInt64, UInt64) -> UnsafeMutableRawPointer
     internal typealias HasComponent = @convention(c) (UInt64, UInt64) -> Bool
     internal typealias DestroyComponent = @convention(c) (UInt64, UInt64) -> Void
-    internal typealias CreateSystem = @convention(c) (UnsafeMutablePointer<CChar>, UnsafeMutablePointer<UInt64>, UInt64, Bool, IteratorDelegate) -> UInt64
-    internal typealias GetComponentBuffer = @convention(c) (UnsafeMutableRawPointer, UInt32, UInt64) -> UnsafeMutableRawPointer
+    internal typealias CreateSystem = @convention(c) (UnsafePointer<CChar>, UnsafePointer<UInt64>, UInt64, Bool, IteratorDelegate) -> UInt64
+    internal typealias GetComponentBuffer = @convention(c) (UnsafeMutableRawPointer, UInt32, UInt64, UnsafeMutablePointer<UInt64>) -> UnsafeMutableRawPointer
     internal typealias GetIteratorSize = @convention(c) (UnsafeMutableRawPointer) -> UInt64
-    internal typealias GetEntitiesFromIterator = @convention(c) (UnsafeMutableRawPointer) -> UnsafeMutablePointer<UInt64>
+    internal typealias GetEntitiesFromIterator = @convention(c) (UnsafeMutableRawPointer, UnsafeMutablePointer<UInt64>) -> UnsafeMutablePointer<UInt64>
     internal typealias CreateHook = @convention(c) (UInt64, IteratorDelegate, IteratorDelegate) -> Void
     internal typealias DeleteAllEntitiesByTag = @convention(c) (UInt64) -> Void
-    internal typealias CreateTag = @convention(c) (UnsafeMutablePointer<CChar>) -> UInt64
+    internal typealias CreateTag = @convention(c) (UnsafePointer<CChar>) -> UInt64
     internal typealias AddTag = @convention(c) (UInt64, UInt64) -> Void
 
     private static nonisolated(unsafe) var createEntityPtr: CreateEntity!
@@ -39,6 +39,9 @@ internal enum ECSHandler {
     private static nonisolated(unsafe) var deleteAllEntitiesByTagPtr: DeleteAllEntitiesByTag!
     private static nonisolated(unsafe) var createTagPtr: CreateTag!
     private static nonisolated(unsafe) var addTagPtr: AddTag!
+
+    private static nonisolated(unsafe) var componentMapping: [ObjectIdentifier: UInt64] = [:]
+    private static nonisolated(unsafe) var tagMapping: [String: UInt64] = [:]
 
     internal static func start() {
         createEntityPtr = NativeLookupTable.getFunctionPointer(by: "ECS_CreateEntity")
@@ -62,7 +65,103 @@ internal enum ECSHandler {
         addTagPtr = NativeLookupTable.getFunctionPointer(by: "ECS_AddTag")
     }
 
-    internal static func createEntity(_ name: String) -> Entity {
-        
+    internal static nonisolated func createEntity(_ name: String) -> UInt64 {
+        return name.withCString { createEntityPtr($0) }
+    }
+
+    internal static nonisolated func destroyEntity(_ id: UInt64) {
+        destroyEntityPtr(id)
+    }
+
+    internal static nonisolated func setParent(_ id: UInt64, parent parentId: UInt64) {
+        setParentPtr(id, parentId)
+    }
+
+    internal static nonisolated func getParent(_ id: UInt64) -> UInt64 {
+        getParentPtr(id)
+    }
+
+    internal static nonisolated func getEntityByName(_ name: String) -> UInt64 {
+        return name.withCString { return getEntityByNamePtr($0) }
+    }
+
+    internal static nonisolated func registerComponent<T>(_ type: T.Type) -> UInt64 {
+        "\(T.self)".withCString {
+            let objectId = ObjectIdentifier(T.self)
+            let id = registerComponentPtr($0, UInt64(MemoryLayout<T>.size), UInt64(MemoryLayout<T>.alignment))
+
+            componentMapping[objectId] = id
+
+            return id
+        }
+    }
+
+    internal static nonisolated func addComponent<T>(_ id: UInt64, type: T.Type) {
+        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        addComponentPtr(id, componentId)
+    }
+
+    internal static nonisolated func setComponent<T>(_ id: UInt64, data: inout T) {
+        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        setComponentPtr(id, componentId, &data)
+    }
+
+    internal static nonisolated func getComponent<T>(_ id: UInt64, type: T.Type) -> UnsafeMutablePointer<T> {
+        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+
+        return getComponentPtr(id, componentId).assumingMemoryBound(to: T.self)
+    }
+
+    internal static nonisolated func hasComponent<T>(_ id: UInt64, type: T.Type) -> Bool {
+        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+
+        return hasComponentPtr(id, componentId)
+    }
+
+    internal static nonisolated func destroyComponent<T>(_ id: UInt64, type: T.Type) {
+        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+
+        destroyComponentPtr(id, componentId)
+    }
+
+    internal static nonisolated func createSystem(_ name: String, filter: [UInt64], multiThreaded: Bool, delegate: IteratorDelegate) -> UInt64 {
+        return name.withCString { createSystemPtr($0, filter, UInt64(filter.count), multiThreaded, delegate)}
+    }
+
+    @inline(__always)
+    internal static nonisolated func getComponentBuffer<T>(iter: UnsafeMutableRawPointer, slot: UInt32, type: T.Type) -> UnsafeMutableBufferPointer<T> {
+        var count: UInt64 = 0
+        let ptr = getComponentBufferPtr(iter, slot, UInt64(MemoryLayout<T>.size), &count)
+
+        return UnsafeMutableBufferPointer(start: ptr.assumingMemoryBound(to: T.self), count: Int(count))
+    }
+
+    internal static nonisolated func iteratorCount(iter: UnsafeMutableRawPointer) -> UInt64 {
+        return getIteratorSizePtr(iter)
+    }
+
+    internal static nonisolated func entitiesFor(iter: UnsafeMutableRawPointer) -> UnsafeBufferPointer<UInt64> {
+        var count: UInt64 = 0
+        return UnsafeBufferPointer(start: getEntitiesFromIteratorPtr(iter, &count), count: Int(count))
+    }
+
+    internal static nonisolated func addHook(_ id: UInt64, onAdd: IteratorDelegate, onRemove: IteratorDelegate) {
+        createHookPtr(id, onAdd, onRemove)
+    }
+
+    internal static nonisolated func deleteEntities(with tag: String) {
+        if let tagId = tagMapping[tag] {
+            deleteAllEntitiesByTagPtr(tagId)
+        }
+    }
+
+    internal static nonisolated func createTag(_ name: String) {
+        tagMapping[name] = createTagPtr(name)
+    }
+
+    internal static func addTag(_ id: UInt64, _ tag: String) {
+        if let tagId = tagMapping[tag] {
+            addTagPtr(id, tagId)
+        }
     }
 }

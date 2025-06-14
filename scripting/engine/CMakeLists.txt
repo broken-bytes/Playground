@@ -18,6 +18,12 @@ endif()
 
 file(GLOB_RECURSE ENGINE_SWIFT_SOURCES "Playground/*.swift")
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(SWIFT_FLAGS "-DDEBUG")
+else()
+    set(SWIFT_FLAGS "")
+endif()
+
 add_library(Playground SHARED ${ENGINE_SWIFT_SOURCES})
 add_dependencies(Playground PlaygroundScriptingMacros)
-target_compile_options(Playground PRIVATE -load-plugin-executable "${PlaygroundMacrosPath}")
+target_compile_options(Playground PRIVATE -load-plugin-executable "${PlaygroundMacrosPath}" ${SWIFT_FLAGS})

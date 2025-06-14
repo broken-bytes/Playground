@@ -1,68 +1,46 @@
 public struct Entity {
     public let id: UInt64
-    public var name: String {
-        ECS.name(of: self.id)!
-    }
 
     public var parent: Entity? {
-        guard let id = ECS.parent(of: self.id) else {
+        let id = ECSHandler.getParent(self.id)
+        guard id != 0 else {
             return nil
         }
 
-        let name = ECS.name(of: id)
-
         return Entity(id: id)
-    }
-
-    internal init(_ name: String) {
-        self.id = ECS.createEntity(name: name)
     }
 
     internal init(id: UInt64) {
         self.id = id
     }
 
-    public init(name: String, parent: Entity? = nil) {
-        self.id = ECS.createEntity(name: name)
+    public init(_ name: String) {
+        self.id = ECSHandler.createEntity(name)
     }
 
-    public init(_ name: String, parent: Entity? = nil, @EntityBuilder _ builder: () -> [any Component]) {
-        self.init(name: name, parent: parent)
-        var components = builder()
+    public func addComponent<T>(_ component: inout T) {
+        ECSHandler.addComponent(id, type: T.self)
+        ECSHandler.setComponent(id, data: &component)
 
-        for var component in components {
-            // Find the component type and add it to the entity
-            let componentType = type(of: component)
-            ECS.addComponent(entity: self.id, component: componentType)
-            ECS.setComponent(entity: self.id, component: componentType, data: &component)
+        #if DEBUG
+        let mirror = Mirror(reflecting: component)
+        guard mirror.displayStyle != .class else {
+            Logger.error("Component \(T.self) is not a struct. Only value types are allowed for components")
+            fatalError("Component \(T.self) is not a struct. Only value types are allowed for components")
         }
+        #endif
     }
 
-    public func addComponent(_ component: T.Type) {
-        ECS.addComponent(entity: self.id, component: T.self)
+    public func getComponent<T>(_ type: T.Type) -> UnsafeMutablePointer<T> {
+        ECSHandler.getComponent(id, type: T.self)
     }
 
-    public func setComponent<T: Component>(_ component: T) {
-        // Cast the component to a raw pointer
-        withUnsafePointer(to: component) { ptr in
-            ECS.setComponent(entity: self.id, component: T.self, data: UnsafeRawPointer(ptr))
-        }
+    public func destroyComponent<T>(_ type: T.Type) {
+        ECSHandler.destroyComponent(id, type: type)
     }
 
-    public func getComponent<T: Component>(_ component: T.Type) -> UnsafeMutablePointer<T>? {
-        ECS.getComponent(entity: self.id, component: T.self)
-    }
-
-    public func setParent(_ parent: Entity) {
-        ECS.setParent(entity: self.id, parent: parent.id)
-    }
-
-    public static func find(by name: String) -> Entity? {
-        guard let id = ECS.entity(by: name) else {
-            return nil
-        }
-
-        return Entity(id: id)
+    public func addTag(tag: String) {
+        ECSHandler.addTag(id, tag)
     }
 }
 

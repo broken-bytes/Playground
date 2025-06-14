@@ -1,7 +1,8 @@
-public class Camera {
-    internal let id: UInt8
+@frozen
+public struct CameraComponent {
+    internal var id: UInt8
 
-    public init(id: UInt8) {
+    internal init(id: UInt8) {
         self.id = id
     }
 }

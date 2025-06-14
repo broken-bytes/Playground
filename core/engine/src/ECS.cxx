@@ -3,6 +3,7 @@
 #include <shared_mutex>
 #include <map>
 #include <filesystem>
+#include <iostream>
 
 namespace playground::ecs {
     flecs::world world;
@@ -14,9 +15,14 @@ namespace playground::ecs {
             world.import<flecs::stats>();
             world.set<flecs::Rest>({ });
             // Get the number of threads on the system
-            auto threads = std::thread::hardware_concurrency();
-            world.set_threads(std::max(4, (int)threads - 2));  
         }
+
+        auto threads = std::thread::hardware_concurrency();
+        world.set_threads(std::min(8, (int)threads - 2));
+
+        world.system<>().kind(flecs::OnInstantiate).each([](flecs::entity e) {
+            std::cout << "Instantiating entity: " << e.name() << std::endl;
+        });
     }
 
     void Update(double deltaTime) {
@@ -98,11 +104,12 @@ namespace playground::ecs {
         ecs_entity_desc_t entity = {};
         entity.name = name;
         auto depends = ecs_pair(EcsDependsOn, EcsOnUpdate);
-        entity.add = &depends;
+        std::vector<ecs_id_t> ids = { depends, 0 };
+        entity.add = ids.data();
    
         ecs_query_desc_t query = {};
         for (int x = 0; x < filterCount; x++) {
-            query.terms[x] = ecs_term_t{ .id = filter[x], .oper = EcsAnd };
+            query.terms[x] = ecs_term_t{ .id = filter[x], .inout = EcsInOut, .oper = EcsAnd };
         }
 
         memset(system.query.terms, 0, sizeof(system.query.terms));
@@ -116,8 +123,10 @@ namespace playground::ecs {
         return ecs_system_init(world, &system);
     }
 
-    void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize) {
+    void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize, size_t* numItems) {
         auto ptr = ecs_field_w_size(iter, componentSize, index);
+
+        *numItems = iter->count;
 
         return ptr;
     }

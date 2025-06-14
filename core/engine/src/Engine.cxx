@@ -145,7 +145,7 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
             ZoneColor(tracy::Color::LightSeaGreen);
         }
         {
-            ZoneScopedN("Scene");
+            ZoneScopedN("ECS Tick");
             ZoneColor(tracy::Color::LightSalmon);
             playground::ecs::Update(deltaTime);
             //playground::scenemanager::Update();

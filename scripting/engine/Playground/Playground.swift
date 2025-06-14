@@ -10,7 +10,7 @@ public func playgroundMain(window: UnsafeRawPointer, width: UInt32, height: UInt
         window: window,
         delegate: onAddLookupEntry,
         width: width,
-        height: height, 
+        height: height,
         isOffscreen: false,
         onStarted: startUp
     )
@@ -27,8 +27,20 @@ func startUp() {
     Logger.info("Started Input")
     EventHandler.start()
     Logger.info("Started EventHandler")
-
+    ECSHandler.start()
+    Logger.info("Started ECSHandler")
     AssetHandler.setup()
+
+    let componentId = ECSHandler.registerComponent(CameraComponent.self)
+
+    for x in 0..<50000 {
+        let entity = Entity("MainCamera_\(x)")
+        var cam = CameraComponent(id: 0)
+        entity.addComponent(&cam)
+        entity.getComponent(CameraComponent.self).pointee.id = 2
+    }
+
+    ECSHandler.createSystem("SwiftSystem", filter: [componentId], multiThreaded: false, delegate: cameraSystem)
 }
 
 func initEngineCore(config: inout PlaygroundCoreConfig) {

@@ -36,7 +36,7 @@ namespace playground::ecs {
     void DestroyComponent(uint64_t entityId, uint64_t componentId);
 
     uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
-    void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize);
+    void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize, size_t* numItems);
     uint64_t GetIteratorSize(ecs_iter_t* iter);
     const uint64_t* GetEntitiesFromIterator(ecs_iter_t* iter);
     void CreateHook(uint64_t component, ComponentLifetimeDelegate onAdd, ComponentLifetimeDelegate onRemove);
