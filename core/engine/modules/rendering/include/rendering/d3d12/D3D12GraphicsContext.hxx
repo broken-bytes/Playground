@@ -40,15 +40,30 @@ namespace playground::rendering::d3d12 {
         auto BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void override;
         auto EndRenderPass() -> void override;
         auto Finish() -> void override;
+        auto Draw(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void override;
         auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
-        auto BindInstanceBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
+        auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void override;
         auto BindMaterial(std::shared_ptr<Material>) -> void override;
         auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
         auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void override;
         auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void override;
+        auto SetViewport(
+            uint32_t startX,
+            uint32_t startY,
+            uint32_t width,
+            uint32_t height,
+            uint32_t depthStart,
+            uint32_t depthEnd
+        ) -> void override;
+        auto SetScissor(
+            uint32_t left,
+            uint32_t top,
+            uint32_t right,
+            uint32_t bottom
+        ) -> void override;
         auto MouseOverID() -> uint64_t override;
 
     private:

@@ -85,12 +85,5 @@ namespace playground::rendering {
         glm::mat4 GetProjectionMatrix() const {
             return glm::perspectiveLH(glm::radians(FOV), AspectRatio, Near, Far);
         }
-
-        CameraData GetCameraData() const {
-            CameraData data;
-            data.ViewMatrix = glm::transpose(GetViewMatrix());
-            data.ProjectionMatrix = glm::transpose(GetProjectionMatrix());
-            return data;
-        }
     };
 }

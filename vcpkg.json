@@ -12,6 +12,7 @@
     "concurrentqueue",
     "directx-dxc",
     "directx-headers",
+    "flecs",
     "freealut",
     "freeimage",
     "glm",

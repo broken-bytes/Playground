@@ -15,6 +15,7 @@
 #include "rendering/Texture.hxx"
 #include "rendering/Sampler.hxx"
 #include "rendering/ReadbackBuffer.hxx"
+#include "rendering/InstanceBuffer.hxx"
 
 namespace playground::rendering {
 	class CommandList {
@@ -40,10 +41,11 @@ namespace playground::rendering {
 		virtual auto SetMaterial(std::shared_ptr<Material>& material) -> void = 0;
 		virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void = 0;
 		virtual auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void = 0;
-        virtual auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot) -> void = 0;
+		virtual auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer>& instanceBuffer) -> void = 0;
+        virtual auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void = 0;
         virtual auto BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void = 0;
         virtual auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void = 0;
-		virtual auto DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex) -> void = 0;
+		virtual auto DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void = 0;
 
 		auto Type() const -> CommandListType { return _type; }
 

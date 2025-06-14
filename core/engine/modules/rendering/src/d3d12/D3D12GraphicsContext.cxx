@@ -91,9 +91,6 @@ namespace playground::rendering::d3d12
         ZoneColor(tracy::Color::Orange2);
         assert(_currentPassList == nullptr && "A render pass was already started. Did you forget to end it?");
 
-        _opaqueCommandList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
-
-
         D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
         rtDesc.cpuDescriptor = std::static_pointer_cast<D3D12RenderTarget>(colour)->Handle();
         rtDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
@@ -106,7 +103,7 @@ namespace playground::rendering::d3d12
         D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsDesc = {};
         dsDesc.cpuDescriptor = std::static_pointer_cast<D3D12DepthBuffer>(depth)->Handle();
         dsDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-        dsDesc.DepthBeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE {
+        dsDesc.DepthBeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
             .DepthStencil = D3D12_DEPTH_STENCIL_VALUE {
                 .Depth = 1,
                 .Stencil = 0,
@@ -117,19 +114,20 @@ namespace playground::rendering::d3d12
         dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
 
         switch (pass) {
-            case RenderPass::Opaque:
-                _currentPassList = _opaqueCommandList;
-                _opaqueCommandList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
-                break;
-            case RenderPass::Transparent:
-                _currentPassList = _transparentCommandList;
-                break;
-            case RenderPass::Shadow:
-                _currentPassList = _shadowCommandList;
-                break;
-            default:
-                _currentPassList = _opaqueCommandList;
-                break;
+        case RenderPass::Opaque:
+            _currentPassList = _opaqueCommandList;
+            _opaqueCommandList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
+            _opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
+            break;
+        case RenderPass::Transparent:
+            _currentPassList = _transparentCommandList;
+            break;
+        case RenderPass::Shadow:
+            _currentPassList = _shadowCommandList;
+            break;
+        default:
+            _currentPassList = _opaqueCommandList;
+            break;
         }
 
         _currentPassList->Native()->BeginRenderPass(1, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
@@ -144,6 +142,10 @@ namespace playground::rendering::d3d12
         PIXEndEvent();
     }
 
+    auto D3D12GraphicsContext::Draw(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void {
+        _currentPassList->DrawIndexed(numIndices, startIndex, startVertex, numInstances, startInstance);
+    }
+
     auto D3D12GraphicsContext::BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
         _currentPassList->BindVertexBuffer(buffer, 0);
     }
@@ -152,8 +154,8 @@ namespace playground::rendering::d3d12
         _currentPassList->BindIndexBuffer(buffer);
     }
 
-    auto D3D12GraphicsContext::BindInstanceBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
-        _currentPassList->BindVertexBuffer(buffer, 1);
+    auto D3D12GraphicsContext::BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void {
+        _currentPassList->BindInstanceBuffer(buffer);
     }
 
     auto D3D12GraphicsContext::BindMaterial(std::shared_ptr<Material> material) -> void {
@@ -307,6 +309,38 @@ namespace playground::rendering::d3d12
         );
 
         _transferCommandList->Native()->ResourceBarrier(1, &renderTargetBarrier);
+    }
+
+    auto D3D12GraphicsContext::SetViewport(
+        uint32_t startX,
+        uint32_t startY,
+        uint32_t width,
+        uint32_t height,
+        uint32_t depthStart,
+        uint32_t depthEnd
+    ) -> void {
+        _currentPassList->SetViewport(
+            startX,
+            startY,
+            width,
+            height,
+            depthStart,
+            depthEnd
+        );
+    }
+
+    auto D3D12GraphicsContext::SetScissor(
+        uint32_t left,
+        uint32_t top,
+        uint32_t right,
+        uint32_t bottom
+    ) -> void {
+        _currentPassList->SetScissorRect(
+            left,
+            top,
+            right,
+            bottom
+        );
     }
 
     auto D3D12GraphicsContext::MouseOverID() -> uint64_t

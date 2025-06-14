@@ -16,6 +16,10 @@ if(ENABLE_PROFILER)
     add_compile_definitions(ENABLE_PROFILER)
 endif()
 
+if(ENABLE_INSPECTOR)
+    add_compile_definitions(ENABLE_INSPECTOR)
+endif()
+
 # Set the output directory for the build
 set(OUTPUT_DIR ${CMAKE_SOURCE_DIR}/out)
 

@@ -8,6 +8,5 @@ internal struct PlaygroundCoreConfig {
     let width: UInt32
     let height: UInt32
     let isOffscreen: Bool
-    let onUpdate: UpdateDelegate
     let onStarted: OnStartedDelegate
 }

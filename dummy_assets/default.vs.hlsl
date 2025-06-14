@@ -3,6 +3,9 @@ struct VSInput {
     float4 color : COLOR;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
+
+    // Instance data (slot 1, per instance)
+    float4x4 modelMatrix : INSTANCE_TRANSFORM; // Use a custom semantic or just pass as 4 float4 attributes
 };
 
 struct VSOutput {
@@ -12,14 +15,15 @@ struct VSOutput {
     float2 uv : TEXCOORD;
 };
 
-VSOutput VSMain(VSInput input) {
+VSOutput VSMain(VSInput input, uint instanceID : SV_InstanceID) {
     VSOutput output;
-    // Set the output position
-    output.position = float4(input.position, 1);
-    // Pass through other attributes
+
+    // Transform position by model matrix
+    float4 worldPos = mul(float4(input.position, 1.0), input.modelMatrix);
+
+    // Then your existing logic with worldPos instead of input.position
+    output.position = worldPos;
     output.color = input.color;
-    output.normal = input.normal;
-    output.uv = input.uv;
 
     return output;
 }

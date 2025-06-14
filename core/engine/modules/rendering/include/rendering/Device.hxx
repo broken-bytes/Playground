@@ -18,6 +18,7 @@
 #include "rendering/Swapchain.hxx"
 #include "rendering/IndexBuffer.hxx"
 #include "rendering/VertexBuffer.hxx"
+#include "rendering/InstanceBuffer.hxx"
 #include "rendering/DepthBuffer.hxx"
 #include "rendering/Sampler.hxx"
 
@@ -60,7 +61,8 @@ namespace playground::rendering {
 		virtual auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void = 0;
 		virtual auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> = 0;
 		virtual auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void = 0;
-        virtual auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> = 0;
+        virtual auto CreateConstantBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<ConstantBuffer> = 0;
+        virtual auto CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> = 0;
         virtual auto CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> = 0;
         virtual auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> = 0;
         virtual auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window) -> std::shared_ptr<Swapchain> = 0;

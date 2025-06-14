@@ -9,7 +9,9 @@ target_include_directories(PlaygroundCore PRIVATE include)
 target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
 
 
-target_link_libraries(PlaygroundCore PRIVATE AssetLoader Audio Events Input IO Logger Rendering System Profiler)
+find_package(flecs CONFIG REQUIRED)
+
+target_link_libraries(PlaygroundCore PRIVATE AssetLoader Audio Events flecs::flecs Input IO Logger Rendering System Profiler)
 target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
 target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/audio/include)
 target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/input/include)

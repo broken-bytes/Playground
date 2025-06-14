@@ -47,7 +47,9 @@ namespace playground::rendering::d3d12 {
         auto CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> override;
         auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> override;
         auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window)->std::shared_ptr<Swapchain> override;
-        auto CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> override;
+        auto CreateConstantBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<ConstantBuffer> override;
+        auto CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> override;
+
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
         auto WaitForIdleGPU() -> void override;

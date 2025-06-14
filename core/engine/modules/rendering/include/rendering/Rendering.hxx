@@ -19,6 +19,7 @@
 #include <rendering/CameraHandle.hxx>
 #include "rendering/ModelUploadJob.hxx"
 #include "rendering/MaterialUploadJob.hxx"
+#include "rendering/RenderFrame.hxx"
 #include <assetloader/RawMeshData.hxx>
 #include <assetloader/RawTextureData.hxx>
 #include <assetloader/RawMaterialData.hxx>
@@ -57,7 +58,7 @@ namespace playground::rendering {
     auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle;
     auto CreateMaterial(MaterialUploadJob job) -> void;
 
-	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void;
+    auto SubmitFrame(RenderFrame frame) -> void;
 
     auto CreateCamera(
         float fov,

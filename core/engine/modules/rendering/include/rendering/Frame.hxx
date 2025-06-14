@@ -9,7 +9,10 @@
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/ModelUploadJob.hxx"
 #include "rendering/MaterialUploadJob.hxx"
+#include "rendering/InstanceBuffer.hxx"
 #include "rendering/UploadContext.hxx"
+#include "rendering/DrawCall.hxx"
+#include "rendering/RenderFrame.hxx"
 
 namespace playground::rendering
 {
@@ -20,13 +23,15 @@ namespace playground::rendering
             const std::shared_ptr<RenderTarget>& renderTarget,
             const std::shared_ptr<DepthBuffer>& depth,
             std::shared_ptr<GraphicsContext> graphicsContext,
-            std::shared_ptr<UploadContext> uploadContext
+            std::shared_ptr<UploadContext> uploadContext,
+            std::shared_ptr<InstanceBuffer> instanceBuffer
         )
         {
             _renderTarget = renderTarget;
             _depth = depth;
             _graphicsContext = graphicsContext;
             _uploadContext = uploadContext;
+            _instanceBuffer = instanceBuffer;
         }
 
         ~Frame()
@@ -34,6 +39,7 @@ namespace playground::rendering
             _graphicsContext.reset();
             _uploadContext.reset();
             _renderTarget.reset();
+            _instanceBuffer.reset();
             _depth.reset();
         }
 
@@ -65,6 +71,19 @@ namespace playground::rendering
             return _uploadContext;
         }
 
+        auto InstanceBuffer() -> std::shared_ptr<InstanceBuffer>
+        {
+            return _instanceBuffer;
+        }
+
+        auto RenderFrame() -> RenderFrame& {
+            return _renderFrame;
+        }
+
+        auto SetRenderFrame(rendering::RenderFrame frame) -> void {
+            _renderFrame = frame;
+        }
+
     private:
         std::shared_ptr<rendering::RenderTarget> _renderTarget;
         std::shared_ptr<rendering::DepthBuffer> _depth;
@@ -72,5 +91,7 @@ namespace playground::rendering
         std::queue<MaterialUploadJob> _materialUploadQueue;
         std::shared_ptr<rendering::GraphicsContext> _graphicsContext;
         std::shared_ptr<rendering::UploadContext> _uploadContext;
+        std::shared_ptr<rendering::InstanceBuffer> _instanceBuffer;
+        rendering::RenderFrame _renderFrame;
     };
 }

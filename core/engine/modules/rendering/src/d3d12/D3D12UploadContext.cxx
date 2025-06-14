@@ -35,7 +35,6 @@ namespace playground::rendering::d3d12 {
         }
 
         for (auto& buffer : _vertexBuffers) {
-            OutputDebugStringA(("Freeing vertex buffer: " + std::to_string(buffer->Id()) + "\n").c_str());
             std::static_pointer_cast<D3D12VertexBuffer>(buffer)->Free();
         }
 
@@ -46,10 +45,12 @@ namespace playground::rendering::d3d12 {
         _textures.clear();
         _indexBuffers.clear();
         _vertexBuffers.clear();
+        _instanceBuffers.clear();
     }
 
     auto D3D12UploadContext::Finish() -> void {
         auto list = _list->Native();
+
         for (auto& buffer : _indexBuffers) {
             auto d3d12Buffer = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->Buffer();
             auto uploadBuffer = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->StagingBuffer();
@@ -62,6 +63,14 @@ namespace playground::rendering::d3d12 {
             auto d3d12Buffer = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->Buffer();
             auto uploadBuffer = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->StagingBuffer();
             auto size = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->View().SizeInBytes;
+            // Copy upload buffer to GPU memory
+            list->CopyBufferRegion(d3d12Buffer.Get(), 0, uploadBuffer.Get(), 0, size);
+        }
+
+        for (auto& buffer : _instanceBuffers) {
+            auto d3d12Buffer = std::static_pointer_cast<D3D12InstanceBuffer>(buffer)->Buffer();
+            auto uploadBuffer = std::static_pointer_cast<D3D12InstanceBuffer>(buffer)->StagingBuffer();
+            auto size = std::static_pointer_cast<D3D12InstanceBuffer>(buffer)->View().SizeInBytes;
             // Copy upload buffer to GPU memory
             list->CopyBufferRegion(d3d12Buffer.Get(), 0, uploadBuffer.Get(), 0, size);
         }
@@ -103,5 +112,9 @@ namespace playground::rendering::d3d12 {
 
     auto D3D12UploadContext::Upload(std::shared_ptr<VertexBuffer> buffer) -> void {
         _vertexBuffers.push_back(buffer);
+    }
+
+    auto D3D12UploadContext::Upload(std::shared_ptr<InstanceBuffer> buffer) -> void {
+        _instanceBuffers.push_back(buffer);
     }
 }

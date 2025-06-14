@@ -10,6 +10,7 @@
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
 #include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
+#include "rendering/d3d12/D3D12InstanceBuffer.hxx"
 
 using namespace Microsoft::WRL;
 
@@ -178,8 +179,12 @@ namespace playground::rendering::d3d12 {
         _list->IASetIndexBuffer(&std::static_pointer_cast<D3D12IndexBuffer>(vertexBuffer)->View());
 	}
 
-    auto D3D12CommandList::BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot) -> void {
-        _list->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12ConstantBuffer>(buffer)->GPUHandle());
+    auto D3D12CommandList::BindInstanceBuffer(std::shared_ptr<InstanceBuffer>& instanceBuffer) -> void {
+        _list->IASetVertexBuffers(1, 1, &std::static_pointer_cast<D3D12InstanceBuffer>(instanceBuffer)->View());
+    }
+
+    auto D3D12CommandList::BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void {
+        _list->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12ConstantBuffer>(buffer)->GPUHandle(index));
     }
 
     auto D3D12CommandList::BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void {
@@ -190,8 +195,8 @@ namespace playground::rendering::d3d12 {
         _list->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12TextureSampler>(sampler)->GPUHandle());
     }
 
-	auto D3D12CommandList::DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex) -> void
+	auto D3D12CommandList::DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void
 	{
-        _list->DrawIndexedInstanced(numIndices, 1, startIndex, startVertex, 0);
+        _list->DrawIndexedInstanced(numIndices, numInstances, startIndex, startVertex, startInstance);
 	}
 }

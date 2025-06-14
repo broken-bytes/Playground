@@ -1,6 +1,7 @@
 #include "playground/Engine.hxx"
 #include "playground/AssetManager.hxx"
 #include "playground/SceneManager.hxx"
+#include "playground/ECS.hxx"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -45,6 +46,12 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::audio::Init();
     playground::input::Init();
     playground::scenemanager::Init();
+#if ENABLE_INSPECTOR
+    playground::ecs::Init(true);
+#else
+    playground::ecs::Init(false);
+#endif
+
     auto window = playground::system::Init(config.Window);
 
     std::promise<void> rendererReadyPromise;
@@ -52,7 +59,7 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     renderThread = std::thread([window, config, &rendererReadyPromise] {
         playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen, rendererReadyPromise);
-     });
+        });
 
     Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
         if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
@@ -71,15 +78,29 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Logger_Warn", playground::logging::logger::Info);
     config.Delegate("Logger_Error", playground::logging::logger::Info);
 
-    config.Delegate("GameObject_CreateGameObject\0", playground::gameobjects::CreateGameObject);
-    config.Delegate("GameObject_GetGameObjectTransform\0", playground::gameobjects::GetGameObjectTransform);
-    config.Delegate("GameObject_AddMeshComponent\0", playground::gameobjects::AddMeshComponent);
-    config.Delegate("GameObject_DestroyGameObject\0", playground::gameobjects::DestroyGameObject);
-
     config.Delegate("AssetManager_LoadModel\0", playground::assetmanager::LoadModel);
     config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial);
 
-    config.Delegate("Rendering_PreFrame\0", playground::rendering::PreFrame);
+    config.Delegate("ECS_CreateEntity\0", playground::ecs::CreateEntity);
+    config.Delegate("ECS_DestroyEntity\0", playground::ecs::DestroyEntity);
+    config.Delegate("ECS_SetParent\0", playground::ecs::SetParent);
+    config.Delegate("ECS_GetParent\0", playground::ecs::GetParent);
+    config.Delegate("ECS_GetEntityByName\0", playground::ecs::GetEntityByName);
+    config.Delegate("ECS_RegisterComponent\0", playground::ecs::RegisterComponent);
+    config.Delegate("ECS_AddComponent\0", playground::ecs::AddComponent);
+    config.Delegate("ECS_SetComponent\0", playground::ecs::SetComponent);
+    config.Delegate("ECS_GetComponent\0", playground::ecs::GetComponent);
+    config.Delegate("ECS_HasComponent\0", playground::ecs::HasComponent);
+    config.Delegate("ECS_DestroyComponent\0", playground::ecs::DestroyComponent);
+    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateSystem);
+    config.Delegate("ECS_GetComponentBuffer\0", playground::ecs::GetComponentBuffer);
+    config.Delegate("ECS_GetIteratorSize\0", playground::ecs::GetIteratorSize);
+    config.Delegate("ECS_GetEntitiesFromIterator\0", playground::ecs::GetEntitiesFromIterator);
+    config.Delegate("ECS_CreateHook\0", playground::ecs::CreateHook);
+    config.Delegate("ECS_DeleteAllEntitiesByTag\0", playground::ecs::DeleteAllEntitiesByTag);
+    config.Delegate("ECS_CreateTag\0", playground::ecs::CreateTag);
+    config.Delegate("ECS_AddTag\0", playground::ecs::AddTag);
+
     config.Delegate("Rendering_Update\0", playground::rendering::Update);
     config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);
     config.Delegate("Rendering_ReadBackBuffer\0", playground::rendering::ReadbackBuffer);
@@ -108,6 +129,9 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     static const char* CPU_FRAME = "CPU:Update";
 
+    double deltaTime = 0;
+
+    auto now = std::chrono::high_resolution_clock::now();
     while (isRunning) {
         FrameMark;
         FrameMarkStart(CPU_FRAME);
@@ -119,9 +143,17 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
         {
             ZoneScopedN("Scripts");
             ZoneColor(tracy::Color::LightSeaGreen);
-            config.updateCallback();
-            playground::scenemanager::Update();
         }
+        {
+            ZoneScopedN("Scene");
+            ZoneColor(tracy::Color::LightSalmon);
+            playground::ecs::Update(deltaTime);
+            //playground::scenemanager::Update();
+        }
+        auto next = std::chrono::high_resolution_clock::now();
+        const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
+        deltaTime = (double)int_ns.count() / 1000000000.0;
+        now = next;
         FrameMarkEnd(CPU_FRAME);
     }
 

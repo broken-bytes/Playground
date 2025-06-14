@@ -24,6 +24,7 @@
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
+#include "rendering/d3d12/D3D12InstanceBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
 
@@ -446,10 +447,14 @@ namespace playground::rendering::d3d12 {
         psoDesc.SampleDesc.Quality = 0;
 
         D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "INSTANCE_TRANSFORM", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_TRANSFORM", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_TRANSFORM", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_TRANSFORM", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
         };
 
         psoDesc.InputLayout = { inputLayout, _countof(inputLayout) };
@@ -499,8 +504,7 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12SwapChain>(bufferCount, _graphicsQueue, width, height, (HWND)window);
     }
 
-
-    auto D3D12Device::CreateConstantBuffer(void* data, size_t size, std::string name) -> std::shared_ptr<ConstantBuffer> {
+    auto D3D12Device::CreateConstantBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<ConstantBuffer> {
         auto handle = _srvHeaps->NextHandle();
         return std::make_shared<D3D12ConstantBuffer>(
             _device,
@@ -509,8 +513,15 @@ namespace playground::rendering::d3d12 {
             _srvHeaps->Heap()->Native(),
             data,
             size,
+            (itemSize + 255) & ~255,
             name
         );
+    }
+
+    auto D3D12Device::CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> {
+        auto buffer = std::make_shared<D3D12InstanceBuffer>(_device, count, (stride + 255) & ~255);
+
+        return buffer;
     }
 
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {

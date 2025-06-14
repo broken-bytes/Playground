@@ -9,6 +9,8 @@
 #include "rendering/d3d12/D3D12CommandList.hxx"
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
+#include "rendering/d3d12/D3D12InstanceBuffer.hxx"
+#include "rendering/InstanceBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
 
 namespace playground::rendering::d3d12 {
@@ -26,6 +28,7 @@ namespace playground::rendering::d3d12 {
         auto Upload(std::shared_ptr<Texture> texture) -> void override;
         auto Upload(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto Upload(std::shared_ptr<VertexBuffer> buffer) -> void override;
+        auto Upload(std::shared_ptr<InstanceBuffer> buffer) -> void override;
 
     private:
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _queue;
@@ -33,6 +36,7 @@ namespace playground::rendering::d3d12 {
         std::vector<std::shared_ptr<Texture>> _textures;
         std::vector<std::shared_ptr<IndexBuffer>> _indexBuffers;
         std::vector<std::shared_ptr<VertexBuffer>> _vertexBuffers;
+        std::vector<std::shared_ptr<InstanceBuffer>> _instanceBuffers;
         Microsoft::WRL::ComPtr<ID3D12Fence> _fence;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
         UINT64 _fenceValue = 1;

@@ -11,7 +11,6 @@ extern "C" {
 		uint32_t Width;
 		uint32_t Height;
         bool IsOffscreen;
-        ScriptUpdateCallback updateCallback;
         ScriptStartupCallback startupCallback;
 
 	} typedef PlaygroundConfig;

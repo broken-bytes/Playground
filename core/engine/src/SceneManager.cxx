@@ -1,19 +1,20 @@
 #include "playground/SceneManager.hxx"
 #include "playground/AssetManager.hxx"
 #include <rendering/Rendering.hxx>
+#include <rendering/RenderFrame.hxx>
 #include <assetloader/AssetLoader.hxx>
+#include <algorithm>
 
 namespace playground::scenemanager {
 
-    std::vector<GameObject*> _gameObjects;
-    std::vector<uint32_t> _freeIds;
+    uint64_t _currentTick = 0;
 
     void Init() {
-        _gameObjects.clear();
-        _freeIds.clear();
     }
 
     void Update() {
+        auto frame = rendering::RenderFrame();
+        /*
         for(auto& go : _gameObjects) {
             if (go == nullptr) {
                 continue;
@@ -34,44 +35,43 @@ namespace playground::scenemanager {
                 }
 
                 auto mesh = modelToDraw->meshes[go->meshComponent->meshId];
-                auto material = materialToDraw->material;;
+                auto material = materialToDraw->material;
 
-                rendering::DrawIndexed(mesh.vertexBuffer, mesh.indexBuffer, material);
+                rendering::DrawCall::InstanceData newInstance{
+                    .position = go->transform.position,
+                    .rotation = go->transform.rotation,
+                    .scale = go->transform.scale
+                };
+
+                auto existingIt = std::find_if(frame.drawCalls.begin(), frame.drawCalls.end(),
+                    [&](const rendering::DrawCall& dc) {
+                        return dc.vertexBuffer == mesh.vertexBuffer &&
+                            dc.indexBuffer == mesh.indexBuffer &&
+                            dc.material == material;
+                    });
+
+                if (existingIt != frame.drawCalls.end()) {
+                    // Found existing draw call - append instance data and increment count
+                    existingIt->instanceData.push_back(newInstance);
+                    existingIt->instances = static_cast<uint16_t>(existingIt->instanceData.size());
+                }
+                else {
+                    // Create a new draw call entry
+                    rendering::DrawCall newDrawCall{
+                        .instances = 1,
+                        .vertexBuffer = mesh.vertexBuffer,
+                        .indexBuffer = mesh.indexBuffer,
+                        .material = material,
+                        .instanceData = { newInstance }
+                    };
+                    frame.drawCalls.push_back(std::move(newDrawCall));
+                }
             }
         }
-    }
 
-    int32_t AddGameObject(GameObject* go) {
-        if (_freeIds.size() > 0) {
-            int32_t id = _freeIds.back();
-            _freeIds.pop_back();
-            _gameObjects[id] = go;
-            return id;
-        } else {
-            int32_t id = _gameObjects.size();
-            _gameObjects.push_back(go);
-            return id;
-        }
-    }
+        */
+        rendering::SubmitFrame(frame);
 
-    void DestroyGameObject(int32_t id) {
-        if (id < 0 || _gameObjects[id] == nullptr) {
-            return;
-        }
-
-        delete _gameObjects[id]->meshComponent;
-        delete _gameObjects[id]->audioSourceComponent;
-
-        delete _gameObjects[id];
-        _gameObjects[id] = nullptr;
-        _freeIds.push_back(id);
-    }
-
-    GameObject* GetGameObject(int32_t id) {
-        if (id < 0 || id >= _gameObjects.size()) {
-            return nullptr;
-        }
-
-        return _gameObjects[id];
+        _currentTick++;
     }
 }

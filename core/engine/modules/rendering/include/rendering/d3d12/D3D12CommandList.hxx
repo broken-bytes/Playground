@@ -28,10 +28,11 @@ namespace playground::rendering::d3d12 {
 		auto SetMaterial(std::shared_ptr<Material>& material) -> void override;
 		auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void override;
 		auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void override;
-        auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot) -> void override;
+		auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer>& instanceBuffer) -> void override;
+        auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void override;
         auto BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void override;
         auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void override;
-		auto DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex) -> void override;
+		auto DrawIndexed(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void override;
 	private:
         std::shared_ptr<D3D12Device> _device;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList7> _list;;

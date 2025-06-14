@@ -1,7 +1,3 @@
-#include <map>
-#include <memory>
-#include <sstream>
-#include <thread>
 #include "rendering/Rendering.hxx"
 #include "rendering/Device.hxx"
 #include "rendering/Frame.hxx"
@@ -19,7 +15,12 @@
 #include <queue>
 #include <profiler/Profiler.hxx>
 #include <tracy/Tracy.hpp>
+#include <array>
 #include <future>
+#include <map>
+#include <memory>
+#include <sstream>
+#include <thread>
 
 namespace playground::rendering {
     struct Config {
@@ -29,7 +30,7 @@ namespace playground::rendering {
     };
 
     struct ObjectBuffer {
-        glm::mat4 WorldMatrix;
+        glm::mat4 ModelMatrix;
     };
 
     struct SimulationBuffer {
@@ -40,10 +41,23 @@ namespace playground::rendering {
         int frameIndex;
     };
 
+    struct CameraBuffer {
+        glm::mat4 ViewMatrix;
+        glm::mat4 ProjectionMatrix;
+    };;
+
     Config config;
 
     // Use triple buffering for rendering (N = Render Thread, N + 1 = Idle, N + 2 = Main Thread)
     constexpr uint8_t FRAME_COUNT = 3;
+    // The maximum number of frames to render ahead
+    constexpr uint8_t MAX_AHEAD_FRAMES = 4;
+    // The maximum number of cameras
+    constexpr uint8_t MAX_CAMERAS_PER_FRAME = 8;
+    // Start the instace buffer at this size
+    constexpr uint32_t MAX_OBJECTS_PER_FRAME = 8192;
+
+    uint8_t instanceBufferGrowth = 1;
 
 	std::shared_ptr<Device> device = nullptr;
 	void* window = nullptr;
@@ -53,6 +67,11 @@ namespace playground::rendering {
     // Frame index used by the main thread
     uint8_t logicFrameIndex = 2;
 	std::vector<std::shared_ptr<Frame>> frames = {};
+
+    // Frames that are due to be rendered, ring buffer
+    std::array<RenderFrame, MAX_AHEAD_FRAMES> renderFrames = {};
+    std::atomic<uint32_t> frameInUseByGPU = 0;
+    std::atomic<uint32_t> nextFrameIndex = 0;
 
 	// Resource management
     std::shared_ptr<Swapchain> swapchain;
@@ -74,73 +93,6 @@ namespace playground::rendering {
     std::shared_ptr<ConstantBuffer> cameraBuffer = nullptr;
 
     std::shared_ptr<ConstantBuffer> objectBuffer = nullptr;
-
-    std::string vertexShaderCode = R"(
-        cbuffer CameraBuffer : register(b0) {
-            matrix viewMatrix;
-            matrix projectionMatrix;
-        };
-
-        cbuffer ObjectBuffer : register(b1) {
-            matrix worldMatrix;
-        };
-
-        struct VSInput {
-            float3 position : POSITION;
-            float4 color : COLOR;
-            float3 normal : NORMAL;
-            float2 uv : TEXCOORD;
-        };
-
-        struct VSOutput {
-            float4 position : SV_Position;
-            float4 color : COLOR;
-            float3 normal : NORMAL;
-            float2 uv : TEXCOORD;
-        };
-
-        VSOutput VSMain(VSInput input) {
-            VSOutput output;
-    
-            // Transform object position to world space
-            float4 worldPosition = mul(float4(input.position, 1.0f), worldMatrix);
-
-            // Transform world position to view space
-            float4 viewPosition = mul(worldPosition, viewMatrix);
-
-            // Transform view position to clip space
-            float4 clipPosition = mul(viewPosition, projectionMatrix);
-
-            // Snap the position to the nearest 0.02 grid in clip space
-            clipPosition.xy = round(clipPosition.xy * 50.0f) / 50.0f;
-
-            // Set the output position
-            output.position = clipPosition;
-    
-            // Pass through other attributes
-            output.color = input.color;
-            output.normal = input.normal;
-            output.uv = input.uv;
-
-            return output;
-        }
-        )";
-
-    std::string pixelShaderCode = R"(    
-        Texture2D diffuse : register(t0);
-        SamplerState mainSampler : register(s0);
-
-        struct PSInput {
-            float4 position : SV_Position;
-            float4 color    : COLOR;
-            float3 normal   : NORMAL;
-            float2 uv       : TEXCOORD;
-        };
-
-        float4 PSMain(PSInput input) : SV_TARGET {
-            return diffuse.Sample(mainSampler, input.uv);
-        }
-        )";
 
     ObjectBuffer objectData;
 
@@ -188,7 +140,9 @@ namespace playground::rendering {
             auto graphicsContext = device->CreateGraphicsContext(gfxName, window, width, height, offscreen);
             auto uploadContext = device->CreateUploadContext(ulName);
 
-            frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext));
+            auto instanceBuffer = device->CreateInstanceBuffer(8192, sizeof(ObjectBuffer));
+
+            frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext, instanceBuffer));
         }
 
         sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
@@ -196,9 +150,7 @@ namespace playground::rendering {
         auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
         cameras.push_back(std::make_unique<Camera>(camera));
 
-        cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraData), "CameraBuffer");
-
-        objectBuffer = device->CreateConstantBuffer(nullptr, sizeof(ObjectBuffer), "ObjectBuffer");
+        cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraBuffer), MAX_CAMERAS_PER_FRAME, "CameraBuffer");
 
         swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
 
@@ -207,12 +159,11 @@ namespace playground::rendering {
         glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 rotationMatrix = glm::mat4_cast(quaternion);
         glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
-        objectData.WorldMatrix = finalTransform;
+        objectData.ModelMatrix = finalTransform;
 
         tracy::SetThreadName("Render Thread");
 
         isRunning = true;
-
         rendererReadyPromise.set_value();
 
         static const char* GPU_FRAME = "GPU: Update";
@@ -243,6 +194,8 @@ namespace playground::rendering {
         device = nullptr;
 
         std::cout << "Render thread shutdown complete." << std::endl;
+
+        renderFrames = {};
 	}
 
 	auto Shutdown() -> void {
@@ -272,14 +225,19 @@ namespace playground::rendering {
             CreateMaterial(materialUploadJob);
         }
 
+        uploadContext->Upload(frames[backBufferIndex]->InstanceBuffer());
+
         uploadContext->Finish();
         frames[backBufferIndex]->ModelUploadQueue() = {};
+        frames[backBufferIndex]->MaterialUploadQueue() = {};
 	}
 
     auto Update() -> void {
         ZoneScopedN("RenderThread: Update");
         ZoneColor(tracy::Color::Orange1);
         auto backBufferIndex = swapchain->BackBufferIndex();
+
+        auto frameToDraw = frames[backBufferIndex]->RenderFrame();;
 
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
         auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
@@ -289,10 +247,28 @@ namespace playground::rendering {
 
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
 
-        auto cameraData = cameras[0]->GetCameraData();
-        cameraBuffer->Update(&cameraData, sizeof(CameraData));
+        graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
+        graphicsContext->SetScissor(0, 0, config.Width, config.Height);
 
-        objectBuffer->Update(&objectData, sizeof(ObjectBuffer));
+        CameraBuffer data;
+        data.ViewMatrix = glm::transpose(cameras[0]->GetViewMatrix());
+        data.ProjectionMatrix = glm::transpose((cameras[0]->GetProjectionMatrix()));
+
+        cameraBuffer->Update(&data, sizeof(CameraBuffer));
+
+        graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
+
+        uint32_t instanceOffet = 0;
+
+        for (auto& drawcall : frameToDraw.drawCalls) {
+            graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
+            graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
+            graphicsContext->BindMaterial(materials[drawcall.material]);
+
+            graphicsContext->Draw(indexBuffers[drawcall.indexBuffer]->Size(), 0, 0, drawcall.instanceData.size(), instanceOffet);
+
+            instanceOffet = instanceOffet + drawcall.instanceData.size();
+        }
 
         graphicsContext->EndRenderPass();
 	}
@@ -427,9 +403,33 @@ namespace playground::rendering {
         return 0;
     }
 
-	auto DrawIndexed(VertexBufferHandle vertexBuffer, IndexBufferHandle indexBuffer, MaterialHandle material) -> void {
+    auto SubmitFrame(RenderFrame frame) -> void {
+        if (!isRunning) {
+            return;
+        }
 
-	}
+        frames[logicFrameIndex]->SetRenderFrame(frame);
+
+        auto instanceBuffer = frames[logicFrameIndex]->InstanceBuffer();
+
+        std::vector<ObjectBuffer> objectMatrices;
+        objectMatrices.reserve(1000);
+
+        for (const auto& drawCall : frames[logicFrameIndex]->RenderFrame().drawCalls) {
+            for (const auto& instanceData : drawCall.instanceData) {
+                // Compose the model matrix from position, rotation, scale
+                glm::mat4 modelMatrix =
+                    glm::translate(glm::mat4(1.0f), instanceData.position) *
+                    glm::mat4_cast(glm::quat(instanceData.rotation)) * // convert rotation vec4 to quat if needed
+                    glm::scale(glm::mat4(1.0f), instanceData.scale);
+
+                objectMatrices.push_back({ modelMatrix });
+            }
+        }
+
+        // Upload the data to the instance buffer
+        instanceBuffer->SetData(objectMatrices.data(), objectMatrices.size() * sizeof(ObjectBuffer));
+    }
 
     auto CreateMaterial(MaterialUploadJob job) -> void {
         auto material = device->CreateMaterial(job.vertexShaderBlob, job.pixelShaderBlob);

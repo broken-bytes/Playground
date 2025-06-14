@@ -17,13 +17,12 @@ namespace playground::rendering::d3d12 {
             CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle,
             Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap,
             void* data,
-            uint64_t size,
+            uint64_t count,
+            uint64_t alignedStride,
             std::string name
         ) {
-            _cpuHandle = cpuHandle;
-            _gpuHandle = gpuHandle;
             _heap = heap;
-            const UINT bufferSize = (size + 255) & ~255;
+            const UINT bufferSize = (count * alignedStride + 255) & ~255;
 
             D3D12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
@@ -39,17 +38,29 @@ namespace playground::rendering::d3d12 {
                 throw std::runtime_error("Failed to create constant buffer");
             }
 
-            _view.BufferLocation = _buffer->GetGPUVirtualAddress();
-            _view.SizeInBytes = bufferSize;
+            UINT viewCount = count;
 
-            device->CreateConstantBufferView(&_view, _cpuHandle);
+            _cpuHandles.resize(viewCount);
+            _gpuHandles.resize(viewCount);
 
-            _data = std::malloc(size);
+            UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+            for (UINT i = 0; i < viewCount; i++) {
+                D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
+                viewDesc.BufferLocation = _buffer->GetGPUVirtualAddress() + i * alignedStride;
+                viewDesc.SizeInBytes = alignedStride;
+
+                _cpuHandles[i] = cpuHandle.Offset(i, descriptorSize);
+
+                device->CreateConstantBufferView(&viewDesc, _cpuHandles[i]);
+            }
+
+            _data = std::malloc(bufferSize);
 
             _buffer->Map(0, nullptr, reinterpret_cast<void**>(&_data));
 
             if (data != nullptr || _data != nullptr) {
-                Update(data, size);
+                Update(data, bufferSize);
             }
 
             _buffer->SetName(std::wstring(name.begin(), name.end()).c_str());
@@ -74,16 +85,16 @@ namespace playground::rendering::d3d12 {
         auto Buffer() -> Microsoft::WRL::ComPtr<ID3D12Resource> { return _buffer; }
 
         [[nodiscard]]
-        auto CPUHandle() -> CD3DX12_CPU_DESCRIPTOR_HANDLE { return _cpuHandle; }
+        auto CPUHandle(uint32_t index) -> CD3DX12_CPU_DESCRIPTOR_HANDLE { return _cpuHandles[index]; }
 
         [[nodiscard]]
-        auto GPUHandle() -> CD3DX12_GPU_DESCRIPTOR_HANDLE { return _gpuHandle; }
+        auto GPUHandle(uint32_t index) -> CD3DX12_GPU_DESCRIPTOR_HANDLE { return _gpuHandles[index]; }
 
     private:
         Microsoft::WRL::ComPtr<ID3D12Resource> _buffer;
         D3D12_CONSTANT_BUFFER_VIEW_DESC _view;
-        CD3DX12_CPU_DESCRIPTOR_HANDLE _cpuHandle;
-        CD3DX12_GPU_DESCRIPTOR_HANDLE _gpuHandle;
+        std::vector<CD3DX12_CPU_DESCRIPTOR_HANDLE> _cpuHandles;
+        std::vector<CD3DX12_GPU_DESCRIPTOR_HANDLE> _gpuHandles;
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> _heap;
         void* _data;
     };
