@@ -1,28 +1,19 @@
-#if os(Windows)
-import WinSDK
-#endif
-
-internal typealias CoreEngineStartup = @convention(c) (UnsafeMutableRawPointer) -> Void
+public typealias StartDelegate = @convention(c) (@convention(c) (UnsafePointer<CChar>, UnsafeMutableRawPointer) -> Void, @convention(c) () -> Void) -> Void
 
 @_cdecl("PlaygroundMain")
-public func playgroundMain(window: UnsafeRawPointer, width: UInt32, height: UInt32, isDebug: Bool) {
-    var config = PlaygroundCoreConfig(
-        window: window,
-        delegate: onAddLookupEntry,
-        width: width,
-        height: height,
-        isOffscreen: false,
-        onStarted: startUp
+public func playgroundMain(delegate: StartDelegate) {
+    delegate(
+        { NativeLookupTable.addEntry(key: String(cString: $0), ptr: $1) },
+        startUp
     )
-
-    initEngineCore(config: &config)
 }
 
 func startUp() {
     Logger.start()
     Logger.info("Playground Scripting Layer Startup")
-    // System Init
     Logger.info("Started Logger")
+    Profiler.start()
+    Logger.info("Started Profiler")
     Input.start()
     Logger.info("Started Input")
     EventHandler.start()
@@ -30,36 +21,69 @@ func startUp() {
     ECSHandler.start()
     Logger.info("Started ECSHandler")
     AssetHandler.setup()
+    Logger.info("Started Assethandler")
+    Renderer.setup()
+    Logger.info("Started Renderer")
 
-    let componentId = ECSHandler.registerComponent(CameraComponent.self)
+    initComponents()
+    initTags()
+    initHooks()
+    initSystems()
 
-    for x in 0..<50000 {
+    let materialhandle = AssetHandler.loadMaterial(named: "default.mat")
+    let modelhandle = AssetHandler.loadModel(named: "cube.mod")
+
+    for x in 0..<5 {
         let entity = Entity("MainCamera_\(x)")
         var cam = CameraComponent(id: 0)
         entity.addComponent(&cam)
-        entity.getComponent(CameraComponent.self).pointee.id = 2
+        var material = MaterialComponent(handle: materialhandle)
+        entity.addComponent(&material)
+        var mesh = MeshComponent(handle: modelhandle, meshId: 0)
+        entity.addComponent(&mesh)
+        var transform = TransformComponent(position: .zero, rotation: .identity, scale: .one)
+        entity.addComponent(&transform)
     }
-
-    ECSHandler.createSystem("SwiftSystem", filter: [componentId], multiThreaded: false, delegate: cameraSystem)
 }
 
-func initEngineCore(config: inout PlaygroundCoreConfig) {
-    #if os(Windows)
-    guard let lib = LoadLibraryA("PlaygroundCore.dll") else {
-        fatalError("Missing Engine Core")
-    }
+func initComponents() {
+    let componentId = ECSHandler.registerComponent(CameraComponent.self)
+    let transformId = ECSHandler.registerComponent(TransformComponent.self)
+    let worldTransformId = ECSHandler.registerComponent(WorldTransformComponent.self)
+    let meshId = ECSHandler.registerComponent(MeshComponent.self)
+    let materialId = ECSHandler.registerComponent(MaterialComponent.self)
+    let drawCallId = ECSHandler.registerComponent(DrawCallComponent.self)
 
-    guard let ptr = GetProcAddress(lib, "PlaygroundCoreMain") else {
-        fatalError("Startup Routine missing")
-    }
+    Logger.info("Initialised ECS Components")
+}
 
-    let startup = unsafeBitCast(ptr, to: CoreEngineStartup.self)
+func initHooks() {
+    ECSHandler.addHook(
+        TransformComponent.self,
+        onAdd: { iter in
+            let entity = ECSHandler.entitiesFor(iter: iter)
+            var worldComponent = WorldTransformComponent(position: .zero, rotation: .identity, scale: .one)
+            ECSHandler.addComponent(entity[0], type: WorldTransformComponent.self)
+            ECSHandler.setComponent(entity[0], data: &worldComponent)
+        },
+        onRemove: { _ in 
 
-    withUnsafeMutablePointer(to: &config) {
-        startup(UnsafeMutableRawPointer($0))
-    }
+        }
+    )
 
-    #endif
+    Logger.info("Initialised ECS Hooks")
+}
+
+func initTags() {
+    ECSHandler.createTag("___internal___DrawCall")
+}
+
+func initSystems() {
+    ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self], multiThreaded: false, delegate: cameraSystem)
+    ECSHandler.createSystem("HierarchySystem", filter: [TransformComponent.self, WorldTransformComponent.self], multiThreaded: true, delegate: hierarchySystem)
+    ECSHandler.createSystem("DrawCallSystem", filter: [WorldTransformComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: false, delegate: drawCallSystem)
+    ECSHandler.createSystem("RenderSystem", filter: [DrawCallComponent.self], multiThreaded: false, delegate: renderSystem)
+    Logger.info("Initialised ECS Systems")
 }
 
 func onAddLookupEntry(key: UnsafePointer<CChar>, value: UnsafeRawPointer) {

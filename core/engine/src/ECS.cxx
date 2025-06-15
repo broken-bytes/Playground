@@ -10,7 +10,7 @@ namespace playground::ecs {
     std::mutex writeLock;
     std::shared_mutex readLock;
 
-    void Init(bool debugServer) {
+    void Init(int tickRate, bool debugServer) {
         if (debugServer) {
             world.import<flecs::stats>();
             world.set<flecs::Rest>({ });
@@ -19,10 +19,7 @@ namespace playground::ecs {
 
         auto threads = std::thread::hardware_concurrency();
         world.set_threads(std::min(8, (int)threads - 2));
-
-        world.system<>().kind(flecs::OnInstantiate).each([](flecs::entity e) {
-            std::cout << "Instantiating entity: " << e.name() << std::endl;
-        });
+        world.set_target_fps(tickRate);
     }
 
     void Update(double deltaTime) {
@@ -32,6 +29,11 @@ namespace playground::ecs {
 
     void Shutdown() {
         world.quit();
+
+        while (world.progress(0)) {
+        }
+
+        ecs_fini(world);
     }
 
     uint64_t CreateEntity(const char* name) {
@@ -106,7 +108,7 @@ namespace playground::ecs {
         auto depends = ecs_pair(EcsDependsOn, EcsOnUpdate);
         std::vector<ecs_id_t> ids = { depends, 0 };
         entity.add = ids.data();
-   
+
         ecs_query_desc_t query = {};
         for (int x = 0; x < filterCount; x++) {
             query.terms[x] = ecs_term_t{ .id = filter[x], .inout = EcsInOut, .oper = EcsAnd };
@@ -135,7 +137,9 @@ namespace playground::ecs {
         return iter->count;
     }
 
-    const uint64_t* GetEntitiesFromIterator(ecs_iter_t* iter) {
+    const uint64_t* GetEntitiesFromIterator(ecs_iter_t* iter, size_t* size) {
+        *size = iter->count;
+
         return iter->entities;
     }
 

@@ -1,62 +1,14 @@
 
 public enum Renderer {
-    internal typealias RendererStart = @convention(c) (UnsafeRawPointer, UInt32, UInt32, Bool) -> Void
-    internal typealias RendererPreFraame = @convention(c) () -> Void
-    internal typealias RendererUpdate = @convention(c) (Float) -> Void
-    internal typealias RendererPostFraame = @convention(c) () -> Void
-    internal typealias CreateCamera = @convention(c) (Float, Float, Float, Float, UnsafePointer<Float>, UnsafePointer<Float>, UInt32) -> UInt32
-    internal typealias SetCameraFOV = @convention(c) (UInt32, Float) -> Void
-    internal typealias SetCameraAspectRatio = @convention(c) (UnsafePointer<CChar>) -> Void
-    internal typealias SetCameraNear = @convention(c) (UnsafePointer<CChar>) -> Void
-    internal typealias SetCameraFar = @convention(c) (UnsafePointer<CChar>) -> Void
-    internal typealias SetCameraPosition = @convention(c) (UnsafePointer<CChar>) -> Void
-    internal typealias SetCameraRotation = @convention(c) (UnsafePointer<CChar>) -> Void
-    internal typealias SetCameraRenderTarget = @convention(c) (UnsafePointer<CChar>) -> Void
-    internal typealias DestroyCamera = @convention(c) (UInt32) -> Void
-    internal typealias LoadModel = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer
+    internal typealias BatchDrawCalls = @convention(c) (UnsafeRawPointer, UInt16) -> Void
 
-    private static nonisolated(unsafe) var startPtr: RendererStart!
-    private static nonisolated(unsafe) var preFramePtr: RendererPreFraame!
-    private static nonisolated(unsafe) var updatePtr: RendererUpdate!
-    private static nonisolated(unsafe) var postFramePtr: RendererPostFraame!
-    private static nonisolated(unsafe) var createCameraPtr: CreateCamera!
-    private static nonisolated(unsafe) var setCameraFOVPtr: SetCameraFOV!
-    private static nonisolated(unsafe) var setCameraAspectRatio: SetCameraAspectRatio!
-    private static nonisolated(unsafe) var setCameraNear: SetCameraNear!
-    private static nonisolated(unsafe) var setCameraFar: SetCameraFar!
-    private static nonisolated(unsafe) var setCmaeraPosition: SetCameraPosition!
-    private static nonisolated(unsafe) var setCameraRotation: SetCameraRotation!
-    private static nonisolated(unsafe) var setCameraRenderTarget: SetCameraRenderTarget!
-    private static nonisolated(unsafe) var destroyCamera: DestroyCamera!
-    private static nonisolated(unsafe) var loadModelPtr: LoadModel!
-    private static nonisolated(unsafe) var loadMaterialPtr: LoadModel!
+    private static nonisolated(unsafe) var batchDrawCalls: BatchDrawCalls!
 
-    internal static func start(window: UnsafeRawPointer, width: UInt32, height: UInt32, offscreen: Bool) {
-        startPtr = NativeLookupTable.getFunctionPointer(by: "Rendering_Init")
-        preFramePtr = NativeLookupTable.getFunctionPointer(by: "Rendering_PreFrame")
-        updatePtr = NativeLookupTable.getFunctionPointer(by: "Rendering_Update")
-        postFramePtr = NativeLookupTable.getFunctionPointer(by: "Rendering_PostFrame")
-        loadModelPtr = NativeLookupTable.getFunctionPointer(by: "AssetManager_LoadModel")
-        loadMaterialPtr = NativeLookupTable.getFunctionPointer(by: "AssetManager_LoadMaterial")
-
-        startPtr(window, width, height, offscreen)
+    internal static func setup() {
+        batchDrawCalls = NativeLookupTable.getFunctionPointer(by: "Batcher_Batch")
     }
 
-    internal static func preFrame() {
-        preFramePtr()
-    }
-
-    internal static func update() {
-        updatePtr(Float(Time.deltaTime))
-    }
-
-    internal static func postFrame() {
-        postFramePtr()
-    }
-
-    internal static func loadModel(with name: String) -> UnsafeMutableRawPointer {
-        name.withCString {
-            loadModelPtr($0)
-        }
+    internal static nonisolated func batch(_ ptr: UnsafeMutablePointer<DrawCall>, count: UInt16) {
+        batchDrawCalls(UnsafeMutableRawPointer(ptr), count)
     }
 }

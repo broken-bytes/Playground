@@ -59,10 +59,6 @@ namespace playground::rendering::d3d12 {
 
             _buffer->Map(0, nullptr, reinterpret_cast<void**>(&_data));
 
-            if (data != nullptr || _data != nullptr) {
-                Update(data, bufferSize);
-            }
-
             _buffer->SetName(std::wstring(name.begin(), name.end()).c_str());
         }
 

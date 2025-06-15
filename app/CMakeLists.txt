@@ -1,5 +1,3 @@
-find_package(SDL3 CONFIG REQUIRED)
-
 if(WIN32)
 add_executable(PlaygroundApp WIN32 app.cxx)
 endif()

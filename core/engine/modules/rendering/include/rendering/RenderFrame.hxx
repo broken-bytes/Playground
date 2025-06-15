@@ -8,7 +8,6 @@
 
 namespace playground::rendering {
     struct RenderFrame {
-        bool isValid = false;
         std::vector<DrawCall> drawCalls;
     };
 }

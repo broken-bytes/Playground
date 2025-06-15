@@ -88,7 +88,7 @@ internal enum ECSHandler {
     internal static nonisolated func registerComponent<T>(_ type: T.Type) -> UInt64 {
         "\(T.self)".withCString {
             let objectId = ObjectIdentifier(T.self)
-            let id = registerComponentPtr($0, UInt64(MemoryLayout<T>.size), UInt64(MemoryLayout<T>.alignment))
+            let id = registerComponentPtr($0, UInt64(MemoryLayout<T>.stride), UInt64(MemoryLayout<T>.alignment))
 
             componentMapping[objectId] = id
 
@@ -124,14 +124,18 @@ internal enum ECSHandler {
         destroyComponentPtr(id, componentId)
     }
 
-    internal static nonisolated func createSystem(_ name: String, filter: [UInt64], multiThreaded: Bool, delegate: IteratorDelegate) -> UInt64 {
-        return name.withCString { createSystemPtr($0, filter, UInt64(filter.count), multiThreaded, delegate)}
+    internal static nonisolated func createSystem(_ name: String, filter: [Any.Type], multiThreaded: Bool, delegate: IteratorDelegate) -> UInt64 {
+        var ids: [UInt64] = []
+        for item in filter {
+            ids.append(componentMapping[ObjectIdentifier(item)] ?? 0)
+        }
+        return name.withCString { createSystemPtr($0, ids, UInt64(filter.count), multiThreaded, delegate)}
     }
 
     @inline(__always)
     internal static nonisolated func getComponentBuffer<T>(iter: UnsafeMutableRawPointer, slot: UInt32, type: T.Type) -> UnsafeMutableBufferPointer<T> {
         var count: UInt64 = 0
-        let ptr = getComponentBufferPtr(iter, slot, UInt64(MemoryLayout<T>.size), &count)
+        let ptr = getComponentBufferPtr(iter, slot, UInt64(MemoryLayout<T>.stride), &count)
 
         return UnsafeMutableBufferPointer(start: ptr.assumingMemoryBound(to: T.self), count: Int(count))
     }
@@ -142,11 +146,13 @@ internal enum ECSHandler {
 
     internal static nonisolated func entitiesFor(iter: UnsafeMutableRawPointer) -> UnsafeBufferPointer<UInt64> {
         var count: UInt64 = 0
+
         return UnsafeBufferPointer(start: getEntitiesFromIteratorPtr(iter, &count), count: Int(count))
     }
 
-    internal static nonisolated func addHook(_ id: UInt64, onAdd: IteratorDelegate, onRemove: IteratorDelegate) {
-        createHookPtr(id, onAdd, onRemove)
+    internal static nonisolated func addHook<T>(_ type: T.Type, onAdd: IteratorDelegate, onRemove: IteratorDelegate) {
+        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        createHookPtr(componentId, onAdd, onRemove)
     }
 
     internal static nonisolated func deleteEntities(with tag: String) {

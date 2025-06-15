@@ -18,7 +18,7 @@
 namespace playground::ecs {
     typedef void (*SystemTickDelegate)(ecs_iter_t*);
     typedef void (*ComponentLifetimeDelegate)(ecs_iter_t*);
-    void Init(bool debugServer);
+    void Init(int tickRate, bool debugServer);
     void Update(double deltaTime);
     void Shutdown();
 
@@ -38,7 +38,7 @@ namespace playground::ecs {
     uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
     void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize, size_t* numItems);
     uint64_t GetIteratorSize(ecs_iter_t* iter);
-    const uint64_t* GetEntitiesFromIterator(ecs_iter_t* iter);
+    const uint64_t* GetEntitiesFromIterator(ecs_iter_t* iter, size_t* size);
     void CreateHook(uint64_t component, ComponentLifetimeDelegate onAdd, ComponentLifetimeDelegate onRemove);
     void DeleteAllEntitiesByTag(uint64_t tag);
 

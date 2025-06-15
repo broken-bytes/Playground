@@ -1,8 +1,9 @@
+#pragma once
+
 #include <cstdint>
 
 extern "C" {
     typedef void (__cdecl *LookupTableDelegate)(const char*, void*);
-    typedef void(__cdecl *ScriptUpdateCallback)();
     typedef void(__cdecl *ScriptStartupCallback)();
 
 	struct {

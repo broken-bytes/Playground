@@ -11,13 +11,26 @@ project(${PROJECT_NAME})
 
 enable_testing()
 
+
+include(FetchContent)
+
+FetchContent_Declare(flecs
+  GIT_REPOSITORY https://github.com/SanderMertens/flecs.git
+  GIT_TAG bc0a901e4608a12f5162f32421589b74d4a35f14)
+FetchContent_MakeAvailable(flecs)
+
+FetchContent_Declare(SDL3
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+  GIT_TAG f5d1402c287963bf71f7a4cf14f16bbedffae143)
+FetchContent_MakeAvailable(SDL3)
+
 if(ENABLE_PROFILER)
     add_compile_definitions(ENABLE_TRACY)
     add_compile_definitions(ENABLE_PROFILER)
 endif()
 
 if(ENABLE_INSPECTOR)
-    add_compile_definitions(ENABLE_INSPECTOR)
+    add_compile_definitions(ENABLE_INSPECTOR FLECS_DEBUG)
 endif()
 
 # Set the output directory for the build

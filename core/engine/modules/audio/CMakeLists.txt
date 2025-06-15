@@ -19,7 +19,6 @@ else()
 	message(FATAL_ERROR "STEAMAUDIO_LIB_DIR not set")
 endif()
 
-find_package(SDL3 CONFIG REQUIRED)
 target_link_libraries(Audio PRIVATE SDL3::SDL3 phonon)
 
 set_target_properties(Audio PROPERTIES OUTPUT_NAME "Playground.Audio")

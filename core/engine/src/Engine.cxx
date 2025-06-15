@@ -2,6 +2,7 @@
 #include "playground/AssetManager.hxx"
 #include "playground/SceneManager.hxx"
 #include "playground/ECS.hxx"
+#include "playground/DrawCallbatcher.hxx"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -30,10 +31,6 @@ std::thread renderThread;
 
 void Shutdown() {
     isRunning = false;
-
-    playground::input::Shutdown();
-    playground::rendering::Shutdown();
-    renderThread.join();
 }
 
 void SubscribeToEventsFromScripting(playground::events::EventType type, ScriptingEventCallback callback) {
@@ -47,9 +44,9 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::input::Init();
     playground::scenemanager::Init();
 #if ENABLE_INSPECTOR
-    playground::ecs::Init(true);
+    playground::ecs::Init(128, true);
 #else
-    playground::ecs::Init(false);
+    playground::ecs::Init(60, false);
 #endif
 
     auto window = playground::system::Init(config.Window);
@@ -80,6 +77,8 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     config.Delegate("AssetManager_LoadModel\0", playground::assetmanager::LoadModel);
     config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial);
+
+    config.Delegate("Batcher_Batch\0", playground::drawcallbatcher::Batch);
 
     config.Delegate("ECS_CreateEntity\0", playground::ecs::CreateEntity);
     config.Delegate("ECS_DestroyEntity\0", playground::ecs::DestroyEntity);
@@ -118,8 +117,6 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
 
-    tracy::SetThreadName("Game");
-
     playground::logging::logger::Info("Playground Core Engine started.");
     playground::logging::logger::Info("Initializing Scripting Layer...");
 
@@ -148,7 +145,11 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
             ZoneScopedN("ECS Tick");
             ZoneColor(tracy::Color::LightSalmon);
             playground::ecs::Update(deltaTime);
-            //playground::scenemanager::Update();
+        }
+        {
+            ZoneScopedN("Batcher Submit");
+            ZoneColor(tracy::Color::Salmon);
+            playground::drawcallbatcher::Submit();
         }
         auto next = std::chrono::high_resolution_clock::now();
         const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
@@ -156,6 +157,11 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
         now = next;
         FrameMarkEnd(CPU_FRAME);
     }
+
+    playground::input::Shutdown();
+    playground::rendering::Shutdown();
+    playground::ecs::Shutdown();
+    renderThread.join();
 
 #if ENABLE_PROFILER
     tracy::ShutdownProfiler();

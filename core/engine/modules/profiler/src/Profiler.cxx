@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <thread>
+#include <tracy/TracyC.h>
 
 namespace playground::profiler {
 
