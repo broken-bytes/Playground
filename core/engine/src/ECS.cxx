@@ -18,7 +18,26 @@ namespace playground::ecs {
         }
 
         auto threads = std::thread::hardware_concurrency();
-        world.set_threads(std::min(8, (int)threads - 2));
+
+        // We wanna use
+        // - 16 Threads if Cores >= 24 hardcap  
+        // - 75% of Cores as Threads if Cores >=6
+        // - 2 Threads if Cores <=4
+
+        if (threads >= 24) {
+            world.set_threads(16);
+        }
+        else if (threads > 8) {
+            auto count = static_cast<int32_t>(std::ceil(threads * 0.75f));
+            world.set_threads(count);
+        }
+        else if (threads > 4) {
+            world.set_threads(4);
+        }
+        else {
+            world.set_threads(2);
+        }
+
         world.set_target_fps(tickRate);
     }
 
@@ -135,6 +154,10 @@ namespace playground::ecs {
 
     uint64_t GetIteratorSize(ecs_iter_t* iter) {
         return iter->count;
+    }
+
+    uint64_t GetIteratorOffset(ecs_iter_t* iter) {
+        return iter->offset;
     }
 
     const uint64_t* GetEntitiesFromIterator(ecs_iter_t* iter, size_t* size) {

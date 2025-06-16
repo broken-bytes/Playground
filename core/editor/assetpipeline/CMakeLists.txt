@@ -16,7 +16,7 @@ target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/io/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
 
-target_link_libraries(AssetPipeline PRIVATE unofficial::sqlite3::sqlite3 assimp::assimp libzip::zip freeimage::FreeImagePlus)
+target_link_libraries(AssetPipeline PRIVATE glm::glm unofficial::sqlite3::sqlite3 assimp::assimp libzip::zip freeimage::FreeImagePlus)
 
 # Link all engine libraries
 target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering)

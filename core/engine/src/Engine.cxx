@@ -19,6 +19,7 @@
 #include <logger/ConsoleLogger.hxx>
 #include <logger/Logger.hxx>
 #include <profiler/Profiler.hxx>
+#include <math/Math.hxx>
 #include <tracy/Tracy.hpp>
 #include <thread>
 #include <future>
@@ -46,7 +47,7 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
 #if ENABLE_INSPECTOR
     playground::ecs::Init(128, true);
 #else
-    playground::ecs::Init(60, false);
+    playground::ecs::Init(128, false);
 #endif
 
     auto window = playground::system::Init(config.Window);
@@ -94,6 +95,7 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateSystem);
     config.Delegate("ECS_GetComponentBuffer\0", playground::ecs::GetComponentBuffer);
     config.Delegate("ECS_GetIteratorSize\0", playground::ecs::GetIteratorSize);
+    config.Delegate("ECS_GetIteratorOffset\0", playground::ecs::GetIteratorOffset);
     config.Delegate("ECS_GetEntitiesFromIterator\0", playground::ecs::GetEntitiesFromIterator);
     config.Delegate("ECS_CreateHook\0", playground::ecs::CreateHook);
     config.Delegate("ECS_DeleteAllEntitiesByTag\0", playground::ecs::DeleteAllEntitiesByTag);
@@ -116,6 +118,8 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Input_Update\0", playground::input::Update);
 
     config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
+
+    config.Delegate("Math_Mat4FromPRS", playground::math::utils::Mat4FromPRS);
 
     playground::logging::logger::Info("Playground Core Engine started.");
     playground::logging::logger::Info("Initializing Scripting Layer...");

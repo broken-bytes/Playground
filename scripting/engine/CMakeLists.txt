@@ -18,11 +18,18 @@ endif()
 
 file(GLOB_RECURSE ENGINE_SWIFT_SOURCES "Playground/*.swift")
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(SWIFT_FLAGS "-DDEBUG")
+if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    set(SWIFT_FLAGS
+        -DDEBUG
+        -g
+        -load-plugin-executable "${PlaygroundMacrosPath}"
+        -debug-info-format=codeview
+  )
 else()
     set(SWIFT_FLAGS "")
 endif()
+
+message(INFO ${SWIFT_FLAGS})
 
 add_library(Playground SHARED ${ENGINE_SWIFT_SOURCES})
 add_dependencies(Playground PlaygroundScriptingMacros)

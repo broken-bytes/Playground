@@ -9,9 +9,7 @@ namespace playground::drawcallbatcher {
         assetmanager::ModelHandle* modelHandle;
         uint16_t meshId;
         assetmanager::MaterialHandle* materialHandle;
-        glm::vec3 position;
-        glm::vec4 rotation;
-        glm::vec3 scale;
+        glm::mat4 transform;
     };
 
     void Batch(drawcallbatcher::DrawCall*, uint16_t count);

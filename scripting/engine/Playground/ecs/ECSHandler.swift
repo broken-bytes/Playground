@@ -14,6 +14,7 @@ internal enum ECSHandler {
     internal typealias CreateSystem = @convention(c) (UnsafePointer<CChar>, UnsafePointer<UInt64>, UInt64, Bool, IteratorDelegate) -> UInt64
     internal typealias GetComponentBuffer = @convention(c) (UnsafeMutableRawPointer, UInt32, UInt64, UnsafeMutablePointer<UInt64>) -> UnsafeMutableRawPointer
     internal typealias GetIteratorSize = @convention(c) (UnsafeMutableRawPointer) -> UInt64
+    internal typealias GetIteratorOffset = @convention(c) (UnsafeMutableRawPointer) -> UInt64
     internal typealias GetEntitiesFromIterator = @convention(c) (UnsafeMutableRawPointer, UnsafeMutablePointer<UInt64>) -> UnsafeMutablePointer<UInt64>
     internal typealias CreateHook = @convention(c) (UInt64, IteratorDelegate, IteratorDelegate) -> Void
     internal typealias DeleteAllEntitiesByTag = @convention(c) (UInt64) -> Void
@@ -34,6 +35,7 @@ internal enum ECSHandler {
     private static nonisolated(unsafe) var createSystemPtr: CreateSystem!
     private static nonisolated(unsafe) var getComponentBufferPtr: GetComponentBuffer!
     private static nonisolated(unsafe) var getIteratorSizePtr: GetIteratorSize!
+    private static nonisolated(unsafe) var getIteratorOffsetPtr: GetIteratorOffset!
     private static nonisolated(unsafe) var getEntitiesFromIteratorPtr: GetEntitiesFromIterator!
     private static nonisolated(unsafe) var createHookPtr: CreateHook!
     private static nonisolated(unsafe) var deleteAllEntitiesByTagPtr: DeleteAllEntitiesByTag!
@@ -58,6 +60,7 @@ internal enum ECSHandler {
         createSystemPtr = NativeLookupTable.getFunctionPointer(by: "ECS_CreateSystem")
         getComponentBufferPtr = NativeLookupTable.getFunctionPointer(by: "ECS_GetComponentBuffer")
         getIteratorSizePtr = NativeLookupTable.getFunctionPointer(by: "ECS_GetIteratorSize")
+        getIteratorOffsetPtr = NativeLookupTable.getFunctionPointer(by: "ECS_GetIteratorOffset")
         getEntitiesFromIteratorPtr = NativeLookupTable.getFunctionPointer(by: "ECS_GetEntitiesFromIterator")
         createHookPtr = NativeLookupTable.getFunctionPointer(by: "ECS_CreateHook")
         deleteAllEntitiesByTagPtr = NativeLookupTable.getFunctionPointer(by: "ECS_DeleteAllEntitiesByTag")
@@ -142,6 +145,10 @@ internal enum ECSHandler {
 
     internal static nonisolated func iteratorCount(iter: UnsafeMutableRawPointer) -> UInt64 {
         return getIteratorSizePtr(iter)
+    }
+
+    internal static nonisolated func iteratorOffset(iter: UnsafeMutableRawPointer) -> UInt64 {
+        return getIteratorOffsetPtr(iter)
     }
 
     internal static nonisolated func entitiesFor(iter: UnsafeMutableRawPointer) -> UnsafeBufferPointer<UInt64> {

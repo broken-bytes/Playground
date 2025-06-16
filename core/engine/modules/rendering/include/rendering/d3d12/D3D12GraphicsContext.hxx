@@ -79,7 +79,7 @@ namespace playground::rendering::d3d12 {
         std::shared_ptr<D3D12CommandList> _transferCommandList;
         std::shared_ptr<D3D12CommandList> _currentPassList;
 
-        UINT64 _fenceValue = 1;
+        UINT64 _fenceValue = 0;
         HANDLE _fenceEvent;
 
         bool _isOffscreen;

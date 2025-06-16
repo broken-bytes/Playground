@@ -18,6 +18,7 @@ namespace playground::drawcallbatcher {
 
     void Submit() {
         rendering::RenderFrame frame;
+        frame.isDirty = true;
 
         for (const auto& dc : drawCalls) {
             if (
@@ -36,7 +37,7 @@ namespace playground::drawcallbatcher {
 
                 if (it != frame.drawCalls.end()) {
                     it->instances += 1;
-                    it->instanceData.push_back(rendering::DrawCall::InstanceData { .position = dc.position, .rotation = dc.rotation, .scale = dc.scale });
+                    it->instanceData.push_back(rendering::DrawCall::InstanceData { .transform = dc.transform });
                 }
                 else {
                     rendering::DrawCall drawCall {
@@ -44,7 +45,7 @@ namespace playground::drawcallbatcher {
                         .vertexBuffer = dc.modelHandle->meshes[dc.meshId].vertexBuffer,
                         .indexBuffer = dc.modelHandle->meshes[dc.meshId].indexBuffer,
                         .material = dc.materialHandle->material,
-                        .instanceData = { rendering::DrawCall::InstanceData {.position = dc.position, .rotation = dc.rotation, .scale = dc.scale } }
+                        .instanceData = { rendering::DrawCall::InstanceData { .transform = dc.transform } }
                     };
                     frame.drawCalls.push_back(drawCall);
                 }

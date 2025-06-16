@@ -8,6 +8,7 @@
 
 namespace playground::rendering {
     struct RenderFrame {
+        bool isDirty;
         std::vector<DrawCall> drawCalls;
     };
 }

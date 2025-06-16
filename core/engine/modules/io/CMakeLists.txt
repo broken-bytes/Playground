@@ -4,7 +4,6 @@ FILE(GLOB SRC "src/*.cxx")
 find_package(libzip CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(stduuid REQUIRED)
-find_package(glm CONFIG REQUIRED)
 
 add_library(IO SHARED ${SRC} ${HEADERS})
 

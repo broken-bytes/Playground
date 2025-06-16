@@ -23,6 +23,8 @@ namespace playground::rendering::d3d12 {
             D3D12_HEAP_PROPERTIES heapProps = {};
             heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 
+            _alignedStride = alignedStride;
+
             HRESULT hr = device->CreateCommittedResource(
                 &heapProps,
                 D3D12_HEAP_FLAG_NONE,
@@ -99,8 +101,15 @@ namespace playground::rendering::d3d12 {
             return 0;
         }
 
-        void SetData(const void* data, size_t size) override {
-            memcpy(_mappedData, data, size);
+        
+        inline void SetData(const void* data, size_t count, size_t offset) override {
+            /*
+            size_t byteOffset = offset * _alignedStride;
+            size_t byteSize = count * _alignedStride;
+
+            std::memcpy(static_cast<uint8_t*>(_mappedData) + byteOffset, data, byteSize);
+            */
+            std::memcpy(static_cast<uint8_t*>(_mappedData) + offset * _alignedStride, data, count * _alignedStride);
         }
 
         void Bind() const override {
@@ -127,5 +136,6 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12Resource> _vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW _instanceBufferView;
         void* _mappedData = nullptr;
+        size_t _alignedStride;
     };
 }

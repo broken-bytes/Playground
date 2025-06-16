@@ -9,9 +9,7 @@
 namespace playground::rendering {
 	struct DrawCall {
         struct InstanceData {
-            glm::vec3 position;
-            glm::vec4 rotation;
-            glm::vec3 scale;
+            glm::mat4 transform;
         };
         uint16_t instances;
         VertexBufferHandle vertexBuffer;

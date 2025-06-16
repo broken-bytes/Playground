@@ -9,8 +9,10 @@
 #include "rendering/Camera.hxx"
 #include "rendering/Sampler.hxx"
 #include <assetloader/AssetLoader.hxx>
+#include <shared/RingBuffer.hxx>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
+
 #include <semaphore>
 #include <queue>
 #include <profiler/Profiler.hxx>
@@ -51,7 +53,7 @@ namespace playground::rendering {
     // Use triple buffering for rendering (N = Render Thread, N + 1 = Idle, N + 2 = Main Thread)
     constexpr uint8_t FRAME_COUNT = 3;
     // The maximum number of frames to render ahead
-    constexpr uint8_t MAX_AHEAD_FRAMES = 4;
+    constexpr uint8_t MAX_AHEAD_FRAMES = 8;
     // The maximum number of cameras
     constexpr uint8_t MAX_CAMERAS_PER_FRAME = 8;
     // Start the instace buffer at this size
@@ -62,6 +64,8 @@ namespace playground::rendering {
 	std::shared_ptr<Device> device = nullptr;
 	void* window = nullptr;
 
+    uint8_t lastDrawnFrame = 0;
+
     // Frame index used by the render thread
 	uint8_t frameIndex = 0;
     // Frame index used by the main thread
@@ -69,7 +73,8 @@ namespace playground::rendering {
 	std::vector<std::shared_ptr<Frame>> frames = {};
 
     // Frames that are due to be rendered, ring buffer
-    std::array<RenderFrame, MAX_AHEAD_FRAMES> renderFrames = {};
+    RingBuffer<RenderFrame, MAX_AHEAD_FRAMES> renderFrames = {};
+    RenderFrame currentFrame = {};
     std::atomic<uint32_t> frameInUseByGPU = 0;
     std::atomic<uint32_t> nextFrameIndex = 0;
 
@@ -194,8 +199,6 @@ namespace playground::rendering {
         device = nullptr;
 
         std::cout << "Render thread shutdown complete." << std::endl;
-
-        renderFrames = {};
 	}
 
 	auto Shutdown() -> void {
@@ -237,7 +240,24 @@ namespace playground::rendering {
         ZoneColor(tracy::Color::Orange1);
         auto backBufferIndex = swapchain->BackBufferIndex();
 
-        auto frameToDraw = frames[backBufferIndex]->RenderFrame();;
+        RenderFrame nextFrame;
+        if (renderFrames.dequeue(nextFrame)) {
+            currentFrame = nextFrame;
+        }
+        else {
+            nextFrame = currentFrame;
+        }
+
+        auto instanceBuffer = frames[logicFrameIndex]->InstanceBuffer();
+        {
+            ZoneScopedN("RenderThread: Update Instance Buffer");
+            for (const auto& drawCall : nextFrame.drawCalls) {
+                for (int x = 0; x < drawCall.instanceData.size(); x++) {
+                    const auto& instanceData = drawCall.instanceData[x];
+                    instanceBuffer->SetData(&instanceData, 1, x);
+                }
+            }
+        }
 
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
         auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
@@ -260,7 +280,7 @@ namespace playground::rendering {
 
         uint32_t instanceOffet = 0;
 
-        for (auto& drawcall : frameToDraw.drawCalls) {
+        for (auto& drawcall : nextFrame.drawCalls) {
             graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
             graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
             graphicsContext->BindMaterial(materials[drawcall.material]);
@@ -408,27 +428,7 @@ namespace playground::rendering {
             return;
         }
 
-        frames[logicFrameIndex]->SetRenderFrame(frame);
-
-        auto instanceBuffer = frames[logicFrameIndex]->InstanceBuffer();
-
-        std::vector<ObjectBuffer> objectMatrices;
-        objectMatrices.reserve(1000);
-
-        for (const auto& drawCall : frames[logicFrameIndex]->RenderFrame().drawCalls) {
-            for (const auto& instanceData : drawCall.instanceData) {
-                // Compose the model matrix from position, rotation, scale
-                glm::mat4 modelMatrix =
-                    glm::translate(glm::mat4(1.0f), instanceData.position) *
-                    glm::mat4_cast(glm::quat(instanceData.rotation)) * // convert rotation vec4 to quat if needed
-                    glm::scale(glm::mat4(1.0f), instanceData.scale);
-
-                objectMatrices.push_back({ modelMatrix });
-            }
-        }
-
-        // Upload the data to the instance buffer
-        instanceBuffer->SetData(objectMatrices.data(), objectMatrices.size() * sizeof(ObjectBuffer));
+        renderFrames.enqueue(frame);
     }
 
     auto CreateMaterial(MaterialUploadJob job) -> void {

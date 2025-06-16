@@ -21,7 +21,7 @@ namespace playground::rendering::d3d12
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapChainDesc.BufferCount = frameCount;
         swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-        swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
         swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
         Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain;
@@ -60,7 +60,7 @@ namespace playground::rendering::d3d12
 
     auto D3D12SwapChain::Swap() -> void
     {
-        _swapChain->Present(0, 0);
+        _swapChain->Present(1, 0);
     }
 
     auto D3D12SwapChain::GetCurrentBackBuffer() -> Microsoft::WRL::ComPtr<ID3D12Resource> {

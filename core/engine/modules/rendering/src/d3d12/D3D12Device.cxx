@@ -135,10 +135,6 @@ namespace playground::rendering::d3d12 {
             throw std::runtime_error("Failed to get debug interface");
         }
         pDebugController->EnableDebugLayer();
-        Microsoft::WRL::ComPtr<ID3D12Debug1> debugController1;
-        if (SUCCEEDED(pDebugController.As(&debugController1))) {
-            debugController1->SetEnableGPUBasedValidation(TRUE);
-        }
 #endif
 
         if (FAILED(D3D12CreateDevice(_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device))))

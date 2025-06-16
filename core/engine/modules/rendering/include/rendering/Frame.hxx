@@ -76,14 +76,6 @@ namespace playground::rendering
             return _instanceBuffer;
         }
 
-        auto RenderFrame() -> RenderFrame& {
-            return _renderFrame;
-        }
-
-        auto SetRenderFrame(rendering::RenderFrame frame) -> void {
-            _renderFrame = frame;
-        }
-
     private:
         std::shared_ptr<rendering::RenderTarget> _renderTarget;
         std::shared_ptr<rendering::DepthBuffer> _depth;
@@ -92,6 +84,5 @@ namespace playground::rendering
         std::shared_ptr<rendering::GraphicsContext> _graphicsContext;
         std::shared_ptr<rendering::UploadContext> _uploadContext;
         std::shared_ptr<rendering::InstanceBuffer> _instanceBuffer;
-        rendering::RenderFrame _renderFrame;
     };
 }

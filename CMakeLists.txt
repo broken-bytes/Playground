@@ -24,6 +24,21 @@ FetchContent_Declare(SDL3
   GIT_TAG f5d1402c287963bf71f7a4cf14f16bbedffae143)
 FetchContent_MakeAvailable(SDL3)
 
+FetchContent_Declare(SIMDe
+  GIT_REPOSITORY https://github.com/simd-everywhere/simde.git
+  GIT_TAG 51743e7920b6e867678cb50e9c62effe28f70b33)
+FetchContent_MakeAvailable(SIMDe)
+
+include(FetchContent)
+
+FetchContent_Declare(
+	glm
+	GIT_REPOSITORY	https://github.com/g-truc/glm.git
+	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
+)
+
+FetchContent_MakeAvailable(glm)
+
 if(ENABLE_PROFILER)
     add_compile_definitions(ENABLE_TRACY)
     add_compile_definitions(ENABLE_PROFILER)
@@ -32,6 +47,7 @@ endif()
 if(ENABLE_INSPECTOR)
     add_compile_definitions(ENABLE_INSPECTOR FLECS_DEBUG)
 endif()
+
 
 # Set the output directory for the build
 set(OUTPUT_DIR ${CMAKE_SOURCE_DIR}/out)

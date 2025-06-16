@@ -14,7 +14,6 @@
     "directx-headers",
     "freealut",
     "freeimage",
-    "glm",
     "gtest",
     "libjpeg-turbo",
     "libpng",

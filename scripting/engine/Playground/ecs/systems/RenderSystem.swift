@@ -1,21 +1,27 @@
+var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: 16384)
+
 func renderSystem(iter: UnsafeMutableRawPointer) {
-    let drawCallsComps = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: DrawCallComponent.self)
+    let worldTransforms = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: WorldTransformComponent.self)
+    let meshComponents = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: MeshComponent.self)
+    let materialComponents = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: MaterialComponent.self)
 
-    var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: drawCallsComps.count)
+    let offset = ECSHandler.iteratorOffset(iter: iter)
 
-    for x in 0..<drawCallsComps.count {
+    var pos = Vector3.zero
+    var rot = Quaternion.identity
+    var scale = Vector3.zero
 
-        ptr.advanced(by: x).pointee = DrawCall(
-            modelHandle: drawCallsComps[x].modelHandle,
-            meshId: drawCallsComps[x].meshId,
-            materialHandle: drawCallsComps[x].materialHandle,
-            position: drawCallsComps[x].position,
-            rotation: drawCallsComps[x].rotation,
-            scale: drawCallsComps[x].scale
+    for x in 0..<worldTransforms.count {
+        pos = worldTransforms[x].position
+        rot = worldTransforms[x].rotation
+        scale = worldTransforms[x].scale
+        ptr.advanced(by: Int(offset) + x).pointee = DrawCall(
+            modelHandle: meshComponents[x].handle,
+            meshId: meshComponents[x].meshId,
+            materialHandle: materialComponents[x].handle,
+            transform: NativeMath.mat4FromPRS(&pos, &rot, &scale)
         )
     }
 
-    Renderer.batch(ptr, count: UInt16(drawCallsComps.count))
-    ptr.deallocate()
-    ECSHandler.deleteEntities(with: "___internal___DrawCall")
+    Renderer.batch(ptr, count: UInt16(worldTransforms.count))
 }

@@ -10,7 +10,7 @@ namespace playground::rendering {
         InstanceBuffer(size_t count) : Buffer(count) {};
         virtual ~InstanceBuffer() = default;
         virtual auto Id() const -> uint64_t = 0;
-        virtual void SetData(const void* data, size_t size) = 0;
+        virtual void SetData(const void* data, size_t count, size_t offset) = 0;
         virtual void Bind() const = 0;
     };
 }

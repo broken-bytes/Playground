@@ -25,6 +25,8 @@ func startUp() {
     Renderer.setup()
     Logger.info("Started Renderer")
 
+    NativeMath.setup()
+
     initComponents()
     initTags()
     initHooks()
@@ -33,14 +35,16 @@ func startUp() {
     let materialhandle = AssetHandler.loadMaterial(named: "default.mat")
     let modelhandle = AssetHandler.loadModel(named: "cube.mod")
 
-    for x in 0..<5 {
+    for x in 0..<50000 {
         let entity = Entity("MainCamera_\(x)")
         var cam = CameraComponent(id: 0)
         entity.addComponent(&cam)
-        var material = MaterialComponent(handle: materialhandle)
-        entity.addComponent(&material)
-        var mesh = MeshComponent(handle: modelhandle, meshId: 0)
-        entity.addComponent(&mesh)
+            if x % 500 == 0 {
+            var material = MaterialComponent(handle: materialhandle)
+            entity.addComponent(&material)
+            var mesh = MeshComponent(handle: modelhandle, meshId: 0)
+            entity.addComponent(&mesh)
+        }
         var transform = TransformComponent(position: .zero, rotation: .identity, scale: .one)
         entity.addComponent(&transform)
     }
@@ -52,7 +56,6 @@ func initComponents() {
     let worldTransformId = ECSHandler.registerComponent(WorldTransformComponent.self)
     let meshId = ECSHandler.registerComponent(MeshComponent.self)
     let materialId = ECSHandler.registerComponent(MaterialComponent.self)
-    let drawCallId = ECSHandler.registerComponent(DrawCallComponent.self)
 
     Logger.info("Initialised ECS Components")
 }
@@ -75,14 +78,12 @@ func initHooks() {
 }
 
 func initTags() {
-    ECSHandler.createTag("___internal___DrawCall")
 }
 
 func initSystems() {
     ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self], multiThreaded: false, delegate: cameraSystem)
     ECSHandler.createSystem("HierarchySystem", filter: [TransformComponent.self, WorldTransformComponent.self], multiThreaded: true, delegate: hierarchySystem)
-    ECSHandler.createSystem("DrawCallSystem", filter: [WorldTransformComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: false, delegate: drawCallSystem)
-    ECSHandler.createSystem("RenderSystem", filter: [DrawCallComponent.self], multiThreaded: false, delegate: renderSystem)
+    ECSHandler.createSystem("RenderSystem", filter: [WorldTransformComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
     Logger.info("Initialised ECS Systems")
 }
 

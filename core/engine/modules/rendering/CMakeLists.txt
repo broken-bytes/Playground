@@ -18,14 +18,13 @@ target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/mod
 
 find_package(FreeImage CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
 find_package(directx-dxc CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 
 target_include_directories(Rendering PRIVATE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(Rendering PUBLIC Logger AssetLoader Profiler)
-target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm-header-only freeimage::FreeImage freeimage::FreeImagePlus Microsoft::DirectXShaderCompiler)
+target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm freeimage::FreeImage freeimage::FreeImagePlus Microsoft::DirectXShaderCompiler)
 
 if (WIN32)
     find_package(directx-headers CONFIG REQUIRED)

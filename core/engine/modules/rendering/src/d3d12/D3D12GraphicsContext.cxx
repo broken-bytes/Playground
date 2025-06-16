@@ -78,6 +78,11 @@ namespace playground::rendering::d3d12
         PIXBeginEvent(PIX_COLOR_INDEX(0), "Begin Graphics Context");
         ZoneScopedN("RenderThread: GFX Begin");
         ZoneColor(tracy::Color::Orange3);
+        // Wait until the GPU has finished execution
+        if (_fenceValue != 0 && _fence->GetCompletedValue() < _fenceValue) {
+            _fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
+            WaitForSingleObject(_fenceEvent, INFINITE);
+        }
         // Reset all command lists so they can be in recording state
         _opaqueCommandList->Reset();
         _transparentCommandList->Reset();
@@ -181,17 +186,8 @@ namespace playground::rendering::d3d12
 
         _graphicsQueue->ExecuteCommandLists(lists.size(), lists.data());
 
-        TracyD3D12Collect(_tracyCtx);
-
-        _graphicsQueue->Signal(_fence.Get(), _fenceValue);
-
-        // Wait until the GPU has finished execution
-        if (_fence->GetCompletedValue() < _fenceValue) {
-            _fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
-            WaitForSingleObject(_fenceEvent, INFINITE);
-        }
-
         _fenceValue++;
+        _graphicsQueue->Signal(_fence.Get(), _fenceValue);
         
         PIXEndEvent();
     }
