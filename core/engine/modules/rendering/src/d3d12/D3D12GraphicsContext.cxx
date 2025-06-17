@@ -60,6 +60,8 @@ namespace playground::rendering::d3d12
 
         _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(_device, 1, 1);
 
+        _cameraBuffer = std::static_pointer_cast<D3D12ConstantBuffer>(device->CreateConstantBuffer(nullptr, MAX_CAMERA_COUNT, sizeof(CameraBuffer), name + "_CAMERA_BUFFER"));
+
 #if ENABLE_PROFILER
         _tracyCtx = ctx;
 #endif
@@ -88,6 +90,11 @@ namespace playground::rendering::d3d12
         _transparentCommandList->Reset();
         _shadowCommandList->Reset();
         _transferCommandList->Reset();
+
+        _opaqueCommandList->Begin();
+        _transparentCommandList->Begin();
+        _shadowCommandList->Begin();
+        _transferCommandList->Begin();
     }
 
     auto D3D12GraphicsContext::BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {
@@ -161,6 +168,23 @@ namespace playground::rendering::d3d12
 
     auto D3D12GraphicsContext::BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void {
         _currentPassList->BindInstanceBuffer(buffer);
+    }
+
+    auto D3D12GraphicsContext::BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t index) -> void {
+        _currentPassList->BindConstantBuffer(buffer, 0, 0);
+    }
+
+    auto D3D12GraphicsContext::BindCamera(uint8_t index) -> void {
+        ZoneScopedN("RenderThread: Bind Camera");
+        ZoneColor(tracy::Color::Orange3);
+        assert(_cameraBuffer != nullptr && "Camera buffer is not initialized. Did you forget to call SetCameraData?");
+        _currentPassList->BindConstantBuffer(_cameraBuffer, 0, index);
+    }
+
+    auto D3D12GraphicsContext::SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void {
+        ZoneScopedN("RenderThread: Set Camera Data");
+        ZoneColor(tracy::Color::Orange3);
+        _cameraBuffer->SetData(reinterpret_cast<void*>(cameras.data()), MAX_CAMERA_COUNT, 0);
     }
 
     auto D3D12GraphicsContext::BindMaterial(std::shared_ptr<Material> material) -> void {

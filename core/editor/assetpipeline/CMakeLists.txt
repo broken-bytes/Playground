@@ -19,7 +19,7 @@ target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 target_link_libraries(AssetPipeline PRIVATE glm::glm unofficial::sqlite3::sqlite3 assimp::assimp libzip::zip freeimage::FreeImagePlus)
 
 # Link all engine libraries
-target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering)
+target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering Shared)
 
 add_custom_command(TARGET AssetPipeline POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:AssetPipeline> $<TARGET_RUNTIME_DLLS:AssetPipeline>

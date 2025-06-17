@@ -11,6 +11,7 @@
 #include <assetpipeline/assetpipeline.hxx>
 #include <assetpipeline/loaders/ModelLoader.hxx>
 #include <assetdatabase/AssetDatabase.hxx>
+#include <shared/Hardware.hxx>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -28,7 +29,22 @@ void* windowPtr = nullptr;
 
 void StartUpEngine(LookupTableDelegate lookup, ScriptStartupCallback startup) {
     auto config = PlaygroundConfig{ windowPtr, lookup, windowWidth, windowHeight, false, startup };
-    PlaygroundCoreMain(config);
+    auto result = PlaygroundCoreMain(config);
+
+    if (result == 2) {
+        auto cpuName = playground::hardware::GetCPUBrandString();
+        std::string message =
+            "Your system does not meet the minimum requirements to run this game.\nAVX instructions are required.\n\n"
+            + cpuName;
+        SDL_ShowSimpleMessageBox(
+            SDL_MESSAGEBOX_ERROR,
+            "Unsupported CPU",
+            message.c_str(),
+            nullptr
+        );
+        SDL_Quit();
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 int SDL_main(int argc, char** argv) {

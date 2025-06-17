@@ -515,27 +515,30 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> {
-        auto buffer = std::make_shared<D3D12InstanceBuffer>(_device, count, (stride + 255) & ~255);
+        auto buffer = std::make_shared<D3D12InstanceBuffer>(_device, count, stride);
 
         return buffer;
     }
 
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
-        CD3DX12_ROOT_PARAMETER rootParameters[3];
+        CD3DX12_ROOT_PARAMETER rootParameters[4];
 
-        // 1️ Per-frame CBV (View Projection, Lighting, etc.)
+        // 1️ Per-frame CBV (Camera, Lighting, etc.)
         CD3DX12_DESCRIPTOR_RANGE cbvRanges[2];
         cbvRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0); // First CBV (b0)
         cbvRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1); // Second CBV (b1)
         rootParameters[0].InitAsDescriptorTable(2, cbvRanges, D3D12_SHADER_VISIBILITY_ALL);
 
         // 2 Texture Descriptor Table (SRV)
-        CD3DX12_DESCRIPTOR_RANGE srvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-        rootParameters[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        CD3DX12_DESCRIPTOR_RANGE vertexSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        rootParameters[1].InitAsDescriptorTable(1, &vertexSrvRange, D3D12_SHADER_VISIBILITY_VERTEX);
 
-        // 3 Sampler Descriptor Table
+        CD3DX12_DESCRIPTOR_RANGE pixelSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+        rootParameters[2].InitAsDescriptorTable(1, &pixelSrvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // 4 Sampler Descriptor Table
         CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-        rootParameters[2].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[3].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(

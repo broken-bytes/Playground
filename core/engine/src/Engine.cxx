@@ -6,6 +6,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <shared/Hardware.hxx>
 #include <audio/Audio.hxx>
 #include <input/Input.hxx>
 #include <rendering/Rendering.hxx>
@@ -40,7 +41,22 @@ void SubscribeToEventsFromScripting(playground::events::EventType type, Scriptin
     });
 }
 
-void PlaygroundCoreMain(const PlaygroundConfig& config) {
+/// 0 - OK
+/// 1 - Error (Unknown error)
+/// 2 - Error (No AVX or AVX2 support)
+uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
+    playground::hardware::Init();
+
+    if (playground::hardware::SupportsAVX2()) {
+        playground::logging::logger::Info("CPU supports AVX2.");
+    } else if (playground::hardware::SupportsAVX()){
+        playground::logging::logger::Warn("CPU supports AVX.");
+    }
+    else {
+        playground::logging::logger::Error("CPU does not support AVX or AVX2. This application requires at least AVX support.");
+        return 2;
+    }
+
     playground::audio::Init();
     playground::input::Init();
     playground::scenemanager::Init();
@@ -105,15 +121,6 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Rendering_Update\0", playground::rendering::Update);
     config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);
     config.Delegate("Rendering_ReadBackBuffer\0", playground::rendering::ReadbackBuffer);
-    config.Delegate("Rendering_CreateCamera\0", playground::rendering::CreateCamera);
-    config.Delegate("Rendering_SetCameraFOV\0", playground::rendering::SetCameraFOV);
-    config.Delegate("Rendering_SetCameraAspectRatio\0", playground::rendering::SetCameraAspectRatio);
-    config.Delegate("Rendering_SetCameraNear\0", playground::rendering::SetCameraNear);
-    config.Delegate("Rendering_SetCameraFar\0", playground::rendering::SetCameraFar);
-    config.Delegate("Rendering_SetCameraPosition\0", playground::rendering::SetCameraPosition);
-    config.Delegate("Rendering_SetCameraRotation\0", playground::rendering::SetCameraRotation);
-    config.Delegate("Rendering_SetCameraTarget\0", playground::rendering::SetCameraRenderTarget);
-    config.Delegate("Rendering_DestroyCamera\0", playground::rendering::DestroyCamera);
 
     config.Delegate("Input_Update\0", playground::input::Update);
 
@@ -170,4 +177,6 @@ void PlaygroundCoreMain(const PlaygroundConfig& config) {
 #if ENABLE_PROFILER
     tracy::ShutdownProfiler();
 #endif
+
+    return 0;
 }

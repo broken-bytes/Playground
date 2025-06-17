@@ -6,4 +6,6 @@ add_library(Events SHARED ${SRC} ${HEADERS})
 target_include_directories(Events PRIVATE include)
 target_include_directories(Events PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
 
+target_link_libraries(Events PRIVATE Shared)
+
 set_target_properties(Events PROPERTIES OUTPUT_NAME "Playground.Events")

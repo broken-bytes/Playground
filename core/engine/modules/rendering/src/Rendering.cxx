@@ -41,11 +41,6 @@ namespace playground::rendering {
         float cosTime;
         float timeSinceStart;
         int frameIndex;
-    };
-
-    struct CameraBuffer {
-        glm::mat4 ViewMatrix;
-        glm::mat4 ProjectionMatrix;
     };;
 
     Config config;
@@ -54,8 +49,6 @@ namespace playground::rendering {
     constexpr uint8_t FRAME_COUNT = 3;
     // The maximum number of frames to render ahead
     constexpr uint8_t MAX_AHEAD_FRAMES = 8;
-    // The maximum number of cameras
-    constexpr uint8_t MAX_CAMERAS_PER_FRAME = 8;
     // Start the instace buffer at this size
     constexpr uint32_t MAX_OBJECTS_PER_FRAME = 8192;
 
@@ -93,11 +86,7 @@ namespace playground::rendering {
 	std::vector<Mesh> meshes = {};
     std::vector<uint32_t> freeMeshIds = {};
 
-    std::vector<std::unique_ptr<Camera>> cameras = {};
-
-    std::shared_ptr<ConstantBuffer> cameraBuffer = nullptr;
-
-    std::shared_ptr<ConstantBuffer> objectBuffer = nullptr;
+    std::array<CameraBuffer, MAX_CAMERA_COUNT> cameras = {};
 
     ObjectBuffer objectData;
 
@@ -145,7 +134,7 @@ namespace playground::rendering {
             auto graphicsContext = device->CreateGraphicsContext(gfxName, window, width, height, offscreen);
             auto uploadContext = device->CreateUploadContext(ulName);
 
-            auto instanceBuffer = device->CreateInstanceBuffer(8192, sizeof(ObjectBuffer));
+            auto instanceBuffer = device->CreateInstanceBuffer(131072, sizeof(ObjectBuffer));
 
             frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext, instanceBuffer));
         }
@@ -153,9 +142,8 @@ namespace playground::rendering {
         sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
 
         auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
-        cameras.push_back(std::make_unique<Camera>(camera));
 
-        cameraBuffer = device->CreateConstantBuffer(&cameras[0], sizeof(CameraBuffer), MAX_CAMERAS_PER_FRAME, "CameraBuffer");
+        cameras[0] = CameraBuffer{ .ViewMatrix = camera.GetViewMatrix(), .ProjectionMatrix = camera.GetProjectionMatrix() };
 
         swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
 
@@ -265,18 +253,16 @@ namespace playground::rendering {
         auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
         graphicsContext->Begin();
 
+        // Write camera data to context
+        graphicsContext->SetCameraData(cameras);
+
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
 
         graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
         graphicsContext->SetScissor(0, 0, config.Width, config.Height);
 
-        CameraBuffer data;
-        data.ViewMatrix = glm::transpose(cameras[0]->GetViewMatrix());
-        data.ProjectionMatrix = glm::transpose((cameras[0]->GetProjectionMatrix()));
-
-        cameraBuffer->Update(&data, sizeof(CameraBuffer));
-
         graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
+        graphicsContext->BindCamera(0);
 
         uint32_t instanceOffet = 0;
 
@@ -446,69 +432,5 @@ namespace playground::rendering {
         }
 
         job.callback(job.handle, materialId);
-    }
-
-    auto CreateCamera(
-        float fov,
-        float aspectRatio,
-        float near,
-        float far,
-        float pos[3],
-        float rot[3],
-        uint32_t renderTargetTextureId
-    ) -> CameraHandle {
-        cameras.push_back(std::make_unique<Camera>(fov, aspectRatio, near, far, glm::vec3(pos[0], pos[1], pos[2]), glm::quat(rot[0], rot[1], rot[2], rot[3]), 0));
-
-        return cameras.size() - 1;
-    }
-
-    auto SetCameraFOV(
-        CameraHandle handle,
-        float fov
-    ) -> void {
-        cameras[handle]->FOV = fov;
-    }
-
-    auto SetCameraAspectRatio(
-        CameraHandle handle,
-        float aspectRatio
-    ) -> void {
-        cameras[handle]->AspectRatio = aspectRatio;
-    }
-
-    auto SetCameraNear(
-        CameraHandle handle,
-        float near
-    ) -> void {
-        cameras[handle]->Near = near;
-    }
-
-    auto SetCameraFar(
-        CameraHandle handle,
-        float far
-    ) -> void {
-        cameras[handle]->Far = far;
-    }
-
-    auto SetCameraPosition(
-        CameraHandle handle,
-        float pos[3]
-    ) -> void {
-        cameras[handle]->Position = glm::vec3(pos[0], pos[1], pos[2]);
-    }
-
-    auto SetCameraRotation(
-        CameraHandle handle,
-        float rot[4]
-    ) -> void {
-        cameras[handle]->Rotation = glm::quat(rot[0], rot[1], rot[2], rot[3]);
-    }
-
-    auto SetCameraRenderTarget(CameraHandle handle, uint32_t texture) -> void {
-        cameras[handle]->RenderTargetTextureId = texture;
-    }
-
-    auto DestroyCamera(CameraHandle handle) -> void {
-        // TODO: Implement camera destruction logic
     }
 }

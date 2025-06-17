@@ -50,6 +50,7 @@ namespace playground::rendering::d3d12 {
                 viewDesc.BufferLocation = _buffer->GetGPUVirtualAddress() + i * alignedStride;
                 viewDesc.SizeInBytes = alignedStride;
 
+                _gpuHandles[i] = gpuHandle.Offset(i, descriptorSize);
                 _cpuHandles[i] = cpuHandle.Offset(i, descriptorSize);
 
                 device->CreateConstantBufferView(&viewDesc, _cpuHandles[i]);
@@ -60,6 +61,8 @@ namespace playground::rendering::d3d12 {
             _buffer->Map(0, nullptr, reinterpret_cast<void**>(&_data));
 
             _buffer->SetName(std::wstring(name.begin(), name.end()).c_str());
+
+            _alignedStride = alignedStride;
         }
 
         virtual ~D3D12ConstantBuffer() {
@@ -69,12 +72,14 @@ namespace playground::rendering::d3d12 {
             //std::free(_data);
         }
 
-        auto Update(void* data, size_t size) -> void override {
-            if (data == nullptr) {
-                return;
-            }
-            std::memset(_data, 0, (size + 255) & ~255);
-            std::memcpy(_data, data, size);
+        inline void SetData(const void* data, size_t count, size_t offset) override {
+            /*
+            size_t byteOffset = offset * _alignedStride;
+            size_t byteSize = count * _alignedStride;
+
+            std::memcpy(static_cast<uint8_t*>(_mappedData) + byteOffset, data, byteSize);
+            */
+            std::memcpy(static_cast<uint8_t*>(_data) + offset * _alignedStride, data, count * _alignedStride);
         }
 
         [[nodiscard]]
@@ -92,6 +97,7 @@ namespace playground::rendering::d3d12 {
         std::vector<CD3DX12_CPU_DESCRIPTOR_HANDLE> _cpuHandles;
         std::vector<CD3DX12_GPU_DESCRIPTOR_HANDLE> _gpuHandles;
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> _heap;
+        uint64_t _alignedStride;
         void* _data;
     };
 }

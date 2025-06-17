@@ -8,11 +8,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace playground::rendering {
-    struct CameraData {
-        glm::mat4x4 ViewMatrix;
-        glm::mat4x4 ProjectionMatrix;
-    };
-
     struct Camera {
         glm::vec3 Position;
         glm::quat Rotation;
@@ -57,29 +52,11 @@ namespace playground::rendering {
         void SetRotation(glm::vec3 rot) { Rotation = rot; }
 
         glm::mat4 GetViewMatrix() const {
-            // Construct the rotation matrix manually
-            glm::mat4 rotationMatrix = glm::mat4(
-                1 - 2 * (Rotation.y * Rotation.y + Rotation.z * Rotation.z),
-                2 * (Rotation.x * Rotation.y - Rotation.w * Rotation.z),
-                2 * (Rotation.x * Rotation.z + Rotation.w * Rotation.y),
-                0,
-                2 * (Rotation.x * Rotation.y + Rotation.w * Rotation.z),
-                1 - 2 * (Rotation.x * Rotation.x + Rotation.z * Rotation.z),
-                2 * (Rotation.y * Rotation.z - Rotation.w * Rotation.x),
-                0,
-                2 * (Rotation.x * Rotation.z - Rotation.w * Rotation.y),
-                2 * (Rotation.y * Rotation.z + Rotation.w * Rotation.x),
-                1 - 2 * (Rotation.x * Rotation.x + Rotation.y * Rotation.y),
-                0,
-                0,
-                0,
-                0,
-                1
+            return glm::lookAtLH(
+                Position,
+                Position + Rotation * glm::vec3(0, 0, 1), // Looking toward +Z
+                glm::vec3(0, 1, 0)
             );
-
-            glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -Position);
-
-            return rotationMatrix * translationMatrix;
         }
 
         glm::mat4 GetProjectionMatrix() const {

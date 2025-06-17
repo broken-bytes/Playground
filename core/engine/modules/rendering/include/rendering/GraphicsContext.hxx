@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include "rendering/Constants.hxx"
 #include "rendering/Context.hxx"
 #include "rendering/Material.hxx"
 #include "rendering/ReadbackBuffer.hxx"
@@ -10,6 +11,8 @@
 #include "rendering/IndexBuffer.hxx"
 #include "rendering/VertexBuffer.hxx"
 #include "rendering/InstanceBuffer.hxx"
+#include "rendering/ConstantBuffer.hxx"
+#include "rendering/CameraBuffer.hxx"
 #include "rendering/Texture.hxx"
 #include <glm/glm.hpp>
 
@@ -22,6 +25,9 @@ namespace playground::rendering {
         virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void = 0;
+        virtual auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t index) -> void = 0;
+        virtual auto BindCamera(uint8_t index) -> void = 0;
+        virtual auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void = 0;
         virtual auto BindMaterial(std::shared_ptr<Material> material) -> void = 0;
         virtual auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;

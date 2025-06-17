@@ -4,7 +4,6 @@ FILE(GLOB_RECURSE SRC "src/*.cxx")
 add_library(Logger SHARED ${SRC} ${HEADERS})
 
 target_include_directories(Logger PRIVATE include)
-target_include_directories(Logger PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
 
 find_package(cereal CONFIG REQUIRED)
 

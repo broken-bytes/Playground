@@ -7,6 +7,6 @@ namespace playground::rendering {
     public:
         ConstantBuffer() = default;
         virtual ~ConstantBuffer() = default;
-        virtual auto Update(void* data, size_t size) -> void = 0;
+        virtual auto SetData(const void* data, size_t count, size_t offset) -> void = 0;
     };
 }

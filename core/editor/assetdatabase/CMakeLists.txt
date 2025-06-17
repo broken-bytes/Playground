@@ -10,5 +10,5 @@ target_include_directories(AssetDatabase PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 target_include_directories(AssetDatabase PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/logger/include)
 target_include_directories(AssetDatabase PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/io/include)
 
-target_link_libraries(AssetDatabase PRIVATE Logger IO)
+target_link_libraries(AssetDatabase PRIVATE Logger IO Shared)
 target_link_libraries(AssetDatabase PRIVATE unofficial::sqlite3::sqlite3)

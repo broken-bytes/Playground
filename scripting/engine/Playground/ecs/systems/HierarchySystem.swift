@@ -16,6 +16,11 @@ func hierarchySystem(iter: UnsafeMutableRawPointer) {
             worldTransforms[x].position = parentTransform.position + transform.position
             worldTransforms[x].rotation = parentTransform.rotation * transform.rotation
             worldTransforms[x].scale = parentTransform.scale * transform.scale
+        } else {
+            var transform = transforms[x]
+            worldTransforms[x].position = transform.position
+            worldTransforms[x].rotation = transform.rotation
+            worldTransforms[x].scale = transform.scale
         }
     }
 }

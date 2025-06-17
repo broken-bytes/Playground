@@ -4,7 +4,6 @@ FILE(GLOB_RECURSE SRC "src/*.cxx")
 add_library(Profiler SHARED ${SRC} ${HEADERS}  ${CMAKE_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp)
 
 target_include_directories(Profiler PRIVATE include)
-target_include_directories(Profiler PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
 target_include_directories(Profiler PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
 
 set_target_properties(Profiler PROPERTIES OUTPUT_NAME "Playground.Profiler")

@@ -13,6 +13,7 @@
 #include "rendering/d3d12/D3D12Swapchain.hxx"
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
+#include "rendering/d3d12/D3D12ConstantBuffer.hxx"
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyD3D12.hpp>
 
@@ -44,6 +45,9 @@ namespace playground::rendering::d3d12 {
         auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void override;
+        auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t index) -> void override;
+        auto BindCamera(uint8_t index) -> void override;
+        auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void override;
         auto BindMaterial(std::shared_ptr<Material>) -> void override;
         auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
@@ -78,6 +82,7 @@ namespace playground::rendering::d3d12 {
         std::shared_ptr<D3D12CommandList> _shadowCommandList;
         std::shared_ptr<D3D12CommandList> _transferCommandList;
         std::shared_ptr<D3D12CommandList> _currentPassList;
+        std::shared_ptr<D3D12ConstantBuffer> _cameraBuffer;
 
         UINT64 _fenceValue = 0;
         HANDLE _fenceEvent;

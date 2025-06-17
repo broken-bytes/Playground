@@ -16,5 +16,5 @@ extern "C" {
 
 	} typedef PlaygroundConfig;
 
-	__declspec(dllexport) void PlaygroundCoreMain(const PlaygroundConfig& config);
+	__declspec(dllexport) uint8_t PlaygroundCoreMain(const PlaygroundConfig& config);
 }

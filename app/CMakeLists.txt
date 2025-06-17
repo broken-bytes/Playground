@@ -7,10 +7,12 @@ target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/editor
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/editor/assetdatabase/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
+target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
+
 
 find_package(Stb REQUIRED)
 
-target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore SDL3::SDL3 AssetDatabase AssetPipeline)
+target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore SDL3::SDL3 AssetDatabase AssetPipeline Shared)
 
 target_include_directories(PlaygroundApp PRIVATE ${Stb_INCLUDE_DIR})
 

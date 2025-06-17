@@ -1,4 +1,4 @@
-var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: 16384)
+var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: 131072)
 
 func renderSystem(iter: UnsafeMutableRawPointer) {
     let worldTransforms = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: WorldTransformComponent.self)
@@ -15,6 +15,7 @@ func renderSystem(iter: UnsafeMutableRawPointer) {
         pos = worldTransforms[x].position
         rot = worldTransforms[x].rotation
         scale = worldTransforms[x].scale
+
         ptr.advanced(by: Int(offset) + x).pointee = DrawCall(
             modelHandle: meshComponents[x].handle,
             meshId: meshComponents[x].meshId,

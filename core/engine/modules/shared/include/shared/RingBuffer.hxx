@@ -1,3 +1,6 @@
+#include <array>
+#include <atomic>
+
 template <typename T, size_t Capacity>
 class RingBuffer {
     static_assert((Capacity& (Capacity - 1)) == 0, "Capacity must be power of 2");

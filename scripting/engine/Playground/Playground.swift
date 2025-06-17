@@ -39,13 +39,14 @@ func startUp() {
         let entity = Entity("MainCamera_\(x)")
         var cam = CameraComponent(id: 0)
         entity.addComponent(&cam)
-            if x % 500 == 0 {
-            var material = MaterialComponent(handle: materialhandle)
-            entity.addComponent(&material)
-            var mesh = MeshComponent(handle: modelhandle, meshId: 0)
-            entity.addComponent(&mesh)
-        }
-        var transform = TransformComponent(position: .zero, rotation: .identity, scale: .one)
+        var material = MaterialComponent(handle: materialhandle)
+        entity.addComponent(&material)
+        var mesh = MeshComponent(handle: modelhandle, meshId: 0)
+        entity.addComponent(&mesh)
+
+        var scaleValue = Float.random(in: 0.1...1.25)
+        var scale = Vector3(x: scaleValue, y: scaleValue, z: scaleValue)
+        var transform = TransformComponent(position: Vector3(x: Float.random(in: -10...10), y: Float.random(in: -10...10), z: Float.random(in: 10...50)), rotation: .identity, scale: scale)
         entity.addComponent(&transform)
     }
 }

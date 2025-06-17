@@ -3,9 +3,7 @@ struct VSInput {
     float4 color : COLOR;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
-
-    // Instance data (slot 1, per instance)
-    float4x4 modelMatrix : INSTANCE_TRANSFORM; // Use a custom semantic or just pass as 4 float4 attributes
+    float4x4 modelMatrix : INSTANCE_TRANSFORM;
 };
 
 struct VSOutput {
@@ -15,15 +13,29 @@ struct VSOutput {
     float2 uv : TEXCOORD;
 };
 
-VSOutput VSMain(VSInput input, uint instanceID : SV_InstanceID) {
-    VSOutput output;
+// Constant buffer for camera VP matrix
+cbuffer CameraBuffer : register(b0)
+{
+    float4x4 viewMatrix;
+    float4x4 projectionMatrix;
+};
 
-    // Transform position by model matrix
-    float4 worldPos = mul(float4(input.position, 1.0), input.modelMatrix);
 
-    // Then your existing logic with worldPos instead of input.position
-    output.position = worldPos;
-    output.color = input.color;
+VSOutput VSMain(VSInput vin)
+{
+    VSOutput vout;
 
-    return output;
+    // Load the Model matrix for this instance
+
+    // Transform the position
+    float4 worldPos = mul(vin.modelMatrix, float4(vin.position, 1));
+    float4 viewPos = mul(viewMatrix, worldPos);
+    float4 colour = vin.color;
+
+    vout.position = mul(projectionMatrix, viewPos);
+    vout.color = colour;
+    vout.normal = vin.normal;
+    vout.uv = vin.uv;
+
+    return vout;
 }
