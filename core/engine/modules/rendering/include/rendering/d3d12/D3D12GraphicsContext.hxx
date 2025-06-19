@@ -5,7 +5,7 @@
 #include <directx/d3dx12.h>
 #include "rendering/RenderPass.hxx"
 #include "rendering/ReadbackBuffer.hxx"
-#include "rendering/Swapchain.hxx"
+#include "rendering/DirectionalLight.hxx"
 #include "rendering/d3d12/D3D12CommandAllocator.hxx"
 #include "rendering/d3d12/D3D12CommandList.hxx"
 #include "rendering/d3d12/D3D12Device.hxx"
@@ -14,6 +14,7 @@
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
+#include "rendering/d3d12/D3D12StructuredBuffer.hxx"
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyD3D12.hpp>
 
@@ -45,7 +46,6 @@ namespace playground::rendering::d3d12 {
         auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void override;
-        auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t index) -> void override;
         auto BindCamera(uint8_t index) -> void override;
         auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void override;
         auto BindMaterial(std::shared_ptr<Material>) -> void override;
@@ -54,6 +54,9 @@ namespace playground::rendering::d3d12 {
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
         auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void override;
         auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void override;
+        auto SetDirectionalLight(
+            DirectionalLight& light
+        ) -> void override;
         auto SetViewport(
             uint32_t startX,
             uint32_t startY,
@@ -83,6 +86,8 @@ namespace playground::rendering::d3d12 {
         std::shared_ptr<D3D12CommandList> _transferCommandList;
         std::shared_ptr<D3D12CommandList> _currentPassList;
         std::shared_ptr<D3D12ConstantBuffer> _cameraBuffer;
+        std::shared_ptr<D3D12StructuredBuffer> _pointLightsBuffer;
+        std::shared_ptr<D3D12ConstantBuffer> _directionalLightBuffer;
 
         UINT64 _fenceValue = 0;
         HANDLE _fenceEvent;

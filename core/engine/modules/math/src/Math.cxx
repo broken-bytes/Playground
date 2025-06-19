@@ -4,6 +4,7 @@
 #include <iostream>
 
 namespace playground::math::utils {
+    // Note: Use vec4 instead of vec3 for position and scale due to padding on the Swift side.
     void Mat4FromPRS(const glm::vec3* position, const glm::vec4* rotation, const glm::vec3* scale, glm::mat4* mat) {
         const float x = rotation->x;
         const float y = rotation->y;
@@ -51,6 +52,12 @@ namespace playground::math::utils {
         simde_mm_storeu_ps(glm::value_ptr(result[3]), row3);
 
         *mat = result;
+    }
+
+    void Mat4FromPRSBulk(const glm::vec3* position, const glm::vec4* rotation, const glm::vec3* scale, size_t count, glm::mat4* mats) {
+        for(size_t i = 0; i < count; ++i) {
+            Mat4FromPRS(&position[i], &rotation[i], &scale[i], &mats[i]);
+        }
     }
 
     void GetViewMatrixSIMD_LH(const glm::vec3* position, const glm::vec4* rotation, glm::mat4* outMat) {

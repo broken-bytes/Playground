@@ -17,14 +17,12 @@ target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/pu
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
 
 find_package(FreeImage CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
-find_package(directx-dxc CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 
 target_include_directories(Rendering PRIVATE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(Rendering PUBLIC Logger AssetLoader Profiler Shared)
-target_link_libraries(Rendering PRIVATE SDL3::SDL3 spdlog::spdlog glm::glm freeimage::FreeImage freeimage::FreeImagePlus Microsoft::DirectXShaderCompiler)
+target_link_libraries(Rendering PRIVATE SDL3::SDL3 glm::glm freeimage::FreeImage freeimage::FreeImagePlus)
 
 if (WIN32)
     find_package(directx-headers CONFIG REQUIRED)

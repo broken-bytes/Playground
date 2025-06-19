@@ -42,6 +42,7 @@ namespace playground::rendering {
 		virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void = 0;
 		virtual auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void = 0;
 		virtual auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer>& instanceBuffer) -> void = 0;
+        virtual auto BindDescriptorTable(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void = 0;
         virtual auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void = 0;
         virtual auto BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void = 0;
         virtual auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void = 0;

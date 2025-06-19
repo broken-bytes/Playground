@@ -1,26 +1,36 @@
 func hierarchySystem(iter: UnsafeMutableRawPointer) {
-    let transforms = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: TransformComponent.self)
-    let worldTransforms = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: WorldTransformComponent.self)
+    let translations = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: TranslationComponent.self)
+    let rotations = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: RotationComponent.self)
+    let scales = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: ScaleComponent.self)
+    let worldTranslations = ECSHandler.getComponentBuffer(iter: iter, slot: 3, type: TranslationComponent.self)
+    let worldRotations = ECSHandler.getComponentBuffer(iter: iter, slot: 4, type: RotationComponent.self)
+    let worldScales = ECSHandler.getComponentBuffer(iter: iter, slot: 5, type: ScaleComponent.self)
     let entities = ECSHandler.entitiesFor(iter: iter)
-    for x in 0..<transforms.count {
+
+    for x in 0..<translations.count {
         // Check if the entity has a parent
         let parent = ECSHandler.getParent(entities[x])
         if parent != 0 {
-            let parentTransformPtr = ECSHandler.getComponent(
+            let parentTranslationPtr = ECSHandler.getComponent(
                 parent,
-                type: TransformComponent.self
+                type: TranslationComponent.self
             )
-            let parentTransform = parentTransformPtr.pointee
-            var transform = transforms[x]
+            let parentRotationPtr = ECSHandler.getComponent(
+                parent,
+                type: RotationComponent.self
+            )
+            let parentScalePtr = ECSHandler.getComponent(
+                parent,
+                type: ScaleComponent.self
+            )
             // Get the parent transform
-            worldTransforms[x].position = parentTransform.position + transform.position
-            worldTransforms[x].rotation = parentTransform.rotation * transform.rotation
-            worldTransforms[x].scale = parentTransform.scale * transform.scale
+            worldTranslations[x].position = parentTranslationPtr.pointee.position + translations[x].position
+            worldRotations[x].rotation = parentRotationPtr.pointee.rotation * rotations[x].rotation
+            worldScales[x].scale = parentScalePtr.pointee.scale * scales[x].scale
         } else {
-            var transform = transforms[x]
-            worldTransforms[x].position = transform.position
-            worldTransforms[x].rotation = transform.rotation
-            worldTransforms[x].scale = transform.scale
+            worldTranslations[x].position = translations[x].position
+            worldRotations[x].rotation = rotations[x].rotation
+            worldScales[x].scale = scales[x].scale
         }
     }
 }

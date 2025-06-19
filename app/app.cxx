@@ -1,6 +1,7 @@
 #include "renderdoc_app.h"
 
 #define WIN32_LEAN_AND_MEAN
+#define NO_MINMAX
 #include <Windows.h>
 #include <cassert>
 #include <filesystem>
@@ -10,7 +11,6 @@
 #include <playground/Engine.hxx>
 #include <assetpipeline/assetpipeline.hxx>
 #include <assetpipeline/loaders/ModelLoader.hxx>
-#include <assetdatabase/AssetDatabase.hxx>
 #include <shared/Hardware.hxx>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image.h>

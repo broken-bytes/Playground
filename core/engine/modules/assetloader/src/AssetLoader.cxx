@@ -102,8 +102,11 @@ namespace playground::assetloader {
 
         std::istringstream iss(binaryStr, std::ios::binary);
 
-        RawShaderData loaded = {};
-        loaded.blob = binaryStr;
+        RawShaderData loaded;
+        {
+            cereal::BinaryInputArchive iarchive(iss);
+            iarchive(loaded);
+        }
 
         return loaded;
     }

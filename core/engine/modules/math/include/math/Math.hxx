@@ -16,6 +16,8 @@ namespace playground::math::utils {
 
     void Mat4FromPRS(const glm::vec3* position, const glm::vec4* rotation, const glm::vec3* scale, glm::mat4* mat);
 
+    void Mat4FromPRSBulk(const glm::vec3* position, const glm::vec4* rotation, const glm::vec3* scale, size_t count, glm::mat4* mats);
+
     void GetViewMatrixSIMD_LH(const glm::vec3* position, const glm::vec4* rotation, glm::mat4* outMat);
 
     void GetProjectionMatrixSIMD_LH(float fovYDegrees, float aspectRatio, float nearPlane, float farPlane, glm::mat4* outMat);

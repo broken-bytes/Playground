@@ -10,15 +10,16 @@
 namespace playground::assetloader
 {
     struct RawTextureData {
-        std::vector<uint8_t> Pixels;
-        uint32_t Width;
-        uint32_t Height;
+        std::vector<std::vector<uint8_t>> MipMaps;
+        uint16_t Width;
+        uint16_t Height;
         uint8_t Channels;
+
 
         template <class Archive>
         void serialize(Archive& ar)
         {
-            ar(Pixels, Width, Height, Channels);
+            ar(MipMaps, Width, Height, Channels);
         }
     };
 }

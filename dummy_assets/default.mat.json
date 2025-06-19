@@ -1,4 +1,10 @@
 {
-  "vertexShaderName": "default.vs.hlsl",
-  "pixelShaderName": "default.ps.hlsl"
+  "shaderName": "default.shader",
+  "floats": [
+    {
+      "name": "snow_amount",
+      "value": 0.5,
+      "slot": 0
+    }
+  ]
 }

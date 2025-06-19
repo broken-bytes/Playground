@@ -35,8 +35,7 @@ namespace playground::editor::assetpipeline::loaders::materialloader {
             try {
                 cereal::JSONInputArchive archive(iss);
                 archive(
-                    cereal::make_nvp("vertexShaderName", loadedMaterial.vertexShaderName),
-                    cereal::make_nvp("pixelShaderName", loadedMaterial.pixelShaderName)
+                    cereal::make_nvp("shaderName", loadedMaterial.shaderName)
                 );
             }
             catch (const cereal::RapidJSONException& e) {

@@ -1,8 +1,10 @@
+#define NOMINMAX
 #include <iostream>
 #include <assetpipeline/AssetPipeline.hxx>
 #include <assetpipeline/loaders/ModelLoader.hxx>
 #include <assetpipeline/loaders/MaterialLoader.hxx>
 #include <assetpipeline/loaders/TextureLoader.hxx>
+#include <assetpipeline/loaders/ShaderLoader.hxx>
 
 int main(int argc, char** argv) {
     // 1: Asset Path
@@ -32,13 +34,23 @@ int main(int argc, char** argv) {
         playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
     }
     else if (std::strcmp(argv[3], "Texture") == 0) {
-        auto texture = playground::editor::assetpipeline::loaders::textureloader::LoadFromFile(argv[1]);
+        auto texture = playground::editor::assetpipeline::loaders::textureloader::LoadFromFile(argv[1], false);
+        buffer = playground::editor::assetpipeline::CookTexture(texture);
+
+        playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
+    } else if (std::strcmp(argv[3], "Normal") == 0) {
+        auto texture = playground::editor::assetpipeline::loaders::textureloader::LoadFromFile(argv[1], true);
         buffer = playground::editor::assetpipeline::CookTexture(texture);
 
         playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
     } else if (std::strcmp(argv[3], "Material") == 0) {
         auto material = playground::editor::assetpipeline::loaders::materialloader::LoadFromFile(argv[1]);
         buffer = playground::editor::assetpipeline::CookMaterial(material);
+        playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
+    }
+    else if (std::strcmp(argv[3], "Shader") == 0) {
+        auto shader = playground::editor::assetpipeline::loaders::shaderloader::LoadFromFile(argv[1]);
+        buffer = playground::editor::assetpipeline::CookShader(shader);
         playground::editor::assetpipeline::SaveBufferToArchive(argv[4], argv[2], buffer);
     }
     else {

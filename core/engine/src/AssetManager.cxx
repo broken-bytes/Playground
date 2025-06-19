@@ -84,12 +84,11 @@ namespace playground::assetmanager {
                     handle->refCount = 1;
                     handle->state = ResourceState::Created;
 
-                    auto vertexShader = assetloader::LoadShader(rawMaterialData.vertexShaderName);
-                    auto pixelShader = assetloader::LoadShader(rawMaterialData.pixelShaderName);
+                    auto shader = assetloader::LoadShader(rawMaterialData.shaderName);
 
                     rendering::QueueUploadMaterial(
-                        vertexShader.blob,
-                        pixelShader.blob,
+                        shader.vertexShader,
+                        shader.pixelShader,
                         i,
                         MarkMaterialUploadFinished
                     );
@@ -100,8 +99,7 @@ namespace playground::assetmanager {
         }
 
         auto rawMaterialData = playground::assetloader::LoadMaterial(name);
-        auto vertexShader = playground::assetloader::LoadShader(rawMaterialData.vertexShaderName);
-        auto pixelShader = playground::assetloader::LoadShader(rawMaterialData.pixelShaderName);
+        auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
 
         auto newHandle = new MaterialHandle {
             .hash = hash,
@@ -115,8 +113,8 @@ namespace playground::assetmanager {
         _materialHandles.push_back(newHandle);
 
         rendering::QueueUploadMaterial(
-            vertexShader.blob,
-            pixelShader.blob,
+            shader.vertexShader,
+            shader.pixelShader,
             handleId,
             MarkMaterialUploadFinished
         );
@@ -140,7 +138,8 @@ namespace playground::assetmanager {
                     auto rawShaderData = playground::assetloader::LoadShader(name);
                     handle->refCount = 1;
                     handle->state = ResourceState::Created;
-                    handle->bytecode = rawShaderData.blob;
+                    handle->vertexShader = rawShaderData.vertexShader;
+                    handle->pixelShader = rawShaderData.pixelShader;
 
                     return handle;
                 }
@@ -153,7 +152,8 @@ namespace playground::assetmanager {
             .hash = hash,
             .state = ResourceState::Created,
             .refCount = 1,
-            .bytecode = rawShaderData.blob
+            .vertexShader = rawShaderData.vertexShader,
+            .pixelShader = rawShaderData.pixelShader,
         };
 
         uint32_t handleId;

@@ -29,6 +29,7 @@ namespace playground::rendering::d3d12 {
 		auto BindVertexBuffer(std::shared_ptr<VertexBuffer>& vertexBuffer, uint8_t slot) -> void override;
 		auto BindIndexBuffer(std::shared_ptr<IndexBuffer>& vertexBuffer) -> void override;
 		auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer>& instanceBuffer) -> void override;
+        auto BindDescriptorTable(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void override;
         auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void override;
         auto BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void override;
         auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void override;

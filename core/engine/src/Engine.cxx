@@ -31,6 +31,17 @@ bool isRunning = true;
 
 std::thread renderThread;
 
+double timeSinceStart = 0.0;
+double deltaTime = 0.0;
+
+double GetTimeSinceStart() {
+    return timeSinceStart;
+}
+
+double GetDeltaTime() {
+    return deltaTime;
+}
+
 void Shutdown() {
     isRunning = false;
 }
@@ -122,11 +133,15 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);
     config.Delegate("Rendering_ReadBackBuffer\0", playground::rendering::ReadbackBuffer);
 
+    config.Delegate("Time_GetTimeSinceStart\0", GetTimeSinceStart);
+    config.Delegate("Time_GetDeltaTime\0", GetDeltaTime);
+
     config.Delegate("Input_Update\0", playground::input::Update);
 
     config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
 
     config.Delegate("Math_Mat4FromPRS", playground::math::utils::Mat4FromPRS);
+    config.Delegate("Math_Mat4FromPRSBulk", playground::math::utils::Mat4FromPRSBulk);
 
     playground::logging::logger::Info("Playground Core Engine started.");
     playground::logging::logger::Info("Initializing Scripting Layer...");
@@ -136,8 +151,6 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.startupCallback();
 
     static const char* CPU_FRAME = "CPU:Update";
-
-    double deltaTime = 0;
 
     auto now = std::chrono::high_resolution_clock::now();
     while (isRunning) {
@@ -165,6 +178,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
         auto next = std::chrono::high_resolution_clock::now();
         const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
         deltaTime = (double)int_ns.count() / 1000000000.0;
+        timeSinceStart += deltaTime;
         now = next;
         FrameMarkEnd(CPU_FRAME);
     }

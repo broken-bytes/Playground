@@ -47,7 +47,8 @@ namespace playground::assetmanager {
         uint64_t hash;
         ResourceState state;
         uint32_t refCount;
-        std::string bytecode;
+        std::string vertexShader;
+        std::string pixelShader;
     };
 
     struct AudioHandle {

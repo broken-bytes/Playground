@@ -16,6 +16,8 @@
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
+#include "rendering/PointLight.hxx"
+#include "rendering/DirectionalLight.hxx"
 #include <profiler/Profiler.hxx>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyD3D12.hpp>
@@ -60,7 +62,11 @@ namespace playground::rendering::d3d12
 
         _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(_device, 1, 1);
 
-        _cameraBuffer = std::static_pointer_cast<D3D12ConstantBuffer>(device->CreateConstantBuffer(nullptr, MAX_CAMERA_COUNT, sizeof(CameraBuffer), name + "_CAMERA_BUFFER"));
+        _cameraBuffer = std::static_pointer_cast<D3D12ConstantBuffer>(device->CreateConstantBuffer(nullptr, MAX_CAMERA_COUNT, sizeof(CameraBuffer), ConstantBuffer::BindingMode::RootCBV, name + "_CAMERA_BUFFER"));
+
+        _pointLightsBuffer = std::static_pointer_cast<D3D12StructuredBuffer>(device->CreateStructuredBuffer(nullptr, MAX_POINT_LIGHTS, sizeof(PointLight), name + "_POINT_LIGHT_BUFFER"));
+
+        _directionalLightBuffer = std::static_pointer_cast<D3D12ConstantBuffer>(device->CreateConstantBuffer(nullptr, 1, sizeof(DirectionalLight), ConstantBuffer::BindingMode::RootCBV, name + "_DIRECTIONAL_LIGHT_BUFFER"));
 
 #if ENABLE_PROFILER
         _tracyCtx = ctx;
@@ -128,8 +134,9 @@ namespace playground::rendering::d3d12
         switch (pass) {
         case RenderPass::Opaque:
             _currentPassList = _opaqueCommandList;
-            _opaqueCommandList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
-            _opaqueCommandList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
+            _currentPassList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
+            _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
+            _currentPassList->BindConstantBuffer(_directionalLightBuffer, DIRECTIONAL_LIGHT_BUFFER_BINDING, 0);
             break;
         case RenderPass::Transparent:
             _currentPassList = _transparentCommandList;
@@ -170,15 +177,11 @@ namespace playground::rendering::d3d12
         _currentPassList->BindInstanceBuffer(buffer);
     }
 
-    auto D3D12GraphicsContext::BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t index) -> void {
-        _currentPassList->BindConstantBuffer(buffer, 0, 0);
-    }
-
     auto D3D12GraphicsContext::BindCamera(uint8_t index) -> void {
         ZoneScopedN("RenderThread: Bind Camera");
         ZoneColor(tracy::Color::Orange3);
         assert(_cameraBuffer != nullptr && "Camera buffer is not initialized. Did you forget to call SetCameraData?");
-        _currentPassList->BindConstantBuffer(_cameraBuffer, 0, index);
+        _currentPassList->BindConstantBuffer(_cameraBuffer, CAMERA_BUFFER_BINDING, index);
     }
 
     auto D3D12GraphicsContext::SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void {
@@ -329,6 +332,15 @@ namespace playground::rendering::d3d12
         );
 
         _transferCommandList->Native()->ResourceBarrier(1, &renderTargetBarrier);
+    }
+
+    auto D3D12GraphicsContext::SetDirectionalLight(
+        DirectionalLight& light
+    ) -> void {
+        ZoneScopedN("RenderThread: Set Directional Light");
+        ZoneColor(tracy::Color::Orange3);
+        assert(_directionalLightBuffer != nullptr && "Directional light buffer is not initialized. Did you forget to call SetDirectionalLightData?");
+        _directionalLightBuffer->SetData(reinterpret_cast<void*>(&light), 1, 0);
     }
 
     auto D3D12GraphicsContext::SetViewport(

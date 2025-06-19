@@ -26,6 +26,7 @@ func startUp() {
     Logger.info("Started Renderer")
 
     NativeMath.setup()
+    Time.setup()
 
     initComponents()
     initTags()
@@ -45,16 +46,23 @@ func startUp() {
         entity.addComponent(&mesh)
 
         var scaleValue = Float.random(in: 0.1...1.25)
-        var scale = Vector3(x: scaleValue, y: scaleValue, z: scaleValue)
-        var transform = TransformComponent(position: Vector3(x: Float.random(in: -10...10), y: Float.random(in: -10...10), z: Float.random(in: 10...50)), rotation: .identity, scale: scale)
+        var transform = TranslationComponent(position: Vector3(x: Float.random(in: -10...10), y: Float.random(in: -10...10), z: Float.random(in: 10...50)))
         entity.addComponent(&transform)
+        var rotation = RotationComponent(rotation: .identity)
+        entity.addComponent(&rotation)
+        var scale = ScaleComponent(scale: Vector3(x: scaleValue, y: scaleValue, z: scaleValue))
+        entity.addComponent(&scale)
     }
 }
 
 func initComponents() {
     let componentId = ECSHandler.registerComponent(CameraComponent.self)
-    let transformId = ECSHandler.registerComponent(TransformComponent.self)
-    let worldTransformId = ECSHandler.registerComponent(WorldTransformComponent.self)
+    let translationId = ECSHandler.registerComponent(TranslationComponent.self)
+    let rotationId = ECSHandler.registerComponent(RotationComponent.self)
+    let scaleId = ECSHandler.registerComponent(ScaleComponent.self)
+    let worldTranslationId = ECSHandler.registerComponent(WorldTranslationComponent.self)
+    let worldRotationId = ECSHandler.registerComponent(WorldRotationComponent.self)
+    let worldScaleId = ECSHandler.registerComponent(WorldScaleComponent.self)
     let meshId = ECSHandler.registerComponent(MeshComponent.self)
     let materialId = ECSHandler.registerComponent(MaterialComponent.self)
 
@@ -63,11 +71,37 @@ func initComponents() {
 
 func initHooks() {
     ECSHandler.addHook(
-        TransformComponent.self,
+        TranslationComponent.self,
         onAdd: { iter in
             let entity = ECSHandler.entitiesFor(iter: iter)
-            var worldComponent = WorldTransformComponent(position: .zero, rotation: .identity, scale: .one)
-            ECSHandler.addComponent(entity[0], type: WorldTransformComponent.self)
+            var worldComponent = WorldTranslationComponent(position: .zero)
+            ECSHandler.addComponent(entity[0], type: WorldTranslationComponent.self)
+            ECSHandler.setComponent(entity[0], data: &worldComponent)
+        },
+        onRemove: { _ in 
+
+        }
+    )
+
+    ECSHandler.addHook(
+        RotationComponent.self,
+        onAdd: { iter in
+            let entity = ECSHandler.entitiesFor(iter: iter)
+            var worldComponent = WorldRotationComponent(rotation: .identity)
+            ECSHandler.addComponent(entity[0], type: WorldRotationComponent.self)
+            ECSHandler.setComponent(entity[0], data: &worldComponent)
+        },
+        onRemove: { _ in 
+
+        }
+    )
+
+    ECSHandler.addHook(
+        ScaleComponent.self,
+        onAdd: { iter in
+            let entity = ECSHandler.entitiesFor(iter: iter)
+            var worldComponent = WorldScaleComponent(scale: .one)
+            ECSHandler.addComponent(entity[0], type: WorldScaleComponent.self)
             ECSHandler.setComponent(entity[0], data: &worldComponent)
         },
         onRemove: { _ in 
@@ -83,8 +117,9 @@ func initTags() {
 
 func initSystems() {
     ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self], multiThreaded: false, delegate: cameraSystem)
-    ECSHandler.createSystem("HierarchySystem", filter: [TransformComponent.self, WorldTransformComponent.self], multiThreaded: true, delegate: hierarchySystem)
-    ECSHandler.createSystem("RenderSystem", filter: [WorldTransformComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
+    ECSHandler.createSystem("TransformSystem", filter: [TranslationComponent.self], multiThreaded: true, delegate: transformSystem)
+    ECSHandler.createSystem("HierarchySystem", filter: [TranslationComponent.self, RotationComponent.self, ScaleComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self], multiThreaded: true, delegate: hierarchySystem)
+    ECSHandler.createSystem("RenderSystem", filter: [WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
     Logger.info("Initialised ECS Systems")
 }
 

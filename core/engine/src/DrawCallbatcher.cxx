@@ -3,8 +3,25 @@
 #include <rendering/RenderFrame.hxx>
 #include <rendering/Rendering.hxx>
 #include <mutex>
+#include <unordered_map>
 
 namespace playground::drawcallbatcher {
+    struct DrawCallKey {
+        rendering::MaterialHandle material;
+        rendering::VertexBufferHandle vertexBuffer;
+        rendering::IndexBufferHandle indexBuffer;
+
+        bool operator==(const DrawCallKey& other) const {
+            return material == other.material &&
+                vertexBuffer == other.vertexBuffer &&
+                indexBuffer == other.indexBuffer;
+        }
+    };
+
+    size_t HashDrawCallKey(const DrawCallKey& key) {
+        return key.material ^ (key.vertexBuffer << 1) ^ (key.indexBuffer << 2);
+    }
+
     std::vector<drawcallbatcher::DrawCall> drawCalls = {};
     std::mutex mtx;
 
@@ -20,36 +37,46 @@ namespace playground::drawcallbatcher {
         rendering::RenderFrame frame;
         frame.isDirty = true;
 
+        std::unordered_map<uint64_t, rendering::DrawCall> batchedDrawCalls;
+
         for (const auto& dc : drawCalls) {
-            if (
-                dc.modelHandle != nullptr &&
+            if (dc.modelHandle != nullptr &&
                 dc.materialHandle != nullptr &&
                 dc.modelHandle->state == assetmanager::ResourceState::Uploaded &&
-                dc.materialHandle->state == assetmanager::ResourceState::Uploaded
-            ) {
-                // Try to find an existing entry with the same material, vertexBuffer, and indexBuffer
-                auto it = std::find_if(frame.drawCalls.begin(), frame.drawCalls.end(),
-                    [&](const playground::rendering::DrawCall& existing) {
-                        return existing.material == dc.materialHandle->material &&
-                            existing.vertexBuffer == dc.modelHandle->meshes[dc.meshId].vertexBuffer &&
-                            existing.indexBuffer == dc.modelHandle->meshes[dc.meshId].indexBuffer;
-                    });
+                dc.materialHandle->state == assetmanager::ResourceState::Uploaded) {
 
-                if (it != frame.drawCalls.end()) {
-                    it->instances += 1;
-                    it->instanceData.push_back(rendering::DrawCall::InstanceData { .transform = dc.transform });
+                DrawCallKey key{
+                    .material = dc.materialHandle->material,
+                    .vertexBuffer = dc.modelHandle->meshes[dc.meshId].vertexBuffer,
+                    .indexBuffer = dc.modelHandle->meshes[dc.meshId].indexBuffer
+                };
+
+                auto hash = HashDrawCallKey(key);
+
+                auto it = batchedDrawCalls.find(hash);
+                if (it != batchedDrawCalls.end()) {
+                    it->second.instances += 1;
+                    it->second.instanceData.emplace_back(dc.transform);
                 }
                 else {
-                    rendering::DrawCall drawCall {
+                    auto instanceData = std::vector<rendering::DrawCall::InstanceData>();
+                    instanceData.reserve(32);
+                    instanceData.emplace_back(dc.transform);
+                    rendering::DrawCall newDrawCall{
                         .instances = 1,
                         .vertexBuffer = dc.modelHandle->meshes[dc.meshId].vertexBuffer,
                         .indexBuffer = dc.modelHandle->meshes[dc.meshId].indexBuffer,
                         .material = dc.materialHandle->material,
-                        .instanceData = { rendering::DrawCall::InstanceData { .transform = dc.transform } }
+                        .instanceData = { rendering::DrawCall::InstanceData {.transform = dc.transform } }
                     };
-                    frame.drawCalls.push_back(drawCall);
+                    batchedDrawCalls.emplace(hash, std::move(newDrawCall));
                 }
             }
+        }
+
+        frame.drawCalls.reserve(batchedDrawCalls.size());
+        for (auto& [key, drawCall] : batchedDrawCalls) {
+            frame.drawCalls.push_back(std::move(drawCall));
         }
 
         drawCalls.clear();

@@ -9,6 +9,7 @@
 
 namespace playground::editor::assetpipeline::loaders::textureloader {
     auto LoadFromFile(
-        std::filesystem::path path
+        std::filesystem::path path,
+        bool isNormal
     ) -> assetloader::RawTextureData;
 }

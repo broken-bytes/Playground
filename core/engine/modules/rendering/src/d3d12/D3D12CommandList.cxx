@@ -183,8 +183,12 @@ namespace playground::rendering::d3d12 {
         _list->IASetVertexBuffers(1, 1, &std::static_pointer_cast<D3D12InstanceBuffer>(instanceBuffer)->View());
     }
 
-    auto D3D12CommandList::BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void {
+    auto D3D12CommandList::BindDescriptorTable(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void {
         _list->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12ConstantBuffer>(buffer)->GPUHandle(index));
+    }
+
+    auto D3D12CommandList::BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t slot, uint32_t index) -> void {
+        _list->SetGraphicsRootConstantBufferView(slot, std::static_pointer_cast<D3D12ConstantBuffer>(buffer)->GPUAdress(index));
     }
 
     auto D3D12CommandList::BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void {

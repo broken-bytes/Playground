@@ -39,7 +39,8 @@ namespace playground::rendering::d3d12 {
             std::string name
         ) -> std::shared_ptr<DepthBuffer> override;
         auto CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material> override;
-        auto CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature) -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
+        auto CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
+            -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
         auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> override;
         auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void override;
         auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> override;
@@ -47,7 +48,8 @@ namespace playground::rendering::d3d12 {
         auto CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> override;
         auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> override;
         auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window)->std::shared_ptr<Swapchain> override;
-        auto CreateConstantBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<ConstantBuffer> override;
+        auto CreateConstantBuffer(void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> override;
+        auto CreateStructuredBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<StructuredBuffer> override;
         auto CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> override;
 
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;

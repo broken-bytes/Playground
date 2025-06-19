@@ -14,6 +14,7 @@
 #include "rendering/ConstantBuffer.hxx"
 #include "rendering/CameraBuffer.hxx"
 #include "rendering/Texture.hxx"
+#include "rendering/DirectionalLight.hxx"
 #include <glm/glm.hpp>
 
 namespace playground::rendering {
@@ -25,7 +26,6 @@ namespace playground::rendering {
         virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void = 0;
-        virtual auto BindConstantBuffer(std::shared_ptr<ConstantBuffer> buffer, uint8_t index) -> void = 0;
         virtual auto BindCamera(uint8_t index) -> void = 0;
         virtual auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void = 0;
         virtual auto BindMaterial(std::shared_ptr<Material> material) -> void = 0;
@@ -34,6 +34,9 @@ namespace playground::rendering {
         virtual auto TransitionTexture(std::shared_ptr<Texture> texture) -> void = 0;
         virtual auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void = 0;
         virtual auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void = 0;
+        virtual auto SetDirectionalLight(
+            DirectionalLight& light
+        ) -> void = 0;
         virtual auto SetViewport(
             uint32_t startX,
             uint32_t startY,

@@ -5,16 +5,10 @@
   "builtin-baseline": "57c08a3223a1ec03c3a31986ee38d32e90b6039c",
   "dependencies": [
     "assimp",
-    "atomic-queue",
-    "audiofile",
-    "bitsery",
     "cereal",
-    "concurrentqueue",
-    "directx-dxc",
     "directx-headers",
     "freealut",
     "freeimage",
-    "gtest",
     "libjpeg-turbo",
     "libpng",
     "libsodium",
@@ -22,10 +16,7 @@
     "libzip",
     "nlohmann-json",
     "openal-soft",
-    "physx",
     "rmlui",
-    "spdlog",
-    "sqlite3",
     "stduuid",
     "stb"
   ]

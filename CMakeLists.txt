@@ -11,7 +11,6 @@ project(${PROJECT_NAME})
 
 enable_testing()
 
-
 include(FetchContent)
 
 FetchContent_Declare(flecs
@@ -29,14 +28,11 @@ FetchContent_Declare(SIMDe
   GIT_TAG 51743e7920b6e867678cb50e9c62effe28f70b33)
 FetchContent_MakeAvailable(SIMDe)
 
-include(FetchContent)
-
 FetchContent_Declare(
 	glm
 	GIT_REPOSITORY	https://github.com/g-truc/glm.git
 	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
 )
-
 FetchContent_MakeAvailable(glm)
 
 if(ENABLE_PROFILER)
@@ -77,10 +73,6 @@ add_subdirectory(core)
 add_subdirectory(app)
 add_subdirectory(tools)
 
-# Set the library output directory for all libraries
-set_target_properties(AssetDatabase PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
-set_target_properties(AssetDatabase PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
-
 set_target_properties(AssetPipeline PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
 set_target_properties(AssetPipeline PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
 
@@ -112,7 +104,6 @@ set_target_properties(System PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_
 set_target_properties(System PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
 
 # Set the runtime output directory for all libraries
-set_target_properties(AssetDatabase PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
 set_target_properties(AssetPipeline PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
 set_target_properties(Audio PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
 set_target_properties(Events PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)

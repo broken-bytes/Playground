@@ -1,7 +1,6 @@
 FILE(GLOB_RECURSE HEADERS "include/*.h*")
 FILE(GLOB_RECURSE SRC "src/*.c*")
 
-find_package(unofficial-sqlite3 REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(libzip CONFIG REQUIRED)
 find_package(FreeImage CONFIG REQUIRED)
@@ -15,8 +14,13 @@ target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/logger/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/io/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
+target_include_directories(AssetPipeline PRIVATE ${COMPRESSONATOR_INC_DIR})
 
-target_link_libraries(AssetPipeline PRIVATE glm::glm unofficial::sqlite3::sqlite3 assimp::assimp libzip::zip freeimage::FreeImagePlus)
+# Set the library output directory for all libraries
+
+target_link_directories(AssetPipeline PRIVATE ${COMPRESSONATOR_LIB_DIR})
+
+target_link_libraries(AssetPipeline PRIVATE glm::glm assimp::assimp libzip::zip freeimage::FreeImagePlus dxcompiler Compressonator_MDd.lib)
 
 # Link all engine libraries
 target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering Shared)

@@ -8,6 +8,7 @@
 #include "rendering/GraphicsContext.hxx"
 #include "rendering/Camera.hxx"
 #include "rendering/Sampler.hxx"
+#include "rendering/DirectionalLight.hxx"
 #include <assetloader/AssetLoader.hxx>
 #include <shared/RingBuffer.hxx>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -141,7 +142,7 @@ namespace playground::rendering {
 
         sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
 
-        auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, 0), glm::quat(0, 0, 0, 1), 0);
+        auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, -5), glm::quat(0, 0, 0, 1), 0);
 
         cameras[0] = CameraBuffer{ .ViewMatrix = camera.GetViewMatrix(), .ProjectionMatrix = camera.GetProjectionMatrix() };
 
@@ -255,6 +256,12 @@ namespace playground::rendering {
 
         // Write camera data to context
         graphicsContext->SetCameraData(cameras);
+        auto dir = glm::normalize(glm::vec3(2, 0, 5)); // <- normalize the direction!
+        auto light = DirectionalLight{
+            .direction = glm::vec4(dir, 0.0f), // w = 0 → direction vector
+            .colour = glm::vec4(0.8f, 0.2f, 0.2f, 1.0f)
+        };
+        graphicsContext->SetDirectionalLight(light);
 
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
 

@@ -1,15 +1,19 @@
 #include <directx/d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
-#include <directx-dxc/dxcapi.h>
+#include <d3d12shader.h>
+#include <dxcapi.h>
 #include <stdexcept>
 #include <vector>
+#define WIN32_LEAN_AND_MEAN
+#define NO_MINMAX
 #include <Windows.h>
 #include <wrl.h>
 #include <dxcapi.h>
 #include <string>
 #include <map>
 #include <iostream>
+#include "rendering/Constants.hxx"
 #include "rendering/d3d12/D3D12Material.hxx"
 #include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
@@ -24,6 +28,7 @@
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
+#include "rendering/d3d12/D3D12StructuredBuffer.hxx"
 #include "rendering/d3d12/D3D12InstanceBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
@@ -31,60 +36,6 @@
 using namespace Microsoft::WRL;
 
 namespace playground::rendering::d3d12 {
-    inline Microsoft::WRL::ComPtr<IDxcBlob> CompileShaderWithDxc(
-        const std::string& shaderCode, const std::wstring& entryPoint, const std::wstring& target)
-    {
-        Microsoft::WRL::ComPtr<IDxcUtils> utils;
-        Microsoft::WRL::ComPtr<IDxcCompiler3> compiler;
-        Microsoft::WRL::ComPtr<IDxcBlobEncoding> sourceBlob;
-        Microsoft::WRL::ComPtr<IDxcResult> result;
-
-        // Initialize DXC Compiler and Utility
-        DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utils));
-        DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
-
-        // Create a blob from the shader source string
-        utils->CreateBlob(shaderCode.c_str(), (uint32_t)shaderCode.size(), DXC_CP_UTF8, &sourceBlob);
-
-        // Create a DxcBuffer to pass to Compile()
-        DxcBuffer sourceBuffer;
-        sourceBuffer.Ptr = sourceBlob->GetBufferPointer();
-        sourceBuffer.Size = sourceBlob->GetBufferSize();
-        sourceBuffer.Encoding = DXC_CP_UTF8;
-
-        // Define compiler arguments
-        const wchar_t* arguments[] = {
-            L"-E", entryPoint.c_str(),
-            L"-T", target.c_str(),
-            L"-O3",
-            L"-Zi"
-        };
-
-        // Compile the shader
-        HRESULT hr = compiler->Compile(
-            &sourceBuffer, // Use DxcBuffer instead of IDxcBlob*
-            arguments, _countof(arguments),
-            nullptr, // No include handler
-            IID_PPV_ARGS(&result)
-        );
-
-        if (FAILED(hr)) {
-            throw std::runtime_error("DXC Compilation failed.");
-        }
-
-        // Retrieve compiled shader blob
-        Microsoft::WRL::ComPtr<IDxcBlobUtf8> errors;
-        if (FAILED(result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr))) {
-            throw std::runtime_error("Failed to retrieve error messages.");
-        }
-        if (errors && errors->GetStringLength() > 0) {
-            OutputDebugStringA(errors->GetStringPointer()); // Print error messages
-        }
-
-        Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob;
-        result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
-        return shaderBlob;
-    }
 
     ComPtr<IDXGIAdapter1> GetHardwareAdapter() {
         UINT dxgiFactoryFlags = 0;
@@ -401,16 +352,13 @@ namespace playground::rendering::d3d12 {
 
         psoDesc.pRootSignature = rootSignature.Get();
 
-        auto vertexShaderBlob = CompileShaderWithDxc(vertexShader, L"VSMain", L"vs_6_0");
-        auto pixelShaderBlob = CompileShaderWithDxc(pixelShader, L"PSMain", L"ps_6_0");
-
         D3D12_SHADER_BYTECODE vertexShaderBytecode = {};
-        vertexShaderBytecode.pShaderBytecode = vertexShaderBlob.Get()->GetBufferPointer();
-        vertexShaderBytecode.BytecodeLength = vertexShaderBlob.Get()->GetBufferSize();
+        vertexShaderBytecode.pShaderBytecode = vertexShader.data();
+        vertexShaderBytecode.BytecodeLength = vertexShader.size();
 
         D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
-        pixelShaderBytecode.pShaderBytecode = pixelShaderBlob.Get()->GetBufferPointer();
-        pixelShaderBytecode.BytecodeLength = pixelShaderBlob.Get()->GetBufferSize();
+        pixelShaderBytecode.pShaderBytecode = pixelShader.data();
+        pixelShaderBytecode.BytecodeLength = pixelShader.size();
 
         // Load compiled shaders
         psoDesc.VS = vertexShaderBytecode;
@@ -420,7 +368,7 @@ namespace playground::rendering::d3d12 {
         D3D12_RASTERIZER_DESC rasterizerDesc = {};
         rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
         rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
-        rasterizerDesc.FrontCounterClockwise = FALSE;
+        rasterizerDesc.FrontCounterClockwise = TRUE;
         rasterizerDesc.DepthClipEnable = TRUE;
 
         psoDesc.RasterizerState = rasterizerDesc;
@@ -500,7 +448,7 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12SwapChain>(bufferCount, _graphicsQueue, width, height, (HWND)window);
     }
 
-    auto D3D12Device::CreateConstantBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<ConstantBuffer> {
+    auto D3D12Device::CreateConstantBuffer(void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> {
         auto handle = _srvHeaps->NextHandle();
         return std::make_shared<D3D12ConstantBuffer>(
             _device,
@@ -510,6 +458,21 @@ namespace playground::rendering::d3d12 {
             data,
             size,
             (itemSize + 255) & ~255,
+            mode,
+            name
+        );
+    }
+
+    auto D3D12Device::CreateStructuredBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<StructuredBuffer> {
+        auto handle = _srvHeaps->NextHandle();
+        return std::make_shared<D3D12StructuredBuffer>(
+            _device,
+            handle->GetCPUHandle(),
+            handle->GetGPUHandle(),
+            _srvHeaps->Heap()->Native(),
+            data,
+            size,
+            itemSize,
             name
         );
     }
@@ -521,24 +484,30 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
-        CD3DX12_ROOT_PARAMETER rootParameters[4];
+        CD3DX12_ROOT_PARAMETER rootParameters[7];
 
-        // 1️ Per-frame CBV (Camera, Lighting, etc.)
-        CD3DX12_DESCRIPTOR_RANGE cbvRanges[2];
-        cbvRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0); // First CBV (b0)
-        cbvRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1); // Second CBV (b1)
-        rootParameters[0].InitAsDescriptorTable(2, cbvRanges, D3D12_SHADER_VISIBILITY_ALL);
+        // 1️ Per-frame CBV (Camera, Lighting, Material props, etc.)
+        CD3DX12_DESCRIPTOR_RANGE cbvRanges[4];
+        rootParameters[0].InitAsConstantBufferView(GLOBALS_BUFFER_BINDING); // b0
+        rootParameters[1].InitAsConstantBufferView(DIRECTIONAL_LIGHT_BUFFER_BINDING); // b1
+        rootParameters[2].InitAsConstantBufferView(CAMERA_BUFFER_BINDING); // b2
 
-        // 2 Texture Descriptor Table (SRV)
-        CD3DX12_DESCRIPTOR_RANGE vertexSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-        rootParameters[1].InitAsDescriptorTable(1, &vertexSrvRange, D3D12_SHADER_VISIBILITY_VERTEX);
+        CD3DX12_DESCRIPTOR_RANGE materialCbvRange;
+        materialCbvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, MATERIAL_BUFFER_BINDING); // b3
+        rootParameters[3].InitAsDescriptorTable(1, &materialCbvRange, D3D12_SHADER_VISIBILITY_ALL);
 
-        CD3DX12_DESCRIPTOR_RANGE pixelSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-        rootParameters[2].InitAsDescriptorTable(1, &pixelSrvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        // 2 (SRV)
+        CD3DX12_DESCRIPTOR_RANGE vertexSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, INSTANCE_BUFFER_BINDING);
+        rootParameters[4].InitAsDescriptorTable(1, &vertexSrvRange, D3D12_SHADER_VISIBILITY_VERTEX);
+
+        CD3DX12_DESCRIPTOR_RANGE pixelSrvRange[2];
+        pixelSrvRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, POINT_LIGHT_SRV_BINDING); // t0: lights buffer
+        pixelSrvRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1: diffuse texture
+        rootParameters[5].InitAsDescriptorTable(2, pixelSrvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // 4 Sampler Descriptor Table
         CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-        rootParameters[3].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[6].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
