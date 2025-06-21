@@ -13,5 +13,6 @@ namespace playground::drawcallbatcher {
     };
 
     void Batch(drawcallbatcher::DrawCall*, uint16_t count);
+    void SetSun(glm::vec3 direction, glm::vec4 colour, float intensity);
     void Submit();
 }

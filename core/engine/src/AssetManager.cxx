@@ -11,6 +11,7 @@ namespace playground::assetmanager {
     std::vector<ModelHandle*> _modelHandles = {};
     std::vector<MaterialHandle*> _materialHandles = {};
     std::vector<ShaderHandle*> _shaderHandles = {};
+    std::vector<TextureHandle*> _textureHandles = {};
 
     void MarkModelUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
         if (handleId < _modelHandles.size()) {
@@ -25,6 +26,14 @@ namespace playground::assetmanager {
             _materialHandles[handleId]->state = ResourceState::Uploaded;
             _materialHandles[handleId]->material = materialId;
             _materialHandles[handleId]->refCount--;
+        }
+    }
+
+    void MarkTextureUploadFinished(uint32_t handleId, uint32_t texture) {
+        if (handleId < _textureHandles.size()) {
+            _textureHandles[handleId]->state = ResourceState::Uploaded;
+            _textureHandles[handleId]->texture = texture;
+            _textureHandles[handleId]->refCount--;
         }
     }
 
@@ -101,6 +110,10 @@ namespace playground::assetmanager {
         auto rawMaterialData = playground::assetloader::LoadMaterial(name);
         auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
 
+        for (auto& texture : rawMaterialData.textures) {
+            LoadTexture(texture.value.c_str());
+        }
+
         auto newHandle = new MaterialHandle {
             .hash = hash,
             .state = ResourceState::Created,
@@ -118,7 +131,6 @@ namespace playground::assetmanager {
             handleId,
             MarkMaterialUploadFinished
         );
-
 
         return _materialHandles[handleId];
     }
@@ -161,5 +173,45 @@ namespace playground::assetmanager {
         _shaderHandles.push_back(newHandle);
 
         return _shaderHandles[handleId];
+    }
+
+    TextureHandle* LoadTexture(const char* name) {
+        auto hash = shared::Hash(name);
+
+        TextureHandle* handle;
+        for (uint32_t i = 0; i < _textureHandles.size(); ++i) {
+            handle = _textureHandles[i];
+            if (handle->hash == hash) {
+                if (handle->state == ResourceState::Uploaded) {
+                    handle->refCount++;
+                    return handle;
+                }
+                else if (handle->state == ResourceState::Unloaded) {
+                    auto rawTextureData = playground::assetloader::LoadTexture(name);
+                    handle->refCount = 1;
+                    handle->state = ResourceState::Created;
+                    handle->data = std::make_shared<assetloader::RawTextureData>(rawTextureData);
+
+                    return handle;
+                }
+            }
+        }
+
+        auto rawTextureData = playground::assetloader::LoadTexture(name);
+
+        auto newHandle = new TextureHandle{
+            .hash = hash,
+            .state = ResourceState::Created,
+            .refCount = 1,
+            .data = std::make_shared<assetloader::RawTextureData>(rawTextureData)
+        };
+
+        uint32_t handleId;
+        handleId = _textureHandles.size();
+        _textureHandles.push_back(newHandle);
+
+        rendering::QueueUploadTexture(*newHandle->data, handleId, MarkTextureUploadFinished);
+
+        return _textureHandles[handleId];
     }
 }

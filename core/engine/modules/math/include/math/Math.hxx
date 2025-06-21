@@ -21,4 +21,8 @@ namespace playground::math::utils {
     void GetViewMatrixSIMD_LH(const glm::vec3* position, const glm::vec4* rotation, glm::mat4* outMat);
 
     void GetProjectionMatrixSIMD_LH(float fovYDegrees, float aspectRatio, float nearPlane, float farPlane, glm::mat4* outMat);
+
+    void Transpose(const glm::mat4& src, glm::mat4* dst);
+
+    void Inverse(const glm::mat4& m, glm::mat4* out);
 }

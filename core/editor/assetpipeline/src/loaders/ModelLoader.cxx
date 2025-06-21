@@ -52,8 +52,8 @@ namespace playground::editor::assetpipeline::loaders::modelloader {
                 }
 
 				if (mesh->mTextureCoords[0]) {
-					vertex.u = mesh->mTextureCoords[0][i].x;
-					vertex.v = mesh->mTextureCoords[0][i].y;
+                    vertex.u = 1.0f - mesh->mTextureCoords[0][i].y;
+                    vertex.v = 1.0f - mesh->mTextureCoords[0][i].x;
 				}
 				else {
 					vertex.u = 0;

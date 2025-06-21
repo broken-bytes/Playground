@@ -2,7 +2,7 @@
 
 #include <string>
 #include <cstdint>
-#include <directx/d3d12.h>
+#include <d3d12.h>
 
 namespace playground::profiler {
     struct ZoneHandle {

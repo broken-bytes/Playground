@@ -35,13 +35,30 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+FetchContent_Declare(
+  eastl
+  GIT_REPOSITORY https://github.com/electronicarts/EASTL.git
+  GIT_TAG 7fadbf0da01e6f6e0e7038b1b34343a069b8fc51
+)
+FetchContent_MakeAvailable(eastl)
+
+FetchContent_Declare(
+  concurrentqueue
+  GIT_REPOSITORY https://github.com/cameron314/concurrentqueue.git
+  GIT_TAG 6dd38b8a1dbaa7863aa907045f32308a56a6ff5d
+)
+FetchContent_MakeAvailable(concurrentqueue)
+
 if(ENABLE_PROFILER)
     add_compile_definitions(ENABLE_TRACY)
     add_compile_definitions(ENABLE_PROFILER)
 endif()
 
 if(ENABLE_INSPECTOR)
-    add_compile_definitions(ENABLE_INSPECTOR FLECS_DEBUG)
+    add_compile_definitions(
+        ENABLE_INSPECTOR
+        $<$<CONFIG:Debug>:FLECS_DEBUG>
+    )
 endif()
 
 

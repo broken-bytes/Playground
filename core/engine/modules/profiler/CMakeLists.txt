@@ -9,10 +9,9 @@ target_include_directories(Profiler PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/pub
 set_target_properties(Profiler PROPERTIES OUTPUT_NAME "Playground.Profiler")
 
 if (WIN32)
-    find_package(directx-headers CONFIG REQUIRED)
     if(ENABLE_PROFILER)
         target_compile_definitions(Profiler PUBLIC -DTRACY_ENABLE)
     endif()
     target_compile_definitions(Profiler PUBLIC -DTRACY_MANUAL_LIFETIME -DTRACY_DELAYED_INIT -DTRACY_GPU_CONTEXT -DTRACY_GPU_D3D12)
-    target_link_libraries(Profiler PRIVATE Microsoft::DirectX-Headers dxgi d3d12 dxguid)
+    target_link_libraries(Profiler PRIVATE dxgi d3d12 dxguid)
 endif()

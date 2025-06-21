@@ -19,6 +19,7 @@
 #include <rendering/CameraHandle.hxx>
 #include "rendering/ModelUploadJob.hxx"
 #include "rendering/MaterialUploadJob.hxx"
+#include "rendering/TextureUploadJob.hxx"
 #include "rendering/RenderFrame.hxx"
 #include <assetloader/RawMeshData.hxx>
 #include <assetloader/RawTextureData.hxx>
@@ -51,11 +52,16 @@ namespace playground::rendering {
 	auto UpdateVertexBuffer(VertexBufferHandle buffer, const void* data, size_t size) -> void;
 	auto UpdateIndexBuffer(IndexBufferHandle buffer, const void* data, size_t size) -> void;
 
-    auto QueueUploadModel(std::vector<assetloader::RawMeshData> meshes, uint32_t, std::function<void(uint32_t, std::vector<Mesh>)>) -> void;
-    auto QueueUploadMaterial(std::string vertexShaderCode, std::string pixelShaderCode, uint32_t handle, std::function<void(uint32_t, uint32_t)>) -> void;
-
-    auto UploadModel(ModelUploadJob job) -> void;
-    auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle;
+    auto QueueUploadModel(std::vector<assetloader::RawMeshData>& meshes, uint32_t, std::function<void(uint32_t, std::vector<Mesh>)>) -> void;
+    auto QueueUploadMaterial(
+        std::string vertexShaderCode,
+        std::string pixelShaderCode,
+        uint32_t handle,
+        std::function<void(uint32_t, uint32_t)>
+    ) -> void;
+    auto QueueUploadTexture(assetloader::RawTextureData& texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void;
+    auto UploadModel(ModelUploadJob& job) -> void;
+    auto UploadTexture(TextureUploadJob& job) -> void;
     auto CreateMaterial(MaterialUploadJob job) -> void;
 
     auto SubmitFrame(RenderFrame frame) -> void;

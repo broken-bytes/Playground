@@ -13,6 +13,7 @@
 #include "rendering/d3d12/D3D12Material.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
 #include "rendering/d3d12/D3D12SwapChain.hxx"
+#include "rendering/d3d12/D3D12Sampler.hxx"
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
@@ -21,6 +22,7 @@
 #include <profiler/Profiler.hxx>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyD3D12.hpp>
+#include <EASTL/vector.h>
 
 namespace playground::rendering::d3d12
 {
@@ -101,6 +103,8 @@ namespace playground::rendering::d3d12
         _transparentCommandList->Begin();
         _shadowCommandList->Begin();
         _transferCommandList->Begin();
+
+        _allocator.arena->Reset();
     }
 
     auto D3D12GraphicsContext::BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {
@@ -196,6 +200,14 @@ namespace playground::rendering::d3d12
         list->SetPipelineState(dxMat->pso.Get());
     }
 
+    auto D3D12GraphicsContext::BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void {
+        _currentPassList->BindTexture(texture, slot);
+    }
+
+    auto D3D12GraphicsContext::BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void {
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12TextureSampler>(sampler)->GPUHandle());
+    }
+
     auto D3D12GraphicsContext::Finish() -> void
     {
         ZoneScopedN("RenderThread: GFX Finish");
@@ -205,7 +217,7 @@ namespace playground::rendering::d3d12
         _shadowCommandList->Close();
         _transferCommandList->Close();
 
-        std::vector<ID3D12CommandList*> lists;
+        eastl::vector<ID3D12CommandList*, Allocator> lists(_allocator);
         lists.push_back(_opaqueCommandList->Native().Get());
         lists.push_back(_transparentCommandList->Native().Get());
         lists.push_back(_shadowCommandList->Native().Get());

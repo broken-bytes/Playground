@@ -21,7 +21,7 @@ find_package(Stb REQUIRED)
 
 target_include_directories(Rendering PRIVATE ${Stb_INCLUDE_DIR})
 
-target_link_libraries(Rendering PUBLIC Logger AssetLoader Profiler Shared)
+target_link_libraries(Rendering PUBLIC Logger AssetLoader Profiler Shared EASTL)
 target_link_libraries(Rendering PRIVATE SDL3::SDL3 glm::glm freeimage::FreeImage freeimage::FreeImagePlus)
 
 if (WIN32)

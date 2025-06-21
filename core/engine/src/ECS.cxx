@@ -1,8 +1,10 @@
 #include "playground/ECS.hxx"
+#include "playground/Constants.hxx"
 #include <mutex>
 #include <shared_mutex>
 #include <map>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 
 namespace playground::ecs {
@@ -25,7 +27,7 @@ namespace playground::ecs {
         // - 2 Threads if Cores <=4
 
         if (threads >= 24) {
-            world.set_threads(16);
+            world.set_threads(MAX_ECS_WORKER_THREAD_COUNT);
         }
         else if (threads > 8) {
             auto count = static_cast<int32_t>(std::ceil(threads * 0.75f));
@@ -39,10 +41,33 @@ namespace playground::ecs {
         }
 
         world.set_target_fps(tickRate);
+
+        if (!std::filesystem::exists("meta")) {
+            std::filesystem::create_directory("meta");
+        }
+
+        auto files = std::vector<std::filesystem::directory_entry>();
+
+        for (auto& p : std::filesystem::directory_iterator(std::filesystem::current_path() / "meta")) {
+            files.push_back(p);
+        }
+
+        for (auto& file : files) {
+            std::ifstream fileStream(file.path());
+            if (!fileStream.is_open()) {
+                std::cerr << "Failed to open: " << file.path() << std::endl;
+                continue;
+            }
+
+            std::stringstream buffer;
+            buffer << fileStream.rdbuf(); // Read entire file into buffer
+            std::string value = buffer.str();
+
+            world.script().code(value.c_str()).run();
+        }
     }
 
     void Update(double deltaTime) {
-        std::scoped_lock lock{ writeLock };
         world.progress(deltaTime);
     }
 

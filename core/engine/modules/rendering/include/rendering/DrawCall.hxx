@@ -3,18 +3,19 @@
 #include "rendering/VertexBufferHandle.hxx"
 #include "rendering/IndexBufferHandle.hxx"
 #include "rendering/MaterialHandle.hxx"
+#include "rendering/Constants.hxx"
 #include <glm/glm.hpp>
-#include <vector>
+#include <EASTL/vector.h>
 
 namespace playground::rendering {
 	struct DrawCall {
         struct InstanceData {
             glm::mat4 transform;
+            glm::mat4 normals;
         };
-        uint16_t instances;
         VertexBufferHandle vertexBuffer;
         IndexBufferHandle indexBuffer;
         MaterialHandle material;
-        std::vector<InstanceData> instanceData;
+        eastl::vector<InstanceData> instanceData;
 	};
 }

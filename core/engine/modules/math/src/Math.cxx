@@ -132,4 +132,81 @@ namespace playground::math::utils {
 
         *outMat = proj;
     }
+
+    void Transpose(const glm::mat4& src, glm::mat4* dst) {
+        simde__m128 row0 = simde_mm_loadu_ps(glm::value_ptr(src[0]));
+        simde__m128 row1 = simde_mm_loadu_ps(glm::value_ptr(src[1]));
+        simde__m128 row2 = simde_mm_loadu_ps(glm::value_ptr(src[2]));
+        simde__m128 row3 = simde_mm_loadu_ps(glm::value_ptr(src[3]));
+
+        simde__m128 tmp0 = simde_mm_unpacklo_ps(row0, row1);
+        simde__m128 tmp1 = simde_mm_unpackhi_ps(row0, row1);
+        simde__m128 tmp2 = simde_mm_unpacklo_ps(row2, row3);
+        simde__m128 tmp3 = simde_mm_unpackhi_ps(row2, row3);
+
+        simde_mm_storeu_ps(glm::value_ptr((*dst)[0]), simde_mm_movelh_ps(tmp0, tmp2));
+        simde_mm_storeu_ps(glm::value_ptr((*dst)[1]), simde_mm_movehl_ps(tmp2, tmp0));
+        simde_mm_storeu_ps(glm::value_ptr((*dst)[2]), simde_mm_movelh_ps(tmp1, tmp3));
+        simde_mm_storeu_ps(glm::value_ptr((*dst)[3]), simde_mm_movehl_ps(tmp3, tmp1));
+    }
+
+    void Inverse(const glm::mat4& m, glm::mat4* out) {
+        simde__m128 row0 = simde_mm_loadu_ps(glm::value_ptr(m[0]));
+        simde__m128 row1 = simde_mm_loadu_ps(glm::value_ptr(m[1]));
+        simde__m128 row2 = simde_mm_loadu_ps(glm::value_ptr(m[2]));
+        simde__m128 row3 = simde_mm_loadu_ps(glm::value_ptr(m[3]));
+
+        simde__m128 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
+        simde__m128 minor0, minor1, minor2, minor3;
+
+        tmp0 = simde_mm_shuffle_ps(row0, row1, 0x44); // [0 1] [4 5]
+        tmp1 = simde_mm_shuffle_ps(row0, row1, 0xEE); // [2 3] [6 7]
+        tmp2 = simde_mm_shuffle_ps(row2, row3, 0x44);
+        tmp3 = simde_mm_shuffle_ps(row2, row3, 0xEE);
+
+        simde__m128 r0 = simde_mm_shuffle_ps(tmp0, tmp2, 0x88);
+        simde__m128 r1 = simde_mm_shuffle_ps(tmp0, tmp2, 0xDD);
+        simde__m128 r2 = simde_mm_shuffle_ps(tmp1, tmp3, 0x88);
+        simde__m128 r3 = simde_mm_shuffle_ps(tmp1, tmp3, 0xDD);
+
+        // Now r0, r1, r2, r3 are the transposed rows of the matrix
+
+        tmp0 = simde_mm_mul_ps(r2, r3);
+        tmp1 = simde_mm_shuffle_ps(tmp0, tmp0, 0xB1); // Shuffle for cross products
+
+        tmp2 = simde_mm_mul_ps(r1, tmp1);
+        tmp3 = simde_mm_mul_ps(r0, tmp1);
+        tmp2 = simde_mm_sub_ps(tmp2, simde_mm_shuffle_ps(tmp2, tmp2, 0x4E));
+        tmp3 = simde_mm_sub_ps(tmp3, simde_mm_shuffle_ps(tmp3, tmp3, 0x4E));
+
+        minor0 = tmp2;
+        minor1 = tmp3;
+
+        tmp0 = simde_mm_mul_ps(r1, r2);
+        tmp1 = simde_mm_shuffle_ps(tmp0, tmp0, 0xB1);
+
+        tmp2 = simde_mm_mul_ps(r3, tmp1);
+        tmp3 = simde_mm_mul_ps(r0, tmp1);
+        tmp2 = simde_mm_sub_ps(tmp2, simde_mm_shuffle_ps(tmp2, tmp2, 0x4E));
+        tmp3 = simde_mm_sub_ps(tmp3, simde_mm_shuffle_ps(tmp3, tmp3, 0x4E));
+
+        minor2 = tmp2;
+        minor3 = tmp3;
+
+        simde__m128 det = simde_mm_mul_ps(r0, minor0);
+        det = simde_mm_add_ps(det, simde_mm_shuffle_ps(det, det, 0x4E));
+        det = simde_mm_add_ps(det, simde_mm_shuffle_ps(det, det, 0xB1));
+
+        simde__m128 rDet = simde_mm_div_ps(simde_mm_set1_ps(1.0f), det);
+
+        minor0 = simde_mm_mul_ps(minor0, rDet);
+        minor1 = simde_mm_mul_ps(minor1, rDet);
+        minor2 = simde_mm_mul_ps(minor2, rDet);
+        minor3 = simde_mm_mul_ps(minor3, rDet);
+
+        simde_mm_storeu_ps(glm::value_ptr((*out)[0]), minor0);
+        simde_mm_storeu_ps(glm::value_ptr((*out)[1]), minor1);
+        simde_mm_storeu_ps(glm::value_ptr((*out)[2]), minor2);
+        simde_mm_storeu_ps(glm::value_ptr((*out)[3]), minor3);
+    }
 }

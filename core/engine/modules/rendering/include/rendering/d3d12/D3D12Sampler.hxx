@@ -48,7 +48,7 @@ namespace playground::rendering::d3d12 {
             samplerDesc.AddressV = TranslateTextureWrapping(wrapping);
             samplerDesc.AddressW = TranslateTextureWrapping(wrapping);
             samplerDesc.MipLODBias = 0.0f;
-            samplerDesc.MaxAnisotropy = 1;
+            samplerDesc.MaxAnisotropy = 16;
             samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
             samplerDesc.BorderColor[0] = samplerDesc.BorderColor[1] = samplerDesc.BorderColor[2] = samplerDesc.BorderColor[3] = 1.0f;
             samplerDesc.MinLOD = 0;

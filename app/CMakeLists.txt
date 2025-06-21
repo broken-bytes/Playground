@@ -12,7 +12,7 @@ target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 
 find_package(Stb REQUIRED)
 
-target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore SDL3::SDL3 AssetPipeline Shared)
+target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore SDL3::SDL3 Shared)
 
 target_include_directories(PlaygroundApp PRIVATE ${Stb_INCLUDE_DIR})
 

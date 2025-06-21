@@ -1,5 +1,5 @@
-var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: 131072)
-var matrices = UnsafeMutablePointer<Mat4>.allocate(capacity: 131072)
+fileprivate var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: 131072)
+fileprivate var matrices = UnsafeMutablePointer<Mat4>.allocate(capacity: 131072)
 
 func renderSystem(iter: UnsafeMutableRawPointer) {
     let worldTranslations = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: TranslationComponent.self)

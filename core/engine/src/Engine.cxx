@@ -107,6 +107,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial);
 
     config.Delegate("Batcher_Batch\0", playground::drawcallbatcher::Batch);
+    config.Delegate("Batcher_SetSun\0", playground::drawcallbatcher::SetSun);
 
     config.Delegate("ECS_CreateEntity\0", playground::ecs::CreateEntity);
     config.Delegate("ECS_DestroyEntity\0", playground::ecs::DestroyEntity);

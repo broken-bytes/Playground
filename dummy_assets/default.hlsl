@@ -48,6 +48,7 @@ struct VSInput {
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
     float4x4 modelMatrix : INSTANCE_TRANSFORM;
+    float4x4 normalMatrix: INSTANCE_NORMALS;
 };
 
 struct VSOutput {
@@ -67,7 +68,7 @@ VSOutput VSMain(VSInput vin)
     float4 worldPos = mul(vin.modelMatrix, float4(vin.position, 1));
     float4 viewPos = mul(viewMatrix, worldPos);
     float4 colour = vin.color;
-    float3x3 normalMatrix = (float3x3)vin.modelMatrix;
+    float3x3 normalMatrix = (float3x3)vin.normalMatrix;
     float3 normalW = mul(normalMatrix, vin.normal);
 
     vout.position = mul(projectionMatrix, viewPos);
@@ -86,24 +87,24 @@ float4 PSMain(VSOutput pin) : SV_TARGET
     // Directional light setup
     float3 L = normalize(-directionalLight.direction.xyz); // Light coming *toward* surface
     float3 lightColor = directionalLight.colour.rgb;
-    float  lightIntensity = directionalLight.colour.a; // .w from your glm vec4
+    float  lightIntensity = directionalLight.colour.a;
 
     // Surface normal
     float3 N = normalize(pin.normal);
 
-    // Diffuse wrap lighting
-    float wrap = 0.5 + 0.5 * dot(N, L);
-    float softDiffuse = pow(saturate(wrap), 1.5); // Clamp to avoid NaNs
+    // Lambertian diffuse lighting
+    float NdotL = saturate(dot(N, L));
 
-    float3 diffuse = lightColor * lightIntensity * softDiffuse;
+    // Quantize into 4 bands (0.0, 0.33, 0.66, 1.0)
+    float shade = floor(NdotL * 4.0) / 3.0;
 
-    // Ambient light (always on)
+    float3 diffuse = lightColor * lightIntensity * shade;
+
+    // Ambient light
     float3 ambient = float3(0.1, 0.1, 0.12);
 
-    // Final lit color
-    float3 finalColor = pin.uv.xyx * (diffuse + ambient);
+    // Final color
+    float3 finalColor = texColor.rgb * (diffuse + ambient);
 
-
-    // Output color — remove wind scaling for now
-    return float4(finalColor, 1);
+    return float4(finalColor, 1.0f);
 }

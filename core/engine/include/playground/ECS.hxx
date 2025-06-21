@@ -9,6 +9,7 @@
 #define FLECS_HTTP
 #define FLECS_TIMER
 #define FLECS_REST
+#define FLECS_SCRIPT
 #define FLECS_STATS
 #define FLECS_MONITOR
 #define FLECS_CPP

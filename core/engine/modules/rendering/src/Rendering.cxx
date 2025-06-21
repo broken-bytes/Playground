@@ -34,6 +34,7 @@ namespace playground::rendering {
 
     struct ObjectBuffer {
         glm::mat4 ModelMatrix;
+        glm::mat4 NormalMatrix;
     };
 
     struct SimulationBuffer {
@@ -140,7 +141,7 @@ namespace playground::rendering {
             frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext, instanceBuffer));
         }
 
-        sampler = device->CreateSampler(TextureFiltering::Point, TextureWrapping::Clamp);
+        sampler = device->CreateSampler(TextureFiltering::Anisotropic, TextureWrapping::Repeat);
 
         auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, -5), glm::quat(0, 0, 0, 1), 0);
 
@@ -197,37 +198,66 @@ namespace playground::rendering {
 	auto PreFrame() -> void {
         ZoneScopedN("RenderThread: Pre Frame");
         ZoneColor(tracy::Color::Orange);
+
+
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto uploadContext = frames[backBufferIndex]->UploadContext();
+
+        frames[backBufferIndex]->Alloc().arena->Reset();
+
         uploadContext->Begin();
 
-        auto modelUploadQueue = frames[backBufferIndex]->ModelUploadQueue();
+        auto& modelUploadQueue = frames[backBufferIndex]->ModelUploadQueue();
         while (modelUploadQueue.size() > 0) {
             auto modelUploadJob = std::move(modelUploadQueue.back());
-            modelUploadQueue.pop();
+            modelUploadQueue.pop_back();
 
             UploadModel(modelUploadJob);
         }
 
-        auto materialUploadQueue = frames[backBufferIndex]->MaterialUploadQueue();
+        auto& materialUploadQueue = frames[backBufferIndex]->MaterialUploadQueue();
         while (materialUploadQueue.size() > 0) {
             auto materialUploadJob = std::move(materialUploadQueue.back());
-            materialUploadQueue.pop();
+            materialUploadQueue.pop_back();
 
             CreateMaterial(materialUploadJob);
+        }
+
+        auto& textureQueue = frames[backBufferIndex]->TextureUploadQueue();
+        while (textureQueue.size() > 0) {
+            auto job = std::move(textureQueue.back());
+            textureQueue.pop_back();
+
+            UploadTexture(job);
+
+            frames[backBufferIndex]->TexturesToTransition().push_back(job.handle);
         }
 
         uploadContext->Upload(frames[backBufferIndex]->InstanceBuffer());
 
         uploadContext->Finish();
-        frames[backBufferIndex]->ModelUploadQueue() = {};
-        frames[backBufferIndex]->MaterialUploadQueue() = {};
+
+        modelUploadQueue = {};
+        materialUploadQueue = {};
+        textureQueue = {};
 	}
 
     auto Update() -> void {
         ZoneScopedN("RenderThread: Update");
         ZoneColor(tracy::Color::Orange1);
         auto backBufferIndex = swapchain->BackBufferIndex();
+        auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
+        graphicsContext->Begin();
+
+        {
+            ZoneScopedN("RenderThread: Transition Resources");
+            auto& texTransitions = frames[backBufferIndex]->TexturesToTransition();
+            for (auto textureId : texTransitions) {
+                graphicsContext->TransitionTexture(textures[textureId]);
+            }
+
+            texTransitions = {};
+        }
 
         RenderFrame nextFrame;
         if (renderFrames.dequeue(nextFrame)) {
@@ -251,17 +281,10 @@ namespace playground::rendering {
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
         auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
 
-        auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
-        graphicsContext->Begin();
-
         // Write camera data to context
         graphicsContext->SetCameraData(cameras);
-        auto dir = glm::normalize(glm::vec3(2, 0, 5)); // <- normalize the direction!
-        auto light = DirectionalLight{
-            .direction = glm::vec4(dir, 0.0f), // w = 0 → direction vector
-            .colour = glm::vec4(0.8f, 0.2f, 0.2f, 1.0f)
-        };
-        graphicsContext->SetDirectionalLight(light);
+        auto dir = glm::normalize(glm::vec3(2, 0, 5));
+        graphicsContext->SetDirectionalLight(nextFrame.sun);
 
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
 
@@ -270,7 +293,10 @@ namespace playground::rendering {
 
         graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
         graphicsContext->BindCamera(0);
-
+        if (textures.size() > 0) {
+            graphicsContext->BindTexture(textures[0], 6);
+            graphicsContext->BindSampler(sampler, 7);
+        }
         uint32_t instanceOffet = 0;
 
         for (auto& drawcall : nextFrame.drawCalls) {
@@ -335,17 +361,22 @@ namespace playground::rendering {
 
 	}
 
-    auto QueueUploadModel(std::vector<assetloader::RawMeshData> meshes, uint32_t handle, std::function<void(uint32_t, std::vector<Mesh>)> callback) -> void {
+    auto QueueUploadModel(std::vector<assetloader::RawMeshData>& meshes, uint32_t handle, std::function<void(uint32_t, std::vector<Mesh>)> callback) -> void {
         auto job = ModelUploadJob {
             .handle = handle,
             .meshes = meshes,
             .callback = callback
         };
 
-        frames[logicFrameIndex]->ModelUploadQueue().push(job);
+        frames[logicFrameIndex]->ModelUploadQueue().push_back(job);
     }
 
-    auto QueueUploadMaterial(std::string vertexShaderCode, std::string pixelShaderCode, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
+    auto QueueUploadMaterial(
+        std::string vertexShaderCode,
+        std::string pixelShaderCode,
+        uint32_t handle,
+        std::function<void(uint32_t, uint32_t)> callback
+    ) -> void {
         auto job = MaterialUploadJob{
             .handle = handle,
             .vertexShaderBlob = vertexShaderCode,
@@ -353,10 +384,19 @@ namespace playground::rendering {
             .callback = callback
         };
 
-        frames[logicFrameIndex]->MaterialUploadQueue().push(job);
+        frames[logicFrameIndex]->MaterialUploadQueue().push_back(job);
     }
 
-    auto UploadModel(ModelUploadJob job) -> void {
+    auto QueueUploadTexture(assetloader::RawTextureData& texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
+        auto job = TextureUploadJob {
+            .handle = handle,
+            .rawData = texture,
+            .callback = callback
+        };
+        frames[logicFrameIndex]->TextureUploadQueue().push_back(job);
+    }
+
+    auto UploadModel(ModelUploadJob& job) -> void {
         auto meshes = std::vector<Mesh>();
         for (auto& mesh : job.meshes) {
             const UINT vertexBufferSize = mesh.vertices.size();
@@ -411,9 +451,26 @@ namespace playground::rendering {
         job.callback(job.handle, meshes);
     }
 
-    auto UploadTexture(const assetloader::RawTextureData& texture) -> TextureHandle {
+    auto UploadTexture(TextureUploadJob& job) -> void {
+        auto backBufferIndex = swapchain->BackBufferIndex();
 
-        return 0;
+        auto texture = device->CreateTexture(job.rawData.Width, job.rawData.Height, job.rawData.MipMaps, frames[backBufferIndex]->Alloc());
+
+        uint32_t textureId = 0;
+        if (freeTextureIds.size() > 0) {
+            textureId = freeTextureIds.back();
+            textures[textureId] = texture;
+            freeTextureIds.pop_back();
+        }
+        else {
+            textures.push_back(texture);
+            textureId = textures.size() - 1;
+        }
+
+        auto uploadContext = frames[backBufferIndex]->UploadContext();
+        uploadContext->Upload(texture);
+
+        job.callback(job.handle, textureId);
     }
 
     auto SubmitFrame(RenderFrame frame) -> void {

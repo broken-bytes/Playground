@@ -398,7 +398,11 @@ namespace playground::rendering::d3d12 {
             { "INSTANCE_TRANSFORM", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
             { "INSTANCE_TRANSFORM", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
             { "INSTANCE_TRANSFORM", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
-            { "INSTANCE_TRANSFORM", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
+            { "INSTANCE_TRANSFORM", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 80, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 96, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 112, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
         };
 
         psoDesc.InputLayout = { inputLayout, _countof(inputLayout) };
@@ -436,8 +440,8 @@ namespace playground::rendering::d3d12 {
 
     }
 
-    auto D3D12Device::CreateTexture(uint32_t width, uint32_t height, const uint8_t* data) -> std::shared_ptr<Texture> {
-        return std::make_shared<D3D12Texture>(_device, width, height, data, _srvHeaps->NextHandle());
+    auto D3D12Device::CreateTexture(uint32_t width, uint32_t height, std::vector<std::vector<uint8_t>> mips, Allocator& allocator) -> std::shared_ptr<Texture> {
+        return std::make_shared<D3D12Texture>(_device, width, height, mips, _srvHeaps->NextHandle(), allocator);
     }
 
     auto D3D12Device::CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> {
@@ -484,7 +488,7 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
-        CD3DX12_ROOT_PARAMETER rootParameters[7];
+        CD3DX12_ROOT_PARAMETER rootParameters[8];
 
         // 1️ Per-frame CBV (Camera, Lighting, Material props, etc.)
         CD3DX12_DESCRIPTOR_RANGE cbvRanges[4];
@@ -500,14 +504,17 @@ namespace playground::rendering::d3d12 {
         CD3DX12_DESCRIPTOR_RANGE vertexSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, INSTANCE_BUFFER_BINDING);
         rootParameters[4].InitAsDescriptorTable(1, &vertexSrvRange, D3D12_SHADER_VISIBILITY_VERTEX);
 
-        CD3DX12_DESCRIPTOR_RANGE pixelSrvRange[2];
-        pixelSrvRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, POINT_LIGHT_SRV_BINDING); // t0: lights buffer
-        pixelSrvRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1: diffuse texture
-        rootParameters[5].InitAsDescriptorTable(2, pixelSrvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        // For t0 (lights)
+        CD3DX12_DESCRIPTOR_RANGE lightRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
+        rootParameters[5].InitAsDescriptorTable(1, &lightRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // For t1 (diffuse)
+        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1
+        rootParameters[6].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // 4 Sampler Descriptor Table
         CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-        rootParameters[6].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[7].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
@@ -534,7 +541,6 @@ namespace playground::rendering::d3d12 {
 
         return rootSignature;
     }
-
 
     auto D3D12Device::DestroyShader(uint64_t shaderHandle) -> void
     {

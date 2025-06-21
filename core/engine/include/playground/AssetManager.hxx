@@ -2,6 +2,7 @@
 
 #include <assetloader/RawMaterialData.hxx>
 #include <assetloader/RawMeshData.hxx>
+#include <assetloader/RawTextureData.hxx>
 #include <rendering/Material.hxx>
 #include <rendering/Mesh.hxx>
 #include <rendering/Shader.hxx>
@@ -9,6 +10,7 @@
 #include <audio/AudioClip.hxx>
 #include <atomic>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -37,10 +39,11 @@ namespace playground::assetmanager {
     };
 
     struct TextureHandle {
+        uint64_t hash;
         ResourceState state;
-        std::string name;
         uint32_t refCount;
-        playground::rendering::Texture texture;
+        std::shared_ptr<assetloader::RawTextureData> data;
+        uint32_t texture;
     };
 
     struct ShaderHandle {
@@ -60,4 +63,5 @@ namespace playground::assetmanager {
     ModelHandle* LoadModel(const char* name);
     MaterialHandle* LoadMaterial(const char* name);
     ShaderHandle* LoadShader(const char* name);
+    TextureHandle* LoadTexture(const char* name);
 }

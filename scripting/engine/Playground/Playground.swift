@@ -34,10 +34,14 @@ func startUp() {
     initSystems()
 
     let materialhandle = AssetHandler.loadMaterial(named: "default.mat")
-    let modelhandle = AssetHandler.loadModel(named: "cube.mod")
+    let modelhandle = AssetHandler.loadModel(named: "default.mod")
 
-    for x in 0..<50000 {
-        let entity = Entity("MainCamera_\(x)")
+    let entity = Entity("Sun")
+    var sun = SunComponent(direction: .zero, colour: Colour(r: 1, g: 1, b: 1, a: 1), intensity: 3)
+    entity.addComponent(&sun)
+
+    for x in 0..<10000 {
+        let entity = Entity("Entity\(x)")
         var cam = CameraComponent(id: 0)
         entity.addComponent(&cam)
         var material = MaterialComponent(handle: materialhandle)
@@ -65,6 +69,7 @@ func initComponents() {
     let worldScaleId = ECSHandler.registerComponent(WorldScaleComponent.self)
     let meshId = ECSHandler.registerComponent(MeshComponent.self)
     let materialId = ECSHandler.registerComponent(MaterialComponent.self)
+    let sunId = ECSHandler.registerComponent(SunComponent.self)
 
     Logger.info("Initialised ECS Components")
 }
@@ -116,10 +121,9 @@ func initTags() {
 }
 
 func initSystems() {
-    ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self], multiThreaded: false, delegate: cameraSystem)
-    ECSHandler.createSystem("TransformSystem", filter: [TranslationComponent.self], multiThreaded: true, delegate: transformSystem)
     ECSHandler.createSystem("HierarchySystem", filter: [TranslationComponent.self, RotationComponent.self, ScaleComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self], multiThreaded: true, delegate: hierarchySystem)
     ECSHandler.createSystem("RenderSystem", filter: [WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
+    ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
     Logger.info("Initialised ECS Systems")
 }
 

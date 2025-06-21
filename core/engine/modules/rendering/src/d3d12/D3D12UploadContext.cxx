@@ -79,7 +79,17 @@ namespace playground::rendering::d3d12 {
             auto d3d12Texture = std::static_pointer_cast<D3D12Texture>(texture)->Texture();
             auto textureUploadBuffer = std::static_pointer_cast<D3D12Texture>(texture)->StagingBuffer();
             auto textureData = std::static_pointer_cast<D3D12Texture>(texture)->TextureData();
-            UpdateSubresources(list.Get(), d3d12Texture.Get(), textureUploadBuffer.Get(), 0, 0, 1, &textureData);
+            auto result = UpdateSubresources(
+                list.Get(),
+                d3d12Texture.Get(),
+                textureUploadBuffer.Get(),
+                0,
+                0,
+                static_cast<UINT>(textureData.size()),
+                textureData.data()
+            );
+
+            auto x = 0;
         }
 
         _list->Close();

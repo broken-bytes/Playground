@@ -17,7 +17,8 @@
 #include "rendering/d3d12/D3D12StructuredBuffer.hxx"
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyD3D12.hpp>
-
+#include <EASTL/vector.h>
+#include <shared/Arena.hxx>
 
 namespace playground::rendering::d3d12 {
     class D3D12GraphicsContext : public rendering::GraphicsContext {
@@ -36,6 +37,7 @@ namespace playground::rendering::d3d12 {
             ,tracy::D3D12QueueCtx* ctx
 #endif
         );
+
         ~D3D12GraphicsContext();
 
         auto Begin() -> void override;
@@ -49,6 +51,8 @@ namespace playground::rendering::d3d12 {
         auto BindCamera(uint8_t index) -> void override;
         auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void override;
         auto BindMaterial(std::shared_ptr<Material>) -> void override;
+        auto BindTexture(std::shared_ptr<Texture> tetxure, uint8_t slot) -> void override;
+        auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void override;
         auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
@@ -94,6 +98,12 @@ namespace playground::rendering::d3d12 {
 
         bool _isOffscreen;
         std::unique_ptr<D3D12ReadbackBuffer> _mouseOverBuffer;
+
+        using ArenaType = memory::VirtualArena;
+        using Allocator = memory::ArenaAllocator<ArenaType>;
+
+        ArenaType _arena = ArenaType(64 * 1024);
+        Allocator _allocator = Allocator(&_arena, "Foo");
 #if ENABLE_PROFILER
         tracy::D3D12QueueCtx* _tracyCtx;
 #endif

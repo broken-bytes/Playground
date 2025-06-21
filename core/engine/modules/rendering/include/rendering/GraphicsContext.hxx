@@ -29,6 +29,8 @@ namespace playground::rendering {
         virtual auto BindCamera(uint8_t index) -> void = 0;
         virtual auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void = 0;
         virtual auto BindMaterial(std::shared_ptr<Material> material) -> void = 0;
+        virtual auto BindTexture(std::shared_ptr<Texture> tetxure, uint8_t slot) -> void = 0;
+        virtual auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void = 0;
         virtual auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto TransitionTexture(std::shared_ptr<Texture> texture) -> void = 0;

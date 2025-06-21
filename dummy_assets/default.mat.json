@@ -1,10 +1,13 @@
 {
   "shaderName": "default.shader",
-  "floats": [
+  "textures": [
+    { "name": "diffuse", "value": "default.tex" }
+  ],
+  "props": [
     {
-      "name": "snow_amount",
-      "value": 0.5,
-      "slot": 0
+      "name": "windStrength",
+      "value": "0.7",
+      "type": "float"
     }
   ]
 }

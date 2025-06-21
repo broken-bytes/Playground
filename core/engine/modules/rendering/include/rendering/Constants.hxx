@@ -12,4 +12,6 @@ namespace playground::rendering {
     constexpr uint8_t INSTANCE_BUFFER_BINDING = 0;
 
     constexpr uint8_t POINT_LIGHT_SRV_BINDING = 0;
+
+    constexpr uint16_t MAX_BATCH_SIZE = 1024;
 }
