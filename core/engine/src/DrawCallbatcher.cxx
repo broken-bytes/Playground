@@ -59,7 +59,7 @@ namespace playground::drawcallbatcher {
         size_t count = 0;
     };
 
-    Allocator alloc(&arena);
+    Allocator alloc(&arena, "Batcher Allocator");
 
     eastl::array<DrawCallRange, MAX_ECS_WORKER_THREAD_COUNT> batches;
     std::atomic<uint32_t> batchIndex = 0;
@@ -87,9 +87,6 @@ namespace playground::drawcallbatcher {
         rendering::RenderFrame frame;
 
         frame.sun = sun;
-
-        Allocator alloc(&arena, "Batch Allocator");
-
         eastl::hash_map<BatchKey, uint64_t, eastl::hash<BatchKey>, eastl::equal_to<BatchKey>, Allocator, false> batchedDrawCalls(alloc);
 
         frame.isDirty = true;

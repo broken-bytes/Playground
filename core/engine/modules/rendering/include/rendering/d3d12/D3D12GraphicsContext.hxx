@@ -103,7 +103,7 @@ namespace playground::rendering::d3d12 {
         using Allocator = memory::ArenaAllocator<ArenaType>;
 
         ArenaType _arena = ArenaType(64 * 1024);
-        Allocator _allocator = Allocator(&_arena, "Foo");
+        Allocator _allocator = Allocator(&_arena, "Graphics Context Allocator");
 #if ENABLE_PROFILER
         tracy::D3D12QueueCtx* _tracyCtx;
 #endif
