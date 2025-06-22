@@ -14,5 +14,6 @@ namespace playground::drawcallbatcher {
 
     void Batch(drawcallbatcher::DrawCall*, uint16_t count);
     void SetSun(glm::vec3 direction, glm::vec4 colour, float intensity);
+    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, glm::vec3& position, glm::quat& rotation);
     void Submit();
 }

@@ -31,7 +31,7 @@ namespace playground::rendering
             std::shared_ptr<InstanceBuffer> instanceBuffer
         ) :
             // Alloc 512 mb per frame (used for upload staging containers)
-            _arena(512 * 1024 * 1024),
+            _arena(64 * 1024 * 1024),
             _allocator(&_arena, "Frame Allocator"),
             _modelUploadQueue(_allocator),
             _materialUploadQueue(_allocator),

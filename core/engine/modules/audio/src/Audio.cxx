@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <SDL3/SDL.h>
 #include <phonon.h>
 
 namespace playground::audio {
@@ -12,10 +11,6 @@ namespace playground::audio {
     IPLAudioSettings audioSettings;
 
     auto Init() -> void {
-        if (!SDL_Init(SDL_INIT_AUDIO)) {
-			throw std::runtime_error("Failed to initialize SDL audio");
-        }
-
         IPLContextSettings contextSettings = {};
         contextSettings.version = STEAMAUDIO_VERSION;
 

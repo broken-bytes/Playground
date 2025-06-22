@@ -21,6 +21,7 @@
 #include <logger/Logger.hxx>
 #include <profiler/Profiler.hxx>
 #include <math/Math.hxx>
+#include <SDL3/SDL.h>
 #include <tracy/Tracy.hpp>
 #include <thread>
 #include <future>
@@ -29,6 +30,7 @@ typedef void(*ScriptingEventCallback)(playground::events::Event* event);
 
 bool isRunning = true;
 
+std::thread gameThread;
 std::thread renderThread;
 
 double timeSinceStart = 0.0;
@@ -68,15 +70,6 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
         return 2;
     }
 
-    playground::audio::Init();
-    playground::input::Init();
-    playground::scenemanager::Init();
-#if ENABLE_INSPECTOR
-    playground::ecs::Init(128, true);
-#else
-    playground::ecs::Init(128, false);
-#endif
-
     auto window = playground::system::Init(config.Window);
 
     std::promise<void> rendererReadyPromise;
@@ -108,6 +101,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     config.Delegate("Batcher_Batch\0", playground::drawcallbatcher::Batch);
     config.Delegate("Batcher_SetSun\0", playground::drawcallbatcher::SetSun);
+    config.Delegate("Batcher_AddCamera\0", playground::drawcallbatcher::AddCamera);
 
     config.Delegate("ECS_CreateEntity\0", playground::ecs::CreateEntity);
     config.Delegate("ECS_DestroyEntity\0", playground::ecs::DestroyEntity);
@@ -149,44 +143,60 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     rendererReadyFuture.wait();
 
-    config.startupCallback();
+    playground::input::Init(config.Window);
 
-    static const char* CPU_FRAME = "CPU:Update";
+    gameThread = std::thread([config]() {
+        playground::audio::Init();
+#if ENABLE_INSPECTOR
+        playground::ecs::Init(128, true);
+#else
+        playground::ecs::Init(128, false);
+#endif
+        config.startupCallback();
 
-    auto now = std::chrono::high_resolution_clock::now();
+        static const char* CPU_FRAME = "CPU:Update";
+
+        tracy::SetThreadName("Game Thread");
+
+        auto now = std::chrono::high_resolution_clock::now();
+        while (isRunning) {
+            FrameMark;
+            FrameMarkStart(CPU_FRAME);
+            {
+                ZoneScopedN("Scripts");
+                ZoneColor(tracy::Color::LightSeaGreen);
+            }
+            {
+                ZoneScopedN("ECS Tick");
+                ZoneColor(tracy::Color::LightSalmon);
+                playground::ecs::Update(deltaTime);
+            }
+            {
+                ZoneScopedN("Batcher Submit");
+                ZoneColor(tracy::Color::Salmon);
+                playground::drawcallbatcher::Submit();
+            }
+            auto next = std::chrono::high_resolution_clock::now();
+            const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
+            deltaTime = (double)int_ns.count() / 1000000000.0;
+            timeSinceStart += deltaTime;
+            now = next;
+            FrameMarkEnd(CPU_FRAME);
+        }
+
+        playground::ecs::Shutdown();
+    });
+
+
     while (isRunning) {
-        FrameMark;
-        FrameMarkStart(CPU_FRAME);
-        {
-            ZoneScopedN("Input");
-            ZoneColor(tracy::Color::AliceBlue);
-            playground::input::Update();
-        }
-        {
-            ZoneScopedN("Scripts");
-            ZoneColor(tracy::Color::LightSeaGreen);
-        }
-        {
-            ZoneScopedN("ECS Tick");
-            ZoneColor(tracy::Color::LightSalmon);
-            playground::ecs::Update(deltaTime);
-        }
-        {
-            ZoneScopedN("Batcher Submit");
-            ZoneColor(tracy::Color::Salmon);
-            playground::drawcallbatcher::Submit();
-        }
-        auto next = std::chrono::high_resolution_clock::now();
-        const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
-        deltaTime = (double)int_ns.count() / 1000000000.0;
-        timeSinceStart += deltaTime;
-        now = next;
-        FrameMarkEnd(CPU_FRAME);
+        ZoneScopedN("Input");
+        ZoneColor(tracy::Color::AliceBlue);
+        playground::input::Update();
     }
 
     playground::input::Shutdown();
     playground::rendering::Shutdown();
-    playground::ecs::Shutdown();
+    gameThread.join();
     renderThread.join();
 
 #if ENABLE_PROFILER

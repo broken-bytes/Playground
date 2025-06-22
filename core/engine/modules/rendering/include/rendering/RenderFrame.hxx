@@ -5,7 +5,7 @@
 #include "rendering/MaterialHandle.hxx"
 #include "rendering/DrawCall.hxx"
 #include "rendering/Constants.hxx"
-#include "rendering/CameraBuffer.hxx"
+#include "rendering/Camera.hxx"
 #include "rendering/DirectionalLight.hxx"
 #include <array>
 #include <vector>
@@ -18,7 +18,7 @@ namespace playground::rendering {
     struct RenderFrame {
         bool isDirty;
         eastl::vector<DrawCall> drawCalls;
-        eastl::array<CameraBuffer, MAX_CAMERA_COUNT> cameras;
+        eastl::vector<Camera> cameras;
         DirectionalLight sun;
     };
 }

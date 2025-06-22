@@ -33,17 +33,24 @@ func startUp() {
     initHooks()
     initSystems()
 
-    let materialhandle = AssetHandler.loadMaterial(named: "default.mat")
-    let modelhandle = AssetHandler.loadModel(named: "default.mod")
+    let materialhandle = AssetHandler.loadMaterial(named: "house.mat")
+    let modelhandle = AssetHandler.loadModel(named: "house.mod")
 
     let entity = Entity("Sun")
     var sun = SunComponent(direction: .zero, colour: Colour(r: 1, g: 1, b: 1, a: 1), intensity: 3)
     entity.addComponent(&sun)
 
+    let camEntity = Entity("Camera")
+    var cam = CameraComponent(order: 0, fov: 70, nearPlane: 0.01, farPlane: 1000)
+    camEntity.addComponent(&cam)
+    var scaleValue = Float.random(in: 0.1...1.25)
+    var transform = TranslationComponent(position: Vector3(x: 0, y: 0, z: 0))
+    camEntity.addComponent(&transform)
+    var rotation = RotationComponent(rotation: .identity)
+    camEntity.addComponent(&rotation)
+
     for x in 0..<10000 {
         let entity = Entity("Entity\(x)")
-        var cam = CameraComponent(id: 0)
-        entity.addComponent(&cam)
         var material = MaterialComponent(handle: materialhandle)
         entity.addComponent(&material)
         var mesh = MeshComponent(handle: modelhandle, meshId: 0)
@@ -124,6 +131,8 @@ func initSystems() {
     ECSHandler.createSystem("HierarchySystem", filter: [TranslationComponent.self, RotationComponent.self, ScaleComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self], multiThreaded: true, delegate: hierarchySystem)
     ECSHandler.createSystem("RenderSystem", filter: [WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
     ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
+    ECSHandler.createSystem("cameraSystem", filter: [CameraComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: false, delegate: cameraSystem)
+
     Logger.info("Initialised ECS Systems")
 }
 

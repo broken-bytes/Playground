@@ -1,0 +1,13 @@
+{
+  "shaderName": "default.shader",
+  "textures": [
+    { "name": "diffuse", "value": "house.tex" }
+  ],
+  "props": [
+    {
+      "name": "windStrength",
+      "value": "0.7",
+      "type": "float"
+    }
+  ]
+}

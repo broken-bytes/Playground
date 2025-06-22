@@ -143,10 +143,6 @@ namespace playground::rendering {
 
         sampler = device->CreateSampler(TextureFiltering::Anisotropic, TextureWrapping::Repeat);
 
-        auto camera = Camera(60, width / (float)(height), 0.1f, 100.0f, glm::vec3(0, 0, -5), glm::quat(0, 0, 0, 1), 0);
-
-        cameras[0] = CameraBuffer{ .ViewMatrix = camera.GetViewMatrix(), .ProjectionMatrix = camera.GetProjectionMatrix() };
-
         swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
 
         glm::mat4 scale = glm::identity<glm::mat4>();
@@ -280,6 +276,21 @@ namespace playground::rendering {
 
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
         auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
+
+
+        for (int x = 0; x < nextFrame.cameras.size(); x ++) {
+            assert(x < MAX_CAMERA_COUNT && "Max cameras exceeded");
+
+            auto& cam = nextFrame.cameras[x];
+            cam.SetAspectRatio((float)config.Width / config.Height);
+
+            auto buff = CameraBuffer{
+                .ViewMatrix = cam.GetViewMatrix(),
+                .ProjectionMatrix = cam.GetProjectionMatrix()
+            };
+
+            cameras[x] = buff;
+        }
 
         // Write camera data to context
         graphicsContext->SetCameraData(cameras);

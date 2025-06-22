@@ -1,6 +1,5 @@
 #include <stdexcept>
 #include <sstream>
-#include <SDL3/SDL.h>
 #include "rendering/d3d12/D3D12SwapChain.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
 

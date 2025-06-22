@@ -5,6 +5,7 @@
 #include <rendering/Rendering.hxx>
 #include <rendering/Constants.hxx>
 #include <rendering/DirectionalLight.hxx>
+#include <rendering/Camera.hxx>
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -65,6 +66,7 @@ namespace playground::drawcallbatcher {
     std::atomic<uint32_t> batchIndex = 0;
     std::mutex mutex;
     rendering::DirectionalLight sun;
+    eastl::vector<rendering::Camera, Allocator> cameras(alloc);
 
     void Batch(drawcallbatcher::DrawCall* batch, uint16_t count) {
         ZoneScopedN("Batcher: Batch");
@@ -82,9 +84,21 @@ namespace playground::drawcallbatcher {
         };
     }
 
+    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, glm::vec3& position, glm::quat& rotation) {
+        ZoneScopedN("Batcher: Add Camera");
+
+        rendering::Camera camera(fov, 0, nearPlane, farPlane, position, rotation, order);
+
+        cameras.push_back(camera);
+    }
+
     void Submit() {
         ZoneScopedN("Batcher: Submit");
         rendering::RenderFrame frame;
+
+        for (auto& cam : cameras) {
+            frame.cameras.emplace_back(std::move(cam));
+        }
 
         frame.sun = sun;
         eastl::hash_map<BatchKey, uint64_t, eastl::hash<BatchKey>, eastl::equal_to<BatchKey>, Allocator, false> batchedDrawCalls(alloc);
@@ -142,6 +156,8 @@ namespace playground::drawcallbatcher {
             batchIndex.store(0, std::memory_order_relaxed);
 
             batchedDrawCalls.clear();
+
+            cameras.clear();
 
             rendering::SubmitFrame(std::move(frame));
 
