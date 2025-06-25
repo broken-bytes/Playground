@@ -2,9 +2,9 @@ infix operator ..: MultiplicationPrecedence
 infix operator ^: MultiplicationPrecedence
 
 public struct Vector3: Comparable, Codable, Equatable, Sendable {
-    public let x: Float
-    public let y: Float
-    public let z: Float
+    public var x: Float
+    public var y: Float
+    public var z: Float
 
     public var magnitude: Float {
         Math.sqrt(x * x + y * y + z * z)

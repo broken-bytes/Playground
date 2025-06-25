@@ -30,12 +30,12 @@ namespace playground::input {
 
         rid[0].usUsagePage = 0x01;
         rid[0].usUsage = 0x02;
-        rid[0].dwFlags = RIDEV_INPUTSINK;
+        rid[0].dwFlags = 0;
         rid[0].hwndTarget = (HWND)windowHandle;
 
         rid[1].usUsagePage = 0x01;
         rid[1].usUsage = 0x06;
-        rid[1].dwFlags = RIDEV_INPUTSINK;
+        rid[1].dwFlags = 0;
         rid[1].hwndTarget = (HWND)windowHandle;
 
         procCallback = [&](LPARAM lParam) { HandleRawInput(lParam); };
@@ -87,7 +87,9 @@ namespace playground::input {
             RAWKEYBOARD& kb = raw->data.keyboard;
             bool down = !(kb.Flags & RI_KEY_BREAK);
 
-            std::cout << "[Keyboard] Key " << kb.VKey << (down ? " down" : " up") << std::endl;
+            event.device = InputDevice::Keyboard;
+            event.type = down ? InputEventType::ButtonDown : InputEventType::ButtonUp;
+            event.actionId = kb.MakeCode;
         }
         else if (raw->header.dwType == RIM_TYPEMOUSE) {
             RAWMOUSE& m = raw->data.mouse;

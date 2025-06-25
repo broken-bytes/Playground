@@ -1,27 +1,15 @@
 #pragma once
 
+#include "input/InputDevice.hxx"
 #include <shared/Arena.hxx>
 #include <EASTL/vector.h>
 #include <cstdint>
 
 namespace playground::input {
     enum class InputEventType {
-        ButtonDown,
         ButtonUp,
+        ButtonDown,
         AxisMoved
-    };
-
-    enum class InputDevice {
-        Mouse,
-        Keyboard,
-        Controller0,
-        Controller1,
-        Controller2,
-        Controller3,
-        Controller4,
-        Controller5,
-        Controller6,
-        Controller7
     };
 
     struct InputEvent {
@@ -31,7 +19,6 @@ namespace playground::input {
         float value;
         double timestamp;
     };
-
 
     using StackArena = memory::StackArena<2 * 1024 * 1024>; // 2 MB Input buffer
     using StackAllocator = memory::ArenaAllocator<StackArena>;

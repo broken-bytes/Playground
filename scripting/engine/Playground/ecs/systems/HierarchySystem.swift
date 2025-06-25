@@ -2,9 +2,9 @@ func hierarchySystem(iter: UnsafeMutableRawPointer) {
     let translations = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: TranslationComponent.self)
     let rotations = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: RotationComponent.self)
     let scales = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: ScaleComponent.self)
-    let worldTranslations = ECSHandler.getComponentBuffer(iter: iter, slot: 3, type: TranslationComponent.self)
-    let worldRotations = ECSHandler.getComponentBuffer(iter: iter, slot: 4, type: RotationComponent.self)
-    let worldScales = ECSHandler.getComponentBuffer(iter: iter, slot: 5, type: ScaleComponent.self)
+    let worldTranslations = ECSHandler.getComponentBuffer(iter: iter, slot: 3, type: WorldTranslationComponent.self)
+    let worldRotations = ECSHandler.getComponentBuffer(iter: iter, slot: 4, type: WorldRotationComponent.self)
+    let worldScales = ECSHandler.getComponentBuffer(iter: iter, slot: 5, type: WorldScaleComponent.self)
     let entities = ECSHandler.entitiesFor(iter: iter)
 
     for x in 0..<translations.count {

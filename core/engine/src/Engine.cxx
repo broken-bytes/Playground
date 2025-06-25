@@ -3,6 +3,7 @@
 #include "playground/SceneManager.hxx"
 #include "playground/ECS.hxx"
 #include "playground/DrawCallbatcher.hxx"
+#include "playground/InputManager.hxx"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -124,6 +125,11 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("ECS_CreateTag\0", playground::ecs::CreateTag);
     config.Delegate("ECS_AddTag\0", playground::ecs::AddTag);
 
+    config.Delegate("Input_GetAxis\0", playground::inputmanager::GetAxis);
+    config.Delegate("Input_IsButtonPressed\0", playground::inputmanager::IsButtonPressed);
+    config.Delegate("Input_IsButtonDown\0", playground::inputmanager::IsButtonDown);
+    config.Delegate("Input_IsButtonUp\0", playground::inputmanager::IsButtonUp);
+
     config.Delegate("Rendering_Update\0", playground::rendering::Update);
     config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);
     config.Delegate("Rendering_ReadBackBuffer\0", playground::rendering::ReadbackBuffer);
@@ -144,6 +150,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     rendererReadyFuture.wait();
 
     playground::input::Init(config.Window);
+    playground::inputmanager::Init();
 
     gameThread = std::thread([config]() {
         playground::audio::Init();
@@ -162,6 +169,9 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
         while (isRunning) {
             FrameMark;
             FrameMarkStart(CPU_FRAME);
+
+            playground::inputmanager::Update();
+
             {
                 ZoneScopedN("Scripts");
                 ZoneColor(tracy::Color::LightSeaGreen);
@@ -196,8 +206,8 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     playground::input::Shutdown();
     playground::rendering::Shutdown();
-    gameThread.join();
     renderThread.join();
+    gameThread.join();
 
 #if ENABLE_PROFILER
     tracy::ShutdownProfiler();
