@@ -2,6 +2,7 @@
 #include <assetloader/AssetLoader.hxx>
 #include <rendering/Mesh.hxx>
 #include <rendering/Rendering.hxx>
+#include <physics/Physics.hxx>
 #include <shared/Hasher.hxx>
 #include <cstdint>
 #include <string>
@@ -12,6 +13,7 @@ namespace playground::assetmanager {
     std::vector<MaterialHandle*> _materialHandles = {};
     std::vector<ShaderHandle*> _shaderHandles = {};
     std::vector<TextureHandle*> _textureHandles = {};
+    std::vector<PhysicsMaterialHandle*> _physicsMaterialHandles = {};
 
     void MarkModelUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
         if (handleId < _modelHandles.size()) {
@@ -213,5 +215,45 @@ namespace playground::assetmanager {
         rendering::QueueUploadTexture(*newHandle->data, handleId, MarkTextureUploadFinished);
 
         return _textureHandles[handleId];
+    }
+
+    PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name) {
+        auto hash = shared::Hash(name);
+
+        PhysicsMaterialHandle* handle;
+        for (uint32_t i = 0; i < _physicsMaterialHandles.size(); ++i) {
+            handle = _physicsMaterialHandles[i];
+            if (handle->hash == hash) {
+                if (handle->state == ResourceState::Uploaded) {
+                    handle->refCount++;
+                    return handle;
+                }
+                else if (handle->state == ResourceState::Unloaded) {
+                    auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(name);
+                    auto rawHandle = playground::physics::CreateMaterial(rawMaterial.staticFriction, rawMaterial.dynamicFriction, rawMaterial.restitution);
+                    handle->refCount = 1;
+                    handle->state = ResourceState::Uploaded;
+                    handle->material = rawHandle;
+
+                    return handle;
+                }
+            }
+        }
+
+        auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(name);
+        auto rawHandle = playground::physics::CreateMaterial(rawMaterial.staticFriction, rawMaterial.dynamicFriction, rawMaterial.restitution);
+
+        auto newHandle = new PhysicsMaterialHandle{
+            .hash = hash,
+            .state = ResourceState::Uploaded,
+            .refCount = 1,
+            .material = rawHandle
+        };
+
+        uint32_t handleId;
+        handleId = _physicsMaterialHandles.size();
+        _physicsMaterialHandles.push_back(newHandle);
+
+        return _physicsMaterialHandles[handleId];
     }
 }

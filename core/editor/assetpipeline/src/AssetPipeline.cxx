@@ -341,4 +341,18 @@ namespace playground::editor::assetpipeline {
 
         return buffer;
     }
+
+    auto CookPhysicsMaterial(assetloader::RawPhysicsMaterialData materialData) -> std::vector<uint8_t> {
+        std::ostringstream oss;
+        {
+            cereal::BinaryOutputArchive oarchive(oss);
+            oarchive(materialData);
+        }
+
+        // Convert the serialized output to a vector<uint8_t>
+        std::string outString = oss.str();
+        std::vector<uint8_t> buffer(outString.begin(), outString.end());
+
+        return buffer;
+    }
 }

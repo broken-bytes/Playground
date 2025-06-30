@@ -1,8 +1,8 @@
 public struct Quaternion: Sendable {
-    public let x: Float
-    public let y: Float
-    public let z: Float
-    public let w: Float
+    public var x: Float
+    public var y: Float
+    public var z: Float
+    public var w: Float
 
     public var euler: Vector3 {
         toEuler()
@@ -19,8 +19,8 @@ public struct Quaternion: Sendable {
 
     public init(angle: Float, axis: Vector3) {
         let halfAngle = angle * 0.5
-        let sinHalf = Math.sin(halfAngle)
-        let cosHalf = Math.cos(halfAngle)
+        let sinHalf = sin(halfAngle)
+        let cosHalf = cos(halfAngle)
         let normalizedAxis = axis.normalized
 
         self.init(
@@ -28,6 +28,22 @@ public struct Quaternion: Sendable {
             y: normalizedAxis.y * sinHalf,
             z: normalizedAxis.z * sinHalf,
             w: cosHalf
+        )
+    }
+
+    public init(euler angles: Vector3) {
+        let cy = cos(angles.z * 0.5)
+        let sy = sin(angles.z * 0.5)
+        let cp = cos(angles.y * 0.5)
+        let sp = sin(angles.y * 0.5)
+        let cr = cos(angles.x * 0.5)
+        let sr = sin(angles.x * 0.5)
+
+        self.init(
+            x: sr * cp * cy - cr * sp * sy,
+            y: cr * sp * cy + sr * cp * sy,
+            z: cr * cp * sy - sr * sp * cy,
+            w: cr * cp * cy + sr * sp * sy
         )
     }
 
@@ -59,24 +75,24 @@ public struct Quaternion: Sendable {
 // - MARK: Helpers
 extension Quaternion {
     @inlinable
-    internal func toEuler() -> Vector3 {
+    public func toEuler() -> Vector3 {
         let ysqr = y * y
 
         // Roll (X-axis rotation)
         let t0 = +2.0 * (w * x + y * z)
         let t1 = +1.0 - 2.0 * (x * x + ysqr)
-        let roll = Math.atan2(t0, t1)
+        let roll = atan2(t0, t1)
 
         // Pitch (Y-axis rotation)
         var t2 = +2.0 * (w * y - z * x)
         t2 = t2 > 1.0 ? 1.0 : t2
         t2 = t2 < -1.0 ? -1.0 : t2
-        let pitch = Math.asin(t2)
+        let pitch = asin(t2)
 
         // Yaw (Z-axis rotation)
         let t3 = +2.0 * (w * z + x * y)
         let t4 = +1.0 - 2.0 * (ysqr + z * z)
-        let yaw = Math.atan2(t3, t4)
+        let yaw = atan2(t3, t4)
 
         return Vector3(x: roll, y: pitch, z: yaw)
     }
@@ -85,5 +101,19 @@ extension Quaternion {
     @inline(__always)
     internal func clamped(_ x: Float, min: Float = -1, max: Float = 1) -> Float {
         Swift.max(min, Swift.min(max, x))
+    }
+
+    @inlinable
+    @inline(__always)
+    public func rotatedAroundLocal(axis: Vector3, angle degrees: Float) -> Quaternion {
+        let angle = degToRad(degrees)
+        let localAxis = self * axis
+        let delta = Quaternion(angle: angle, axis: localAxis)
+        return (delta * self).normalized()
+    }
+
+    public func normalized() -> Quaternion {
+        let len = sqrt(x*x + y*y + z*z + w*w)
+        return Quaternion(x: x/len, y: y/len, z: z/len, w: w/len)
     }
 }

@@ -7,11 +7,11 @@ public struct Vector3: Comparable, Codable, Equatable, Sendable {
     public var z: Float
 
     public var magnitude: Float {
-        Math.sqrt(x * x + y * y + z * z)
+        sqrt(x * x + y * y + z * z)
     }
 
     public var normalized: Vector3 {
-        let len = Math.sqrt(x * x + y * y + z * z)
+        let len = sqrt(x * x + y * y + z * z)
         guard len != 0 else { return self }
 
         return self / len

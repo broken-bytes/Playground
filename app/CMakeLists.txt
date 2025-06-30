@@ -9,10 +9,10 @@ target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
 
-
 find_package(Stb REQUIRED)
 
-target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore SDL3::SDL3 Shared)
+target_link_directories(PlaygroundApp PRIVATE ${PLAYGROUND_LIB_DIR})
+target_link_libraries(PlaygroundApp PRIVATE Playground PlaygroundCore SDL3::SDL3 Shared)
 
 target_include_directories(PlaygroundApp PRIVATE ${Stb_INCLUDE_DIR})
 

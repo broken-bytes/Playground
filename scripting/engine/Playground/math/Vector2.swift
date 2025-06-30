@@ -3,7 +3,7 @@ public struct Vector2: Comparable, Codable, Equatable, Sendable {
     public let y: Float
 
     public var magnitude: Float {
-        Math.sqrt(x * x + y * y)
+        sqrt(x * x + y * y)
     }
 
     public static let zero = Vector2(x: 0, y: 0)

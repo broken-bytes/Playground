@@ -27,6 +27,9 @@ uint16_t windowWidth = 1280;
 uint16_t windowHeight = 720;
 void* windowPtr = nullptr;
 
+extern "C" uint8_t PlaygroundCoreMain(const PlaygroundConfig&);
+extern "C" void PlaygroundMain(Startup start);
+
 void StartUpEngine(LookupTableDelegate lookup, ScriptStartupCallback startup) {
     auto config = PlaygroundConfig{ windowPtr, lookup, windowWidth, windowHeight, false, startup };
     auto result = PlaygroundCoreMain(config);
@@ -61,40 +64,18 @@ int SDL_main(int argc, char** argv) {
 
     auto window = SDL_CreateWindow("Playground", 1280, 720, SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
+    windowPtr = window;
+
     SDL_ShowWindow(window);
 
-    // Get the native window handle
     auto props = SDL_GetWindowProperties(window);
 #ifdef _WIN32
     windowPtr = (void*)SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
 #endif
 
-    // Load the Swift library
-#if _WIN32
-
-    auto scriptLib = LoadLibrary("Playground.dll");
-    if (scriptLib == nullptr) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load Playground.dll: %s", GetLastError());
-        return -1;
-    }
-
-    auto coreLib = LoadLibrary("PlaygroundCore.dll");
-    if (coreLib == nullptr) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load PlaygroundCore.dll: %s", GetLastError());
-        return -1;
-    }
-
-    coreStartup = (CoreLayerStartUp)GetProcAddress(coreLib, "PlaygroundCoreMain");
-
-    auto scriptStartup = (ScriptingLayerStartUp)GetProcAddress(scriptLib, "PlaygroundMain");
-
-    scriptStartup([](auto lookup, auto startup) {
+    PlaygroundMain([](auto lookup, auto startup) {
         StartUpEngine(lookup, startup);
     });
-
-#endif
-
-    FreeLibrary(scriptLib);
 
     SDL_HideWindow(window);
 

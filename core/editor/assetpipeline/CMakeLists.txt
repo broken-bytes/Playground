@@ -10,6 +10,7 @@ add_library(AssetPipeline SHARED ${SRC} ${HEADERS})
 target_include_directories(AssetPipeline PRIVATE include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/audio/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/rendering/include)
+target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/physics/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/logger/include)
 target_include_directories(AssetPipeline PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/io/include)
@@ -30,7 +31,7 @@ target_link_libraries(AssetPipeline PRIVATE glm::glm assimp::assimp libzip::zip 
     )
 
 # Link all engine libraries
-target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering Shared)
+target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering Physics Shared)
 
 add_custom_command(TARGET AssetPipeline POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:AssetPipeline> $<TARGET_RUNTIME_DLLS:AssetPipeline>

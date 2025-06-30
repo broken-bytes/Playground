@@ -447,7 +447,6 @@ namespace playground::rendering {
             else {
                 meshes.push_back(Mesh{ vertexBufferId, indexBufferId });
                 meshId = meshes.size() - 1;
-                freeMeshIds.push_back(meshId);
             }
 
             auto backBufferIndex = swapchain->BackBufferIndex();

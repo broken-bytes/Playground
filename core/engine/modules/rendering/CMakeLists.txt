@@ -21,7 +21,10 @@ find_package(Stb REQUIRED)
 
 target_include_directories(Rendering PRIVATE ${Stb_INCLUDE_DIR})
 
-target_link_libraries(Rendering PUBLIC Logger AssetLoader Profiler Shared EASTL)
+target_link_directories(Rendering PRIVATE ${EASTL_LIB_DIR})
+target_include_directories(Rendering PRIVATE ${EASTL_INC_DIR} ${EABASE_INC_DIR})
+
+target_link_libraries(Rendering PRIVATE Logger AssetLoader Profiler Shared EASTL)
 target_link_libraries(Rendering PRIVATE SDL3::SDL3 glm::glm freeimage::FreeImage freeimage::FreeImagePlus)
 
 if (WIN32)
@@ -29,8 +32,5 @@ if (WIN32)
 
     target_link_libraries(Rendering PRIVATE Microsoft::DirectX-Headers dxgi d3d12 dxguid)
 endif()
-
-find_path(ATOMIC_QUEUE_INCLUDE_DIRS "atomic_queue/atomic_queue.h")
-target_include_directories(Rendering PRIVATE ${ATOMIC_QUEUE_INCLUDE_DIRS})
 
 set_target_properties(Rendering PROPERTIES OUTPUT_NAME "Playground.Rendering")

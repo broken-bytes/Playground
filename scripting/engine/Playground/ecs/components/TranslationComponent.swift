@@ -1,5 +1,11 @@
 public struct TranslationComponent {
-    public var position: Vector3
+    internal var isDirty: Bool = true
+
+    public var position: Vector3 {
+        didSet {
+            isDirty = true
+        }
+    }
 
     public init(
         position: Vector3

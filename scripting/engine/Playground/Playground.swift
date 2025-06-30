@@ -33,11 +33,12 @@ func startUp() {
     initHooks()
     initSystems()
 
-    let materialhandle = AssetHandler.loadMaterial(named: "house.mat")
-    let modelhandle = AssetHandler.loadModel(named: "house.mod")
+    let materialhandle = AssetHandler.loadMaterial(named: "default.mat")
+    let modelhandle = AssetHandler.loadModel(named: "default.mod")
+    let physicsMaterialHandle = AssetHandler.loadPhysicsMaterial(named: "default.pmat")
 
     let entity = Entity("Sun")
-    var sun = SunComponent(direction: .zero, colour: Colour(r: 1, g: 1, b: 1, a: 1), intensity: 3)
+    var sun = SunComponent(direction: Vector3(x: 0.1, y: -0.5, z: 0.2), colour: Colour(r: 1, g: 1, b: 1, a: 1), intensity: 3)
     entity.addComponent(&sun)
 
     let camEntity = Entity("Camera")
@@ -48,6 +49,8 @@ func startUp() {
     camEntity.addComponent(&transform)
     var rotation = RotationComponent(rotation: .identity)
     camEntity.addComponent(&rotation)
+    var scale = ScaleComponent(scale: Vector3(x: scaleValue, y: scaleValue, z: scaleValue))
+    camEntity.addComponent(&scale)
 
     for x in 0..<10000 {
         let entity = Entity("Entity\(x)")
@@ -128,11 +131,11 @@ func initTags() {
 }
 
 func initSystems() {
-    ECSHandler.createSystem("CameraMoveSystem", filter: [TranslationComponent.self, CameraComponent.self], multiThreaded: false, delegate: cameraMoveTest)
+    ECSHandler.createSystem("CameraMoveSystem", filter: [TranslationComponent.self, RotationComponent.self, CameraComponent.self], multiThreaded: false, delegate: cameraMoveTest)
     ECSHandler.createSystem("HierarchySystem", filter: [TranslationComponent.self, RotationComponent.self, ScaleComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self], multiThreaded: true, delegate: hierarchySystem)
     ECSHandler.createSystem("RenderSystem", filter: [WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
     ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
-    ECSHandler.createSystem("cameraSystem", filter: [CameraComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: false, delegate: cameraSystem)
+    ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: false, delegate: cameraSystem)
 
     Logger.info("Initialised ECS Systems")
 }

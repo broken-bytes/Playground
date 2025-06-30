@@ -1,0 +1,25 @@
+{
+    "maxSize": 128,
+    "assets": [
+        {
+            "location": "default.mat.json",
+            "type": "Material"
+        },
+        {
+            "location": "default.hlsl",
+            "type": "Shader"
+        },
+        {
+            "location": "default.glb",
+            "type": "Model"
+        },
+        {
+            "location": "default.png",
+            "type": "Texture"
+        },
+        {
+            "location": "default.pmat.json",
+            "type": "PhysicsMaterial"
+        }
+    ]
+}

@@ -60,8 +60,16 @@ namespace playground::assetmanager {
         playground::audio::AudioClip audio;
     };
 
+    struct PhysicsMaterialHandle {
+        uint64_t hash;
+        ResourceState state;
+        uint32_t refCount;
+        uint32_t material;
+    };
+
     ModelHandle* LoadModel(const char* name);
     MaterialHandle* LoadMaterial(const char* name);
     ShaderHandle* LoadShader(const char* name);
     TextureHandle* LoadTexture(const char* name);
+    PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);
 }

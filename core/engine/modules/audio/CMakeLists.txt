@@ -7,7 +7,7 @@ target_include_directories(Audio PRIVATE include)
 target_include_directories(Audio PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
 
 # Add steam audio via lib and path as it has no vcpkg support yet
-# Check that the paths are supplied and rise an eror if not
+# Check that the paths are supplied and raise an eror if not
 if(DEFINED STEAMAUDIO_INCLUDE_DIR)
 	target_include_directories(Audio PRIVATE ${STEAMAUDIO_INCLUDE_DIR})
 else()

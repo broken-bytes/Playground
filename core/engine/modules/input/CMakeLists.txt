@@ -14,6 +14,9 @@ if (WIN32)
 
 endif()
 
+target_link_directories(Input PRIVATE ${EASTL_LIB_DIR})
+target_include_directories(Input PRIVATE ${EASTL_INC_DIR} ${EABASE_INC_DIR})
+
 target_link_libraries(Input PRIVATE Events SDL3::SDL3 EASTL Shared concurrentqueue)
 
 set_target_properties(Input PROPERTIES OUTPUT_NAME "Playground.Input")

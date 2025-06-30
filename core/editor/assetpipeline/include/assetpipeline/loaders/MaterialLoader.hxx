@@ -2,8 +2,6 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <tuple>
-#include <vector>
 #include "assetloader/RawMaterialData.hxx"
 
 namespace playground::editor::assetpipeline::loaders::materialloader {

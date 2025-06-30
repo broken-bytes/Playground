@@ -1,6 +1,5 @@
 #include "playground/Engine.hxx"
 #include "playground/AssetManager.hxx"
-#include "playground/SceneManager.hxx"
 #include "playground/ECS.hxx"
 #include "playground/DrawCallbatcher.hxx"
 #include "playground/InputManager.hxx"
@@ -20,6 +19,7 @@
 #include <io/IO.hxx>
 #include <logger/ConsoleLogger.hxx>
 #include <logger/Logger.hxx>
+#include <physics/Physics.hxx>
 #include <profiler/Profiler.hxx>
 #include <math/Math.hxx>
 #include <SDL3/SDL.h>
@@ -99,6 +99,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     config.Delegate("AssetManager_LoadModel\0", playground::assetmanager::LoadModel);
     config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial);
+    config.Delegate("AssetManager_LoadPhysicsMaterial\0", playground::assetmanager::LoadPhysicsMaterial);
 
     config.Delegate("Batcher_Batch\0", playground::drawcallbatcher::Batch);
     config.Delegate("Batcher_SetSun\0", playground::drawcallbatcher::SetSun);
@@ -130,9 +131,8 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Input_IsButtonDown\0", playground::inputmanager::IsButtonDown);
     config.Delegate("Input_IsButtonUp\0", playground::inputmanager::IsButtonUp);
 
-    config.Delegate("Rendering_Update\0", playground::rendering::Update);
-    config.Delegate("Rendering_PostFrame\0", playground::rendering::PostFrame);
-    config.Delegate("Rendering_ReadBackBuffer\0", playground::rendering::ReadbackBuffer);
+    config.Delegate("Physics_AddRigidbody\0", playground::physics::AddBody);
+    config.Delegate("Physics_AddBoxCollider\0", playground::physics::AddBoxCollider);
 
     config.Delegate("Time_GetTimeSinceStart\0", GetTimeSinceStart);
     config.Delegate("Time_GetDeltaTime\0", GetDeltaTime);
@@ -151,6 +151,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     playground::input::Init(config.Window);
     playground::inputmanager::Init();
+    playground::physics::Init();
 
     gameThread = std::thread([config]() {
         playground::audio::Init();

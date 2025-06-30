@@ -36,13 +36,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 
 FetchContent_Declare(
-  eastl
-  GIT_REPOSITORY https://github.com/electronicarts/EASTL.git
-  GIT_TAG 7fadbf0da01e6f6e0e7038b1b34343a069b8fc51
-)
-FetchContent_MakeAvailable(eastl)
-
-FetchContent_Declare(
   concurrentqueue
   GIT_REPOSITORY https://github.com/cameron314/concurrentqueue.git
   GIT_TAG 6dd38b8a1dbaa7863aa907045f32308a56a6ff5d

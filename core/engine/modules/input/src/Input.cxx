@@ -30,6 +30,8 @@ namespace playground::input {
         std::array<Button, 256> keys;
         std::array<Button, 8> controllerButtons;
         std::array<float, 6> controllerAxes;
+        bool mouseXMoved = false;
+        bool mouseYMoved = false;
         float mouseX;
         float mouseY;
     };
@@ -98,8 +100,20 @@ namespace playground::input {
 
         // Now emit all chanegd buttons + all axis
 
-        inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 0, .value = currentInputState.mouseX } });
-        inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 1, .value = currentInputState.mouseY } });
+        if (currentInputState.mouseXMoved) {
+            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 0, .value = currentInputState.mouseX } });
+            currentInputState.mouseXMoved = false;
+        }
+        else {
+            currentInputState.mouseX = 0.0f; // Reset mouse X if not moved
+        }
+        if (currentInputState.mouseYMoved) {
+            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 1, .value = currentInputState.mouseY } });
+            currentInputState.mouseYMoved = false;
+        }
+        else {
+            currentInputState.mouseY = 0.0f; // Reset mouse Y if not moved
+        }
 
         EmitButtonEvents(InputDevice::Mouse, currentInputState.mouseButtons.data(), currentInputState.mouseButtons.size());
         EmitButtonEvents(InputDevice::Keyboard, currentInputState.keys.data(), currentInputState.keys.size());
@@ -161,10 +175,12 @@ namespace playground::input {
         switch (event.type) {
         case InputEventType::AxisMoved:
             if (event.actionId == 0) {
-                currentInputState.mouseX = event.value;
+                currentInputState.mouseX += event.value;
+                currentInputState.mouseXMoved = true;
             }
             else {
-                currentInputState.mouseY = event.value;
+                currentInputState.mouseY += event.value;
+                currentInputState.mouseYMoved = true;
             }
             break;
         case InputEventType::ButtonDown:

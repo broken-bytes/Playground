@@ -32,8 +32,8 @@ namespace playground::inputmanager {
 
     struct AxisMapping {
         uint64_t nameHash;
-        VirtualAxis virtualAxis;
-        std::vector<PhysicalAxis> physicalAxes;
+        std::optional<VirtualAxis> virtualAxis;
+        std::optional<std::vector<PhysicalAxis>> physicalAxes;
     };
 
     struct ButtonMapping {
@@ -83,10 +83,10 @@ namespace playground::inputmanager {
             if (inputAction.type == input::InputType::Button) {
                 bool consumed = false;
                 for (auto& element : axisMappings) {
-                    if (element.virtualAxis.positiveInputId == inputAction.buttonAction.buttonId) {
+                    if (element.virtualAxis.has_value() && element.virtualAxis.value().positiveInputId == inputAction.buttonAction.buttonId) {
                         axisValues[element.nameHash] = 1;
                         consumed = true;
-                    } else if (element.virtualAxis.negativeInputId == inputAction.buttonAction.buttonId) {
+                    } else if (element.virtualAxis.has_value() && element.virtualAxis.value().negativeInputId == inputAction.buttonAction.buttonId) {
                         axisValues[element.nameHash] = -1;
                         consumed = true;
                     }
@@ -110,9 +110,16 @@ namespace playground::inputmanager {
             }
             else {
                 for (auto& element : axisMappings) {
-                    auto axis = std::find_if(element.physicalAxes.begin(), element.physicalAxes.end(), [inputAction](PhysicalAxis& axis) {
+                    if (!element.physicalAxes.has_value()) {
+                        continue;
+                    }
+                    auto axis = std::find_if(element.physicalAxes.value().begin(), element.physicalAxes.value().end(), [element, inputAction](PhysicalAxis& axis) {
                         return axis.axisId == inputAction.axisAction.axisId && axis.device == inputAction.device;
                     });
+
+                    if (axis != element.physicalAxes.value().end()) {
+                        axisValues[element.nameHash] = inputAction.axisAction.value;
+                    }
                 }
             }
         }
@@ -162,8 +169,8 @@ namespace playground::inputmanager {
     void SetVirtualAxisPos(const char* axisName, uint16_t buttonId) {
         auto item = std::find_if(axisMappings.begin(), axisMappings.end(), [axisName](auto& elem) { return elem.nameHash == shared::Hash(axisName); });
 
-        if (item != axisMappings.end()) {
-            item->virtualAxis.positiveInputId = buttonId;
+        if (item->virtualAxis.has_value() && item != axisMappings.end()) {
+            item->virtualAxis.value().positiveInputId = buttonId;
         }
         else {
             axisMappings.push_back(AxisMapping{ .nameHash = shared::Hash(axisName), .virtualAxis = VirtualAxis{.positiveInputId = buttonId, .negativeInputId = 0 }, .physicalAxes = {} });
@@ -173,8 +180,8 @@ namespace playground::inputmanager {
     void SetVirtualAxisNeg(const char* axisName, uint16_t buttonId) {
         auto item = std::find_if(axisMappings.begin(), axisMappings.end(), [axisName](auto& elem) { return elem.nameHash == shared::Hash(axisName); });
 
-        if (item != axisMappings.end()) {
-            item->virtualAxis.negativeInputId = buttonId;
+        if (item->virtualAxis.has_value() && item != axisMappings.end()) {
+            item->virtualAxis.value().negativeInputId = buttonId;
         }
         else {
             axisMappings.push_back(AxisMapping{ .nameHash = shared::Hash(axisName), .virtualAxis = VirtualAxis{.positiveInputId = 0, .negativeInputId = buttonId }, .physicalAxes = {} });
@@ -184,28 +191,28 @@ namespace playground::inputmanager {
     void SetPhysicalAxisPos(const char* axisName, input::InputDevice device, uint16_t axisId) {
         auto item = std::find_if(axisMappings.begin(), axisMappings.end(), [axisName](auto& elem) { return elem.nameHash == shared::Hash(axisName); });
 
-        if (item != axisMappings.end()) {
-            item->physicalAxes.push_back(PhysicalAxis{ .device = device, .axisId = axisId});
+        if (item->physicalAxes.has_value() && item != axisMappings.end()) {
+            item->physicalAxes.value().push_back(PhysicalAxis{.device = device, .axisId = axisId});
         }
         else {
             axisMappings.push_back(AxisMapping{
                 .nameHash = shared::Hash(axisName),
                 .virtualAxis = VirtualAxis{.positiveInputId = 0, .negativeInputId = 0 },
-                .physicalAxes = {PhysicalAxis{.device = device, .axisId = axisId }} });
+                .physicalAxes = std::vector {{ PhysicalAxis{.device = device, .axisId = axisId }} } });
         }
     }
 
     void SetVPhysicalAxisNeg(const char* axisName, input::InputDevice device, uint16_t axisId) {
         auto item = std::find_if(axisMappings.begin(), axisMappings.end(), [axisName](auto& elem) { return elem.nameHash == shared::Hash(axisName); });
 
-        if (item != axisMappings.end()) {
-            item->physicalAxes.push_back(PhysicalAxis{ .device = device, .axisId = axisId });
+        if (item->physicalAxes.has_value() && item != axisMappings.end()) {
+            item->physicalAxes.value().push_back(PhysicalAxis{.device = device, .axisId = axisId});
         }
         else {
             axisMappings.push_back(AxisMapping{
                 .nameHash = shared::Hash(axisName),
                 .virtualAxis = VirtualAxis{.positiveInputId = 0, .negativeInputId = 0 },
-                .physicalAxes = {PhysicalAxis{.device = device, .axisId = axisId }} });
+                .physicalAxes = std::vector { {PhysicalAxis{.device = device, .axisId = axisId }} } });
         }
     }
 
@@ -236,15 +243,39 @@ namespace playground::inputmanager {
                 std::string label = name.substr(5);
                 mapping.nameHash = shared::Hash(label);
 
-                mapping.virtualAxis.positiveInputId = std::stoi(values.get("virtual_pos"));
-                mapping.virtualAxis.negativeInputId = std::stoi(values.get("virtual_neg"));
+                auto pos = values.get("virtual_pos");
+                auto neg = values.get("virtual_neg");
+
+                if (!pos.empty() && !neg.empty()) {
+                    mapping.virtualAxis = VirtualAxis{
+                        .positiveInputId = (uint16_t)std::stoi(pos),
+                        .negativeInputId = (uint16_t)std::stoi(neg)
+                    };
+                }
+
+                bool hasPhysicalDevice = false;
+                bool hasPhysicalAxis = false;
+
+                PhysicalAxis physical{};
 
                 for (const auto& [key, val] : values) {
-                    if (key == "physical") {
-                        PhysicalAxis p{};
-                        p.device = input::InputDevice::Controller0; // Default
-                        p.axisId = std::stoi(val);
-                        mapping.physicalAxes.push_back(p);
+                    if (key == "p_device") {
+                        physical.device = (input::InputDevice)std::stoi(val);
+                        hasPhysicalDevice = true;
+                    }
+
+                    if (key == "p_axis") {
+                        physical.axisId = std::stoi(val);
+                        hasPhysicalAxis = true;
+                    }
+                }
+
+                if (hasPhysicalDevice && hasPhysicalAxis) {
+                    if (!mapping.physicalAxes.has_value()) {
+                        mapping.physicalAxes = std::vector<PhysicalAxis> { physical };
+                    }
+                    else {
+                        mapping.physicalAxes.value().push_back(physical);
                     }
                 }
 
@@ -278,10 +309,13 @@ namespace playground::inputmanager {
 
         for (const auto& a : axes) {
             std::string section = "axis:" + std::to_string(a.nameHash);
-            ini[section]["virtual_pos"] = std::to_string(a.virtualAxis.positiveInputId);
-            ini[section]["virtual_neg"] = std::to_string(a.virtualAxis.negativeInputId);
+            if (a.virtualAxis.has_value()) {
+                ini[section]["virtual_pos"] = std::to_string(a.virtualAxis.value().positiveInputId);
+                ini[section]["virtual_neg"] = std::to_string(a.virtualAxis.value().negativeInputId);
+            }
 
-            for (const auto& p : a.physicalAxes) {
+            if (!a.physicalAxes.has_value()) { continue; }
+            for (const auto& p : a.physicalAxes.value()) {
                 ini[section]["physical"] = std::to_string(p.axisId);
             }
         }
