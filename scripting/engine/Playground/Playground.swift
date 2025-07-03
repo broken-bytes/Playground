@@ -25,6 +25,9 @@ func startUp() {
     Renderer.setup()
     Logger.info("Started Renderer")
 
+    Physics.setup()
+    Logger.info("Started Physics")
+
     NativeMath.setup()
     Time.setup()
 
@@ -66,6 +69,12 @@ func startUp() {
         entity.addComponent(&rotation)
         var scale = ScaleComponent(scale: Vector3(x: scaleValue, y: scaleValue, z: scaleValue))
         entity.addComponent(&scale)
+
+        var rigidbody = RigidbodyComponent(mass: 5, damping: 0.1)
+        entity.addComponent(&rigidbody)
+
+        var boxCollider = BoxColliderComponent(dimensions: .one, offset: .zero, rotation: .identity, material: physicsMaterialHandle)
+        entity.addComponent(&boxCollider)
     }
 }
 
@@ -80,6 +89,8 @@ func initComponents() {
     let meshId = ECSHandler.registerComponent(MeshComponent.self)
     let materialId = ECSHandler.registerComponent(MaterialComponent.self)
     let sunId = ECSHandler.registerComponent(SunComponent.self)
+    let rigidId = ECSHandler.registerComponent(RigidbodyComponent.self)
+    let boxId = ECSHandler.registerComponent(BoxColliderComponent.self)
 
     Logger.info("Initialised ECS Components")
 }
@@ -133,6 +144,8 @@ func initTags() {
 func initSystems() {
     ECSHandler.createSystem("CameraMoveSystem", filter: [TranslationComponent.self, RotationComponent.self, CameraComponent.self], multiThreaded: false, delegate: cameraMoveTest)
     ECSHandler.createSystem("HierarchySystem", filter: [TranslationComponent.self, RotationComponent.self, ScaleComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self], multiThreaded: true, delegate: hierarchySystem)
+    ECSHandler.createSystem("RigidbodyUpdateSystem", filter: [RigidbodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: rigidBodyUpdateSystem)
+    ECSHandler.createSystem("BoxColliderUpdateSystem", filter: [BoxColliderComponent.self], multiThreaded: true, delegate: boxColliderUpdateSystem)
     ECSHandler.createSystem("RenderSystem", filter: [WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
     ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
     ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: false, delegate: cameraSystem)

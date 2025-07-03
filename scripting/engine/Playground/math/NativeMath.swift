@@ -23,9 +23,9 @@ internal enum NativeMath {
     }
 
     internal static nonisolated func mat4FromPRSBulk(
-        _ position: UnsafeMutablePointer<TranslationComponent>,
-        _ rotation: UnsafeMutablePointer<RotationComponent>,
-        _ scale: UnsafeMutablePointer<ScaleComponent>,
+        _ position: UnsafeMutablePointer<WorldTranslationComponent>,
+        _ rotation: UnsafeMutablePointer<WorldRotationComponent>,
+        _ scale: UnsafeMutablePointer<WorldScaleComponent>,
         _ buffer: UnsafeMutableBufferPointer<Mat4>
     ) {
         mat4FromPRSBulkPtr(position, rotation, scale, UInt64(buffer.count), buffer.baseAddress!)

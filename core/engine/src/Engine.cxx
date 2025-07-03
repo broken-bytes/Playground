@@ -3,6 +3,7 @@
 #include "playground/ECS.hxx"
 #include "playground/DrawCallbatcher.hxx"
 #include "playground/InputManager.hxx"
+#include "playground/PhysicsManager.hxx"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -19,7 +20,6 @@
 #include <io/IO.hxx>
 #include <logger/ConsoleLogger.hxx>
 #include <logger/Logger.hxx>
-#include <physics/Physics.hxx>
 #include <profiler/Profiler.hxx>
 #include <math/Math.hxx>
 #include <SDL3/SDL.h>
@@ -131,8 +131,12 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Input_IsButtonDown\0", playground::inputmanager::IsButtonDown);
     config.Delegate("Input_IsButtonUp\0", playground::inputmanager::IsButtonUp);
 
-    config.Delegate("Physics_AddRigidbody\0", playground::physics::AddBody);
-    config.Delegate("Physics_AddBoxCollider\0", playground::physics::AddBoxCollider);
+    config.Delegate("Physics_CreateRigidBody\0", playground::physicsmanager::CreateRigidBody);
+    config.Delegate("Physics_CreateStaticBody\0", playground::physicsmanager::CreateStaticBody);
+    config.Delegate("Physics_CreateBoxCollider\0", playground::physicsmanager::CreateBoxCollider);
+    config.Delegate("Physics_AttachCollider\0", playground::physicsmanager::AttachCollider);
+    config.Delegate("Physics_DestroyBody\0", playground::physicsmanager::RemoveBody);
+    config.Delegate("Physics_DestroyCollider\0", playground::physicsmanager::RemoveCollider);
 
     config.Delegate("Time_GetTimeSinceStart\0", GetTimeSinceStart);
     config.Delegate("Time_GetDeltaTime\0", GetDeltaTime);
@@ -151,7 +155,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     playground::input::Init(config.Window);
     playground::inputmanager::Init();
-    playground::physics::Init();
+    playground::physicsmanager::Init();
 
     gameThread = std::thread([config]() {
         playground::audio::Init();
@@ -181,6 +185,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
                 ZoneScopedN("ECS Tick");
                 ZoneColor(tracy::Color::LightSalmon);
                 playground::ecs::Update(deltaTime);
+                playground::physicsmanager::Update(deltaTime);
             }
             {
                 ZoneScopedN("Batcher Submit");
@@ -207,6 +212,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     playground::input::Shutdown();
     playground::rendering::Shutdown();
+    playground::physicsmanager::Shutdown();
     renderThread.join();
     gameThread.join();
 

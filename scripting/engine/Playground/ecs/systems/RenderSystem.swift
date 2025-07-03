@@ -2,9 +2,9 @@ fileprivate var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: 131072)
 fileprivate var matrices = UnsafeMutablePointer<Mat4>.allocate(capacity: 131072)
 
 func renderSystem(iter: UnsafeMutableRawPointer) {
-    let worldTranslations = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: TranslationComponent.self)
-    let worldRotations = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: RotationComponent.self)
-    let worldScales = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: ScaleComponent.self)    
+    let worldTranslations = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: WorldTranslationComponent.self)
+    let worldRotations = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: WorldRotationComponent.self)
+    let worldScales = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: WorldScaleComponent.self)
     let meshComponents = ECSHandler.getComponentBuffer(iter: iter, slot: 3, type: MeshComponent.self)
     let materialComponents = ECSHandler.getComponentBuffer(iter: iter, slot: 4, type: MaterialComponent.self)
 
