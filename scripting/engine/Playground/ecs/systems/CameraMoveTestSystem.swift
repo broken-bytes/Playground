@@ -4,8 +4,13 @@ public func cameraMoveTest(iter: UnsafeMutableRawPointer) {
     var cameras = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: CameraComponent.self)
 
     for x in 0..<translations.count {
-        rotations[x].rotation = rotations[x].rotation.rotatedAroundLocal(axis: .up, angle: Input.getAxis("lookx"))
-        rotations[x].rotation = rotations[x].rotation.rotatedAroundLocal(axis: .left, angle: -Input.getAxis("looky"))
+        let lookX = Input.getAxis("lookx")
+        let lookY = Input.getAxis("looky")
+
+        let yaw = Quaternion(angle: degToRad(lookX), axis: Vector3.up)
+        let pitch = Quaternion(angle: degToRad(lookY), axis: Vector3.right)
+
+        rotations[x].rotation = (yaw * rotations[x].rotation) * pitch
 
         let movement = Vector3(x: Input.getAxis("horizontal"), y: 0, z: Input.getAxis("vertical")) * 5 * Float(Time.deltaTime)
         translations[x].position = translateLocal(position: translations[x].position, rotation: rotations[x].rotation, translation: movement)

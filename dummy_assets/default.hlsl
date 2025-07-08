@@ -1,3 +1,5 @@
+#pragma pack_matrix(row_major)
+
 struct PointLight {
     float4 position;
     float4 colour;
@@ -62,17 +64,14 @@ VSOutput VSMain(VSInput vin)
 {
     VSOutput vout;
 
-    // Load the Model matrix for this instance
+    float4 worldPos = mul(float4(vin.position, 1.0f), vin.modelMatrix);
+    float4 viewPos  = mul(worldPos, viewMatrix);
+    float4 clipPos  = mul(viewPos, projectionMatrix);
 
-    // Transform the position
-    float4 worldPos = mul(vin.modelMatrix, float4(vin.position, 1));
-    float4 viewPos = mul(viewMatrix, worldPos);
-    float4 colour = vin.color;
-    float3x3 normalMatrix = (float3x3)vin.normalMatrix;
-    float3 normalW = mul(normalMatrix, vin.normal);
+    float3 normalW = mul(vin.normal, (float3x3)vin.normalMatrix);
 
-    vout.position = mul(projectionMatrix, viewPos);
-    vout.color = colour;
+    vout.position = clipPos;
+    vout.color = vin.color;
     vout.normal = normalW;
     vout.uv = vin.uv;
 

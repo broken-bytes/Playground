@@ -10,4 +10,4 @@ target_include_directories(Shared PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/module
 target_link_directories(Shared PRIVATE ${EASTL_LIB_DIR})
 target_include_directories(Shared PRIVATE ${EASTL_INC_DIR} ${EABASE_INC_DIR})
 
-target_link_libraries(Shared PRIVATE EASTL)
+target_link_libraries(Shared PRIVATE EASTL concurrentqueue)

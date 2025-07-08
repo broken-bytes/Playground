@@ -4,6 +4,7 @@
 #include <wrl.h>
 #include "rendering/d3d12/D3D12Device.hxx"
 #include "rendering/CommandList.hxx"
+#include <math/Vector4.hxx>
 
 namespace playground::rendering::d3d12 {
 	class D3D12CommandList : public rendering::CommandList {
@@ -20,7 +21,7 @@ namespace playground::rendering::d3d12 {
         auto Reset() -> void override;
         auto SetRenderTarget(std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void override;
         auto ClearDepthTarget(std::shared_ptr<DepthBuffer> target, float depth) -> void override;
-		auto ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void override;
+		auto ClearRenderTarget(std::shared_ptr<RenderTarget> handle, math::Vector4 color) -> void override;
 		auto SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t minDepth,
 			uint32_t maxDepth) -> void override;
 		auto SetScissorRect(uint32_t left, uint32_t top, uint32_t right, uint32_t bottom) -> void override;

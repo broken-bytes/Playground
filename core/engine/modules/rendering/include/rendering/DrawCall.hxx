@@ -4,14 +4,15 @@
 #include "rendering/IndexBufferHandle.hxx"
 #include "rendering/MaterialHandle.hxx"
 #include "rendering/Constants.hxx"
-#include <glm/glm.hpp>
+#include <math/Matrix3x3.hxx>
+#include <math/Matrix4x4.hxx>
 #include <EASTL/vector.h>
 
 namespace playground::rendering {
 	struct DrawCall {
         struct InstanceData {
-            glm::mat4 transform;
-            glm::mat4 normals;
+            math::Matrix4x4 transform;
+            math::Matrix4x4 normals;
         };
         VertexBufferHandle vertexBuffer;
         IndexBufferHandle indexBuffer;

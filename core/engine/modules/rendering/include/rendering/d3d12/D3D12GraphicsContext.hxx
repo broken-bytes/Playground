@@ -1,8 +1,6 @@
 #pragma once
 
-#include <memory>
-#include <wrl.h>
-#include <directx/d3dx12.h>
+#include "rendering/CameraBuffer.hxx"
 #include "rendering/RenderPass.hxx"
 #include "rendering/ReadbackBuffer.hxx"
 #include "rendering/DirectionalLight.hxx"
@@ -15,6 +13,10 @@
 #include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
 #include "rendering/d3d12/D3D12StructuredBuffer.hxx"
+#include <array>
+#include <memory>
+#include <wrl.h>
+#include <directx/d3dx12.h>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyD3D12.hpp>
 #include <EASTL/vector.h>

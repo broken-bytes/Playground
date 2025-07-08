@@ -1,10 +1,10 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <math/Matrix4x4.hxx>
 
 namespace playground::rendering {
     struct CameraBuffer {
-        glm::mat4 ViewMatrix;
-        glm::mat4 ProjectionMatrix;
+        math::Matrix4x4 ViewMatrix;
+        math::Matrix4x4 ProjectionMatrix;
     };
 }

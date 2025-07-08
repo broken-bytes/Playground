@@ -1,11 +1,11 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <math/Vector4.hxx>
 
 namespace playground::rendering {
     struct DirectionalLight {
-        glm::vec4 direction;
-        glm::vec4 colour;
+        math::Vector4 direction;
+        math::Vector4 colour;
         float intensity;
     };
 }

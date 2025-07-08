@@ -1,6 +1,5 @@
 #pragma once
 
-#include <glm/glm.hpp>
 #include "rendering/CommandListType.hxx"
 #include "rendering/Vertex.hxx"
 #include "rendering/IndexBuffer.hxx"
@@ -16,6 +15,7 @@
 #include "rendering/Sampler.hxx"
 #include "rendering/ReadbackBuffer.hxx"
 #include "rendering/InstanceBuffer.hxx"
+#include <math/Vector4.hxx>
 
 namespace playground::rendering {
 	class CommandList {
@@ -27,7 +27,7 @@ namespace playground::rendering {
         virtual auto Reset() -> void = 0;
         virtual auto SetRenderTarget(std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void = 0;
         virtual auto ClearDepthTarget(std::shared_ptr<DepthBuffer> target, float depth) -> void = 0;
-		virtual auto ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void = 0;
+		virtual auto ClearRenderTarget(std::shared_ptr<RenderTarget> handle, math::Vector4 color) -> void = 0;
 		virtual auto SetViewport(
 			uint32_t x,
 			uint32_t y,

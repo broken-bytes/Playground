@@ -20,15 +20,15 @@ namespace playground::physicsmanager {
         physics::Shutdown();
     }
 
-    uint64_t CreateRigidBody(float mass, float damping, glm::vec3 position, glm::vec4 rotation) {
+    uint64_t CreateRigidBody(float mass, float damping, math::Vector3 position, math::Quaternion rotation) {
         return physics::CreateRigidBody(mass, damping, position, rotation);
     }
 
-    uint64_t CreateStaticBody(glm::vec3 position, glm::vec4 rotation) {
+    uint64_t CreateStaticBody(math::Vector3 position, math::Quaternion rotation) {
         return physics::CreateStaticBody(position, rotation);
     }
 
-    uint64_t CreateBoxCollider(assetmanager::PhysicsMaterialHandle* materialHandle, glm::vec4 rotation, glm::vec3 dimensions, glm::vec3 offset) {
+    uint64_t CreateBoxCollider(assetmanager::PhysicsMaterialHandle* materialHandle, math::Quaternion rotation, math::Vector3 dimensions, math::Vector3 offset) {
         return physics::CreateBoxCollider(materialHandle->material, rotation, dimensions, offset);
     }
 
@@ -42,5 +42,13 @@ namespace playground::physicsmanager {
 
     void RemoveCollider(uint64_t collider) {
         physics::RemoveShape(collider);
+    }
+
+    void GetBodyPosition(uint64_t id, math::Vector3* position) {
+        physics::GetBodyPosition(id, position);
+    }
+
+    void GetBodyRotation(uint64_t id, math::Quaternion* rotation) {
+        physics::GetBodyRotation(id, rotation);
     }
 }

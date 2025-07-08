@@ -9,6 +9,9 @@
 #include "rendering/Camera.hxx"
 #include "rendering/Sampler.hxx"
 #include "rendering/DirectionalLight.hxx"
+#include <math/Quaternion.hxx>
+#include <math/Vector3.hxx>
+#include <math/Matrix4x4.hxx>
 #include <assetloader/AssetLoader.hxx>
 #include <shared/RingBuffer.hxx>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -33,8 +36,8 @@ namespace playground::rendering {
     };
 
     struct ObjectBuffer {
-        glm::mat4 ModelMatrix;
-        glm::mat4 NormalMatrix;
+        math::Matrix4x4 ModelMatrix;
+        math::Matrix4x4 NormalMatrix;
     };
 
     struct SimulationBuffer {
@@ -90,8 +93,6 @@ namespace playground::rendering {
 
     std::array<CameraBuffer, MAX_CAMERA_COUNT> cameras = {};
 
-    ObjectBuffer objectData;
-
     bool didUpload = false;
 
     std::shared_ptr<Sampler> sampler = nullptr;
@@ -145,13 +146,6 @@ namespace playground::rendering {
 
         swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
 
-        glm::mat4 scale = glm::identity<glm::mat4>();
-        glm::mat4 transform = glm::translate(scale, glm::vec3(0, 0, 5.0f));
-        glm::quat quaternion = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 rotationMatrix = glm::mat4_cast(quaternion);
-        glm::mat4 finalTransform = glm::transpose(transform * rotationMatrix);
-        objectData.ModelMatrix = finalTransform;
-
         tracy::SetThreadName("Render Thread");
 
         isRunning = true;
@@ -194,7 +188,6 @@ namespace playground::rendering {
 	auto PreFrame() -> void {
         ZoneScopedN("RenderThread: Pre Frame");
         ZoneColor(tracy::Color::Orange);
-
 
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto uploadContext = frames[backBufferIndex]->UploadContext();
@@ -277,7 +270,6 @@ namespace playground::rendering {
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
         auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
 
-
         for (int x = 0; x < nextFrame.cameras.size(); x ++) {
             assert(x < MAX_CAMERA_COUNT && "Max cameras exceeded");
 
@@ -289,12 +281,12 @@ namespace playground::rendering {
                 .ProjectionMatrix = cam.GetProjectionMatrix()
             };
 
+
             cameras[x] = buff;
         }
 
         // Write camera data to context
         graphicsContext->SetCameraData(cameras);
-        auto dir = glm::normalize(glm::vec3(2, 0, 5));
         graphicsContext->SetDirectionalLight(nextFrame.sun);
 
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
@@ -398,10 +390,10 @@ namespace playground::rendering {
         frames[logicFrameIndex]->MaterialUploadQueue().push_back(job);
     }
 
-    auto QueueUploadTexture(assetloader::RawTextureData& texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
+    auto QueueUploadTexture(std::shared_ptr<assetloader::RawTextureData> texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
         auto job = TextureUploadJob {
             .handle = handle,
-            .rawData = texture,
+            .rawData = std::move(texture),
             .callback = callback
         };
         frames[logicFrameIndex]->TextureUploadQueue().push_back(job);
@@ -464,7 +456,7 @@ namespace playground::rendering {
     auto UploadTexture(TextureUploadJob& job) -> void {
         auto backBufferIndex = swapchain->BackBufferIndex();
 
-        auto texture = device->CreateTexture(job.rawData.Width, job.rawData.Height, job.rawData.MipMaps, frames[backBufferIndex]->Alloc());
+        auto texture = device->CreateTexture(job.rawData->Width, job.rawData->Height, job.rawData->MipMaps, frames[backBufferIndex]->Alloc());
 
         uint32_t textureId = 0;
         if (freeTextureIds.size() > 0) {
@@ -495,10 +487,10 @@ namespace playground::rendering {
         auto material = device->CreateMaterial(job.vertexShaderBlob, job.pixelShaderBlob);
 
         uint32_t materialId = 0;
-        if (freeVertexBufferIds.size() > 0) {
-            materialId = freeMeshIds.back();
+        if (freeMaterialIds.size() > 0) {
+            materialId = freeMaterialIds.back();
             materials[materialId] = material;
-            freeMeshIds.pop_back();
+            freeMaterialIds.pop_back();
         }
         else {
             materials.push_back(material);

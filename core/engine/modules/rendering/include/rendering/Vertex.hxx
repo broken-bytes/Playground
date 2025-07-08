@@ -1,12 +1,14 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <math/Vector2.hxx>
+#include <math/Vector3.hxx>
+#include <math/Vector4.hxx>
 
 namespace playground::rendering {
 	struct Vertex {
-		glm::vec3 position;
-        glm::vec4 color;
-		glm::vec3 normal;
-		glm::vec2 uvs;
+		math::Vector3 position;
+        math::Vector4 color;
+        math::Vector3 normal;
+        math::Vector2 uvs;
 	};
 }

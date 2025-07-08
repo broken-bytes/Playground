@@ -34,6 +34,7 @@ namespace playground::assetmanager {
     void MarkTextureUploadFinished(uint32_t handleId, uint32_t texture) {
         if (handleId < _textureHandles.size()) {
             _textureHandles[handleId]->state = ResourceState::Uploaded;
+            _textureHandles[handleId]->data = nullptr;
             _textureHandles[handleId]->texture = texture;
             _textureHandles[handleId]->refCount--;
         }
@@ -201,18 +202,20 @@ namespace playground::assetmanager {
 
         auto rawTextureData = playground::assetloader::LoadTexture(name);
 
+        auto data = std::make_shared<assetloader::RawTextureData>(rawTextureData);
+
         auto newHandle = new TextureHandle{
             .hash = hash,
             .state = ResourceState::Created,
             .refCount = 1,
-            .data = std::make_shared<assetloader::RawTextureData>(rawTextureData)
+            .data = data
         };
 
         uint32_t handleId;
         handleId = _textureHandles.size();
         _textureHandles.push_back(newHandle);
 
-        rendering::QueueUploadTexture(*newHandle->data, handleId, MarkTextureUploadFinished);
+        rendering::QueueUploadTexture(data, handleId, MarkTextureUploadFinished);
 
         return _textureHandles[handleId];
     }

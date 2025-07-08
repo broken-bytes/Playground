@@ -10,6 +10,7 @@
 #include <semaphore>
 #include <string>
 #include <map>
+#include <memory>
 #include <vector>
 #include <rendering/IndexBufferHandle.hxx>
 #include <rendering/MaterialHandle.hxx>
@@ -59,7 +60,7 @@ namespace playground::rendering {
         uint32_t handle,
         std::function<void(uint32_t, uint32_t)>
     ) -> void;
-    auto QueueUploadTexture(assetloader::RawTextureData& texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void;
+    auto QueueUploadTexture(std::shared_ptr<assetloader::RawTextureData> texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void;
     auto UploadModel(ModelUploadJob& job) -> void;
     auto UploadTexture(TextureUploadJob& job) -> void;
     auto CreateMaterial(MaterialUploadJob job) -> void;

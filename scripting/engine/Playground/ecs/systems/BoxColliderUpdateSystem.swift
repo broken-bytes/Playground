@@ -28,6 +28,18 @@ public func boxColliderUpdateSystem(iter: UnsafeMutableRawPointer) {
                 boxcolliders[x].isDirty = false
 
                 continue
+            } else if (ECSHandler.hasComponent(entities[x], type: StaticbodyComponent.self)) {
+                let comp = ECSHandler.getComponent(entities[x], type: StaticbodyComponent.self)
+
+                if (comp.pointee.handle == nil) {
+                    continue
+                }
+
+                Physics.attachCollider(body: comp.pointee.handle!, collider: collider.handle!)
+
+                boxcolliders[x].isDirty = false
+
+                continue
             } else {
                 repeat {
                     parentId = ECSHandler.getParent(entities[x])

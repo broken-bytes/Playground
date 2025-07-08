@@ -1,5 +1,9 @@
+import Native
+
 fileprivate var ptr = UnsafeMutablePointer<DrawCall>.allocate(capacity: 131072)
 fileprivate var matrices = UnsafeMutablePointer<Mat4>.allocate(capacity: 131072)
+
+fileprivate var renderIndexAtomic = AtomicInt(counter: 0)
 
 func renderSystem(iter: UnsafeMutableRawPointer) {
     let worldTranslations = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: WorldTranslationComponent.self)
@@ -8,22 +12,26 @@ func renderSystem(iter: UnsafeMutableRawPointer) {
     let meshComponents = ECSHandler.getComponentBuffer(iter: iter, slot: 3, type: MeshComponent.self)
     let materialComponents = ECSHandler.getComponentBuffer(iter: iter, slot: 4, type: MaterialComponent.self)
 
-    let offset = ECSHandler.iteratorOffset(iter: iter)
+    let startIndex = renderIndexAtomic.fetchAdd(value: UInt64(worldTranslations.count))
 
-    var buffer = UnsafeMutableBufferPointer(start: matrices.advanced(by: Int(offset)), count: worldTranslations.count)
+    var buffer = UnsafeMutableBufferPointer(start: matrices.advanced(by: Int(startIndex)), count: worldTranslations.count)
 
     NativeMath.mat4FromPRSBulk(worldTranslations.baseAddress!, worldRotations.baseAddress!, worldScales.baseAddress!, buffer)
 
-    let drawPtr = ptr.advanced(by: Int(offset))
+    let drawPtr = ptr.advanced(by: Int(startIndex))
 
     for x in 0..<worldTranslations.count {
         drawPtr[x] = DrawCall(
             modelHandle: meshComponents[x].handle,
             meshId: meshComponents[x].meshId,
             materialHandle: materialComponents[x].handle,
-            transform: matrices[x]
+            transform: buffer[x]
         )
     }
 
-    Renderer.batch(ptr, count: UInt16(worldTranslations.count))
+    Renderer.batch(drawPtr, count: UInt16(worldTranslations.count))
+}
+
+func renderResetSystem(iter: UnsafeMutableRawPointer) {
+    renderIndexAtomic.store(value: 0)
 }

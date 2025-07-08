@@ -1,7 +1,10 @@
 #pragma once
 
 #include "playground/AssetManager.hxx"
-#include <glm/glm.hpp>
+#include <math/Vector3.hxx>
+#include <math/Vector4.hxx>
+#include <math/Quaternion.hxx>
+#include <math/Matrix4x4.hxx>
 #include <cstdint>
 
 namespace playground::drawcallbatcher {
@@ -9,11 +12,11 @@ namespace playground::drawcallbatcher {
         assetmanager::ModelHandle* modelHandle;
         uint16_t meshId;
         assetmanager::MaterialHandle* materialHandle;
-        glm::mat4 transform;
+        math::Matrix4x4 transform;
     };
 
     void Batch(drawcallbatcher::DrawCall*, uint16_t count);
-    void SetSun(glm::vec3 direction, glm::vec4 colour, float intensity);
-    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, glm::vec3& position, glm::quat& rotation);
+    void SetSun(math::Vector3 direction, math::Vector4 colour, float intensity);
+    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, math::Vector3& position, math::Quaternion& rotation);
     void Submit();
 }

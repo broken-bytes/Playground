@@ -115,7 +115,7 @@ namespace playground::rendering::d3d12 {
         );
     }
 
-	auto D3D12CommandList::ClearRenderTarget(std::shared_ptr<RenderTarget> handle, glm::vec4 color) -> void
+	auto D3D12CommandList::ClearRenderTarget(std::shared_ptr<RenderTarget> handle, math::Vector4 color) -> void
 	{
 		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = std::static_pointer_cast<D3D12RenderTarget>(handle)->Handle();
 		_list->ClearRenderTargetView(cpuHandle, reinterpret_cast<float*>(&color), 0, nullptr);

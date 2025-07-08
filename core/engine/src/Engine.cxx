@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 #include <shared/Hardware.hxx>
+#include <shared/JobSystem.hxx>
 #include <audio/Audio.hxx>
 #include <input/Input.hxx>
 #include <rendering/Rendering.hxx>
@@ -137,6 +138,8 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("Physics_AttachCollider\0", playground::physicsmanager::AttachCollider);
     config.Delegate("Physics_DestroyBody\0", playground::physicsmanager::RemoveBody);
     config.Delegate("Physics_DestroyCollider\0", playground::physicsmanager::RemoveCollider);
+    config.Delegate("Physics_GetBodyPosition\0", playground::physicsmanager::GetBodyPosition);
+    config.Delegate("Physics_GetBodyRotation\0", playground::physicsmanager::GetBodyRotation);
 
     config.Delegate("Time_GetTimeSinceStart\0", GetTimeSinceStart);
     config.Delegate("Time_GetDeltaTime\0", GetDeltaTime);
@@ -145,8 +148,8 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
 
-    config.Delegate("Math_Mat4FromPRS", playground::math::utils::Mat4FromPRS);
-    config.Delegate("Math_Mat4FromPRSBulk", playground::math::utils::Mat4FromPRSBulk);
+    config.Delegate("Math_Mat4FromPRS", playground::math::Mat4FromPRS);
+    config.Delegate("Math_Mat4FromPRSBulk", playground::math::Mat4FromPRSBulk);
 
     playground::logging::logger::Info("Playground Core Engine started.");
     playground::logging::logger::Info("Initializing Scripting Layer...");
@@ -154,6 +157,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     rendererReadyFuture.wait();
 
     playground::input::Init(config.Window);
+    playground::jobsystem::Init();
     playground::inputmanager::Init();
     playground::physicsmanager::Init();
 
@@ -185,11 +189,15 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
                 ZoneScopedN("ECS Tick");
                 ZoneColor(tracy::Color::LightSalmon);
                 playground::ecs::Update(deltaTime);
+            }
+            {
+                ZoneScopedN("Physics Tick");
+                ZoneColor(tracy::Color::Salmon);
                 playground::physicsmanager::Update(deltaTime);
             }
             {
                 ZoneScopedN("Batcher Submit");
-                ZoneColor(tracy::Color::Salmon);
+                ZoneColor(tracy::Color::DarkSalmon);
                 playground::drawcallbatcher::Submit();
             }
             auto next = std::chrono::high_resolution_clock::now();

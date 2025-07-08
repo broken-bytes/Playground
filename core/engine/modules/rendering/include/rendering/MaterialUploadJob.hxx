@@ -12,6 +12,7 @@ namespace playground::rendering {
         uint32_t handle;
         std::string vertexShaderBlob;
         std::string pixelShaderBlob;
+        std::array<uint32_t, 8> textureHandles;
         std::function<void(uint32_t, uint32_t)> callback;
     };
 }

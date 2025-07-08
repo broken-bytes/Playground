@@ -8,6 +8,9 @@ public enum Physics {
     internal typealias RemoveBody = @convention(c) (UInt64) -> Void
     internal typealias RemoveCollider = @convention(c) (UInt64) -> Void
 
+    internal typealias GetBodyPosition = @convention(c) (UInt64, UnsafeRawPointer) -> Void
+    internal typealias GetBodyRotation = @convention(c) (UInt64, UnsafeRawPointer) -> Void
+
     private static nonisolated(unsafe) var createRigidbodyPtr: CreateRigidBody!
     private static nonisolated(unsafe) var createStaticbodyPtr: CreateStaticBody!
     private static nonisolated(unsafe) var createBoxColliderPtr: CreateBoxCollider!
@@ -16,6 +19,9 @@ public enum Physics {
 
     private static nonisolated(unsafe) var removeBodyPtr: RemoveBody!
     private static nonisolated(unsafe) var removeColliderPtr: RemoveCollider!
+
+    private static nonisolated(unsafe) var getBodyPositionPtr: GetBodyPosition!
+    private static nonisolated(unsafe) var getBodyRotationPtr: GetBodyRotation!
 
     internal static nonisolated func setup() {
         createRigidbodyPtr = NativeLookupTable.getFunctionPointer(by: "Physics_CreateRigidBody")
@@ -26,6 +32,9 @@ public enum Physics {
 
         removeBodyPtr = NativeLookupTable.getFunctionPointer(by: "Physics_DestroyBody")
         removeColliderPtr = NativeLookupTable.getFunctionPointer(by: "Physics_DestroyCollider")
+
+        getBodyPositionPtr = NativeLookupTable.getFunctionPointer(by: "Physics_GetBodyPosition")
+        getBodyRotationPtr = NativeLookupTable.getFunctionPointer(by: "Physics_GetBodyRotation")
     }
 
     internal static nonisolated func createRigidBody(mass: Float, damping: Float, pos: inout Vector3, rot: inout Quaternion) -> UInt64 {
@@ -50,5 +59,19 @@ public enum Physics {
 
     internal static nonisolated func destroyCollider(collider: UInt64) {
         removeColliderPtr(collider)
+    }
+
+    internal static nonisolated func bodyPosition(id: UInt64) -> Vector3 {
+        var vec3 = Vector3.zero
+        getBodyPositionPtr(id, &vec3)
+
+        return vec3
+    }
+
+    internal static nonisolated func bodyRotation(id: UInt64) -> Quaternion {
+        var quat = Quaternion.identity
+        getBodyRotationPtr(id, &quat)
+
+        return quat
     }
 }

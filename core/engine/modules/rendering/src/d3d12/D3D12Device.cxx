@@ -368,7 +368,7 @@ namespace playground::rendering::d3d12 {
         D3D12_RASTERIZER_DESC rasterizerDesc = {};
         rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
         rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
-        rasterizerDesc.FrontCounterClockwise = TRUE;
+        rasterizerDesc.FrontCounterClockwise = FALSE;
         rasterizerDesc.DepthClipEnable = TRUE;
 
         psoDesc.RasterizerState = rasterizerDesc;

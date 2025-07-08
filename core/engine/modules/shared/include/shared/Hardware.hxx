@@ -5,6 +5,8 @@
 namespace playground::hardware {
     void Init();
 
+    uint8_t CPUCount();
+
     bool SupportsAVX();
 
     bool SupportsAVX2();

@@ -1,0 +1,45 @@
+#pragma once
+
+#include <array>
+#include <string>
+#include <cmath>
+
+namespace playground::math {
+    struct Matrix4x4;
+
+    struct Matrix3x3 {
+        std::array<float, 9> elements;
+
+        Matrix3x3();
+
+        Matrix3x3(const std::array<float, 9>& elems);
+
+        float& operator()(int row, int col);
+
+        const float& operator()(int row, int col) const;
+
+        const float* Row(int row) const;
+
+        Matrix3x3 operator*(const Matrix3x3& other) const;
+
+        bool operator==(const Matrix3x3& other) const;
+
+        bool operator!=(const Matrix3x3& other) const;
+
+        static Matrix3x3 Identity() {
+            return Matrix3x3();
+        }
+
+        static Matrix3x3 Zero() {
+            return Matrix3x3(std::array<float, 9>{
+                0.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 0.0f
+            });
+        }
+
+        Matrix4x4 ToMatrix4x4() const;
+
+        std::string ToString() const;
+    };
+}

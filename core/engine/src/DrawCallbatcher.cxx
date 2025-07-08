@@ -62,7 +62,7 @@ namespace playground::drawcallbatcher {
 
     Allocator alloc(&arena, "Batcher Allocator");
 
-    eastl::array<DrawCallRange, MAX_ECS_WORKER_THREAD_COUNT> batches;
+    moodycamel::ConcurrentQueue<DrawCallRange> batches;
     std::atomic<uint32_t> batchIndex = 0;
     std::mutex mutex;
     rendering::DirectionalLight sun;
@@ -70,21 +70,19 @@ namespace playground::drawcallbatcher {
 
     void Batch(drawcallbatcher::DrawCall* batch, uint16_t count) {
         ZoneScopedN("Batcher: Batch");
-        auto index = batchIndex.fetch_add(1, std::memory_order_relaxed);
         uint64_t hash = 0;
-
-        batches[index] = DrawCallRange{ .start = batch, .count = count };
+        batches.enqueue(DrawCallRange{ .start = batch, .count = count });
     }
 
-    void SetSun(glm::vec3 direction, glm::vec4 colour, float intensity) {
+    void SetSun(math::Vector3 direction, math::Vector4 colour, float intensity) {
         sun = rendering::DirectionalLight{
-            .direction = glm::vec4(glm::normalize(direction), 0),
+            .direction = math::Vector4(math::Normalize(direction), 0.0f),
             .colour = colour,
             .intensity = intensity
         };
     }
 
-    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, glm::vec3& position, glm::quat& rotation) {
+    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, math::Vector3& position, math::Quaternion& rotation) {
         ZoneScopedN("Batcher: Add Camera");
 
         rendering::Camera camera(fov, 0, nearPlane, farPlane, position, rotation, order);
@@ -105,10 +103,9 @@ namespace playground::drawcallbatcher {
 
         frame.isDirty = true;
 
-        for (int x = 0; x < MAX_ECS_WORKER_THREAD_COUNT; x++) {
+        DrawCallRange next;
+        while(batches.try_dequeue(next)) {
             ZoneScopedN("Batcher: Process Batch");
-            DrawCallRange& next = batches[x];
-
             for (int y = 0; y < next.count; y++) {
                 auto item = next.start[y];
 
@@ -123,11 +120,16 @@ namespace playground::drawcallbatcher {
                 auto it = batchedDrawCalls.find(key);
                 if (it != batchedDrawCalls.end() && frame.drawCalls[it->second].instanceData.size() < rendering::MAX_BATCH_SIZE) {
                     auto& existingDrawCall = frame.drawCalls[it->second];
-                    glm::mat4 modelInv = glm::inverse(item.transform);
-                    modelInv = glm::transpose(modelInv);
+
+                    math::Matrix3x3 normalMatrixInput = item.transform.ToMatrix3x3();
+                    math::Matrix3x3 normalMatrixInv;
+                    math::Inverse(normalMatrixInput, &normalMatrixInv);
+                    math::Matrix3x3 normalMatrixInvTranspose;
+                    math::Transpose(normalMatrixInv, &normalMatrixInvTranspose);
+
                     existingDrawCall.instanceData.push_back({
                         .transform = item.transform,
-                        .normals = modelInv
+                        .normals = normalMatrixInvTranspose.ToMatrix4x4()
                     });
                 }
                 else {
@@ -139,9 +141,13 @@ namespace playground::drawcallbatcher {
                     newDrawCall.material = item.materialHandle->material;
                     newDrawCall.instanceData.reserve(rendering::MAX_BATCH_SIZE);
 
-                    glm::mat4 modelInv = glm::inverse(item.transform);
-                    modelInv = glm::transpose(modelInv);
-                    newDrawCall.instanceData.push_back({ .transform = item.transform, .normals = modelInv });
+                    math::Matrix3x3 normalMatrixInput = item.transform.ToMatrix3x3();
+                    math::Matrix3x3 normalMatrixInv;
+                    math::Inverse(normalMatrixInput, &normalMatrixInv);
+                    math::Matrix3x3 normalMatrixInvTranspose;
+                    math::Transpose(normalMatrixInv, &normalMatrixInvTranspose);
+
+                    newDrawCall.instanceData.push_back({ .transform = item.transform, .normals = normalMatrixInvTranspose.ToMatrix4x4() });
 
                     frame.drawCalls.push_back(newDrawCall);
 
@@ -152,8 +158,6 @@ namespace playground::drawcallbatcher {
 
         {
             ZoneScopedN("Batcher: Queue Draw Calls");
-
-            batchIndex.store(0, std::memory_order_relaxed);
 
             batchedDrawCalls.clear();
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include "rendering/Constants.hxx"
 #include "rendering/Context.hxx"
 #include "rendering/Material.hxx"
@@ -15,7 +14,8 @@
 #include "rendering/CameraBuffer.hxx"
 #include "rendering/Texture.hxx"
 #include "rendering/DirectionalLight.hxx"
-#include <glm/glm.hpp>
+#include <array>
+#include <memory>
 
 namespace playground::rendering {
     class GraphicsContext : public Context {

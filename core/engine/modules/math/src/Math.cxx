@@ -1,212 +1,274 @@
-#include "Math.hxx"
+#include "math/Math.hxx"
+#include "math/Vector3.hxx"
+#include "math/Matrix4x4.hxx"
+#include "math/Quaternion.hxx"
+#include <cmath>
 #include <simde/x86/avx.h>
-#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
-namespace playground::math::utils {
-    // Note: Use vec4 instead of vec3 for position and scale due to padding on the Swift side.
-    void Mat4FromPRS(const glm::vec3* position, const glm::vec4* rotation, const glm::vec3* scale, glm::mat4* mat) {
-        const float x = rotation->x;
-        const float y = rotation->y;
-        const float z = rotation->z;
-        const float w = rotation->w;
+namespace playground::math {
+    void Mat4FromPRS(const Vector3* position, const Quaternion* rotation, const Vector3* scale, Matrix4x4* mat) {
+        const float x = rotation->X;
+        const float y = rotation->Y;
+        const float z = rotation->Z;
+        const float w = rotation->W;
 
-        // Quaternion to rotation matrix (column-major, GL-style)
         const float xx = x * x, yy = y * y, zz = z * z;
         const float xy = x * y, xz = x * z, yz = y * z;
         const float wx = w * x, wy = w * y, wz = w * z;
 
-        // Unscaled rotation matrix, rows as SIMD vectors
-        simde__m128 row0 = simde_mm_set_ps(0.0f,
+        // Compute rotation matrix rows (row-major order)
+        simde__m128 row0 = simde_mm_setr_ps(
             1.0f - 2.0f * (yy + zz),
             2.0f * (xy + wz),
-            2.0f * (xz - wy)
+            2.0f * (xz - wy),
+            0.0f
         );
 
-        simde__m128 row1 = simde_mm_set_ps(0.0f,
+        simde__m128 row1 = simde_mm_setr_ps(
             2.0f * (xy - wz),
             1.0f - 2.0f * (xx + zz),
-            2.0f * (yz + wx)
+            2.0f * (yz + wx),
+            0.0f
         );
 
-        simde__m128 row2 = simde_mm_set_ps(0.0f,
+        simde__m128 row2 = simde_mm_setr_ps(
             2.0f * (xz + wy),
             2.0f * (yz - wx),
-            1.0f - 2.0f * (xx + yy)
+            1.0f - 2.0f * (xx + yy),
+            0.0f
         );
 
-        // Apply scale (element-wise)
-        simde__m128 scaleVec = simde_mm_set_ps(0.0f, scale->z, scale->y, scale->x);
+        // Apply scale
+        simde__m128 scaleVec = simde_mm_setr_ps(scale->X, scale->Y, scale->Z, 1.0f);
         row0 = simde_mm_mul_ps(row0, scaleVec);
         row1 = simde_mm_mul_ps(row1, scaleVec);
         row2 = simde_mm_mul_ps(row2, scaleVec);
 
-        // Final row (position)
-        simde__m128 row3 = simde_mm_set_ps(1.0f, position->z, position->y, position->x);
+        // Final translation row
+        simde__m128 row3 = simde_mm_setr_ps(position->X, position->Y, position->Z, 1.0f);
 
-        // Convert to glm::mat4
-        glm::mat4 result;
-        simde_mm_storeu_ps(glm::value_ptr(result[0]), row0);
-        simde_mm_storeu_ps(glm::value_ptr(result[1]), row1);
-        simde_mm_storeu_ps(glm::value_ptr(result[2]), row2);
-        simde_mm_storeu_ps(glm::value_ptr(result[3]), row3);
+        // Store to Matrix4x4
+        Matrix4x4 result;
+        simde_mm_storeu_ps((float*)result.Row(0), row0);
+        simde_mm_storeu_ps((float*)result.Row(1), row1);
+        simde_mm_storeu_ps((float*)result.Row(2), row2);
+        simde_mm_storeu_ps((float*)result.Row(3), row3);
 
         *mat = result;
     }
 
-    void Mat4FromPRSBulk(const glm::vec3* position, const glm::vec4* rotation, const glm::vec3* scale, size_t count, glm::mat4* mats) {
+    void Mat4FromPRSBulk(const Vector3* position, const Quaternion* rotation, const Vector3* scale, size_t count, Matrix4x4* mats) {
         for(size_t i = 0; i < count; ++i) {
             Mat4FromPRS(&position[i], &rotation[i], &scale[i], &mats[i]);
         }
     }
 
-    void GetViewMatrixSIMD_LH(const glm::vec3* position, const glm::vec4* rotation, glm::mat4* outMat) {
-        const float x = rotation->x, y = rotation->y, z = rotation->z, w = rotation->w;
+    void GetViewMatrix(const Vector3* position, const Quaternion* rotation, Matrix4x4* outMat) {
+        // First compute the rotation matrix from the *normalized* quaternion (no inverse)
+        const float x = rotation->X;
+        const float y = rotation->Y;
+        const float z = rotation->Z;
+        const float w = rotation->W;
 
-        const float xx = x * x, yy = y * y, zz = z * z;
-        const float xy = x * y, xz = x * z, yz = y * z;
-        const float wx = w * x, wy = w * y, wz = w * z;
+        const float r00 = 1.0f - 2.0f * (y * y + z * z);
+        const float r01 = 2.0f * (x * y - z * w);
+        const float r02 = 2.0f * (x * z + y * w);
 
-        // Left-handed rotation matrix (no transpose)
-        simde__m128 row0 = simde_mm_set_ps(0.0f,
-            1.0f - 2.0f * (yy + zz),
-            2.0f * (xy + wz),
-            -2.0f * (xz - wy) // Flip Z
-        );
+        const float r10 = 2.0f * (x * y + z * w);
+        const float r11 = 1.0f - 2.0f * (x * x + z * z);
+        const float r12 = 2.0f * (y * z - x * w);
 
-        simde__m128 row1 = simde_mm_set_ps(0.0f,
-            2.0f * (xy - wz),
-            1.0f - 2.0f * (xx + zz),
-            -2.0f * (yz + wx) // Flip Z
-        );
+        const float r20 = 2.0f * (x * z - y * w);
+        const float r21 = 2.0f * (y * z + x * w);
+        const float r22 = 1.0f - 2.0f * (x * x + y * y);
 
-        simde__m128 row2 = simde_mm_set_ps(0.0f,
-            2.0f * (xz + wy),
-            2.0f * (yz - wx),
-            1.0f - 2.0f * (xx + yy)
-        );
+        // Now apply negative position using this rotation (this is the view matrix math)
+        const float px = position->X;
+        const float py = position->Y;
+        const float pz = position->Z;
 
-        // Negative translation
-        simde__m128 negPos = simde_mm_set_ps(0.0f, -position->z, -position->y, -position->x);
+        const float tx = -(r00 * px + r01 * py + r02 * pz);
+        const float ty = -(r10 * px + r11 * py + r12 * pz);
+        const float tz = -(r20 * px + r21 * py + r22 * pz);
 
-        // Compute dot products for translation
-        simde__m128 t0 = simde_mm_mul_ps(row0, negPos);
-        simde__m128 t1 = simde_mm_mul_ps(row1, negPos);
-        simde__m128 t2 = simde_mm_mul_ps(row2, negPos);
-
-        float tx = simde_mm_cvtss_f32(simde_mm_hadd_ps(simde_mm_hadd_ps(t0, t0), t0));
-        float ty = simde_mm_cvtss_f32(simde_mm_hadd_ps(simde_mm_hadd_ps(t1, t1), t1));
-        float tz = simde_mm_cvtss_f32(simde_mm_hadd_ps(simde_mm_hadd_ps(t2, t2), t2));
-
-        simde__m128 row3 = simde_mm_set_ps(1.0f, tz, ty, tx);
-
-        glm::mat4 view;
-        simde_mm_storeu_ps(glm::value_ptr(view[0]), row0);
-        simde_mm_storeu_ps(glm::value_ptr(view[1]), row1);
-        simde_mm_storeu_ps(glm::value_ptr(view[2]), row2);
-        simde_mm_storeu_ps(glm::value_ptr(view[3]), row3);
-
-        *outMat = view;
+        *outMat = Matrix4x4({
+            r00, r01, r02, tx,
+            r10, r11, r12, ty,
+            r20, r21, r22, tz,
+            0.0f, 0.0f, 0.0f, 1.0f
+            });
     }
 
-    void GetProjectionMatrixSIMD_LH(float fovYDegrees, float aspectRatio, float nearPlane, float farPlane, glm::mat4* outMat) {
-        float fovYRadians = glm::radians(fovYDegrees);
-        float f = 1.0f / tanf(fovYRadians / 2.0f);
-        float nf = 1.0f / (farPlane - nearPlane);
+    void LookAtLH(const Vector3& eye, const Vector3& target, const Vector3& up, Matrix4x4* out) {
+        Vector3 zAxis = Normalize(target - eye);
+        Vector3 xAxis = Normalize(up.Cross(zAxis));
+        Vector3 yAxis = zAxis.Cross(xAxis);
 
-        float m00 = f / aspectRatio;
-        float m11 = f;
-        float m22 = farPlane * nf;
-        float m32 = -nearPlane * farPlane * nf;
+        auto result = Matrix4x4({
+            xAxis.X, xAxis.Y, xAxis.Z, -xAxis.Dot(eye),
+            yAxis.X, yAxis.Y, yAxis.Z, -yAxis.Dot(eye),
+            zAxis.X, zAxis.Y, zAxis.Z, -zAxis.Dot(eye),
+            0.0f,    0.0f,    0.0f,     1.0f
+        });
 
-        simde__m128 col0 = simde_mm_set_ps(0.0f, 0.0f, 0.0f, m00);
-        simde__m128 col1 = simde_mm_set_ps(0.0f, 0.0f, m11, 0.0f);
-        simde__m128 col2 = simde_mm_set_ps(1.0f, 0.0f, m22, 0.0f);   // Z = +1 in clip space
-        simde__m128 col3 = simde_mm_set_ps(0.0f, 0.0f, m32, 0.0f);
-
-        glm::mat4 proj;
-        simde_mm_storeu_ps(glm::value_ptr(proj[0]), col0);
-        simde_mm_storeu_ps(glm::value_ptr(proj[1]), col1);
-        simde_mm_storeu_ps(glm::value_ptr(proj[2]), col2);
-        simde_mm_storeu_ps(glm::value_ptr(proj[3]), col3);
-
-        *outMat = proj;
+        *out = result;
     }
 
-    void Transpose(const glm::mat4& src, glm::mat4* dst) {
-        simde__m128 row0 = simde_mm_loadu_ps(glm::value_ptr(src[0]));
-        simde__m128 row1 = simde_mm_loadu_ps(glm::value_ptr(src[1]));
-        simde__m128 row2 = simde_mm_loadu_ps(glm::value_ptr(src[2]));
-        simde__m128 row3 = simde_mm_loadu_ps(glm::value_ptr(src[3]));
+    void GetProjectionMatrix(float fovYDegrees, float aspectRatio, float nearPlane, float farPlane, Matrix4x4* outMat) {
+        float fovYRadians = DegreesToRadians(fovYDegrees);
+        float yScale = 1.0f / tanf(fovYRadians * 0.5f);
+        float xScale = yScale / aspectRatio;
+
+        float n = nearPlane;
+        float f = farPlane;
+
+        Matrix4x4 matrix({
+            xScale, 0.0f,    0.0f,                      0.0f,
+            0.0f,   yScale,  0.0f,                      0.0f,
+            0.0f,   0.0f,    f / (f - n),               1.0f,
+            0.0f,   0.0f,   -n * f / (f - n),           0.0f
+        });
+
+        *outMat = matrix;
+    }
+
+    void Transpose(const Matrix3x3& src, Matrix3x3* dst) {
+        for (int row = 0; row < 3; ++row) {
+            for (int col = 0; col < 3; ++col) {
+                (*dst)(col, row) = src(row, col);
+            }
+        }
+    }
+
+    void Transpose(const Matrix4x4& src, Matrix4x4* dst) {
+        simde__m128 row0 = simde_mm_loadu_ps((simde_float32*)src.Row(0));
+        simde__m128 row1 = simde_mm_loadu_ps((simde_float32*)src.Row(1));
+        simde__m128 row2 = simde_mm_loadu_ps((simde_float32*)src.Row(2));
+        simde__m128 row3 = simde_mm_loadu_ps((simde_float32*)src.Row(3));
 
         simde__m128 tmp0 = simde_mm_unpacklo_ps(row0, row1);
         simde__m128 tmp1 = simde_mm_unpackhi_ps(row0, row1);
         simde__m128 tmp2 = simde_mm_unpacklo_ps(row2, row3);
         simde__m128 tmp3 = simde_mm_unpackhi_ps(row2, row3);
 
-        simde_mm_storeu_ps(glm::value_ptr((*dst)[0]), simde_mm_movelh_ps(tmp0, tmp2));
-        simde_mm_storeu_ps(glm::value_ptr((*dst)[1]), simde_mm_movehl_ps(tmp2, tmp0));
-        simde_mm_storeu_ps(glm::value_ptr((*dst)[2]), simde_mm_movelh_ps(tmp1, tmp3));
-        simde_mm_storeu_ps(glm::value_ptr((*dst)[3]), simde_mm_movehl_ps(tmp3, tmp1));
+        simde_mm_storeu_ps((simde_float32*)dst->Row(0), simde_mm_movelh_ps(tmp0, tmp2));
+        simde_mm_storeu_ps((simde_float32*)dst->Row(1), simde_mm_movehl_ps(tmp2, tmp0));
+        simde_mm_storeu_ps((simde_float32*)dst->Row(2), simde_mm_movelh_ps(tmp1, tmp3));
+        simde_mm_storeu_ps((simde_float32*)dst->Row(3), simde_mm_movehl_ps(tmp3, tmp1));
     }
 
-    void Inverse(const glm::mat4& m, glm::mat4* out) {
-        simde__m128 row0 = simde_mm_loadu_ps(glm::value_ptr(m[0]));
-        simde__m128 row1 = simde_mm_loadu_ps(glm::value_ptr(m[1]));
-        simde__m128 row2 = simde_mm_loadu_ps(glm::value_ptr(m[2]));
-        simde__m128 row3 = simde_mm_loadu_ps(glm::value_ptr(m[3]));
+    void Inverse(const Matrix3x3& m, Matrix3x3* out) {
+        float a00 = m(0, 0), a01 = m(0, 1), a02 = m(0, 2);
+        float a10 = m(1, 0), a11 = m(1, 1), a12 = m(1, 2);
+        float a20 = m(2, 0), a21 = m(2, 1), a22 = m(2, 2);
 
-        simde__m128 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
-        simde__m128 minor0, minor1, minor2, minor3;
+        float det = a00 * (a11 * a22 - a12 * a21)
+            - a01 * (a10 * a22 - a12 * a20)
+            + a02 * (a10 * a21 - a11 * a20);
 
-        tmp0 = simde_mm_shuffle_ps(row0, row1, 0x44); // [0 1] [4 5]
-        tmp1 = simde_mm_shuffle_ps(row0, row1, 0xEE); // [2 3] [6 7]
-        tmp2 = simde_mm_shuffle_ps(row2, row3, 0x44);
-        tmp3 = simde_mm_shuffle_ps(row2, row3, 0xEE);
+        if (fabsf(det) < 1e-6f) {
+            *out = Matrix3x3::Identity(); // or handle singular matrix
+            return;
+        }
+
+        float invDet = 1.0f / det;
+
+        *out = Matrix3x3({
+             (a11 * a22 - a12 * a21) * invDet,
+            -(a01 * a22 - a02 * a21) * invDet,
+             (a01 * a12 - a02 * a11) * invDet,
+
+            -(a10 * a22 - a12 * a20) * invDet,
+             (a00 * a22 - a02 * a20) * invDet,
+            -(a00 * a12 - a02 * a10) * invDet,
+
+             (a10 * a21 - a11 * a20) * invDet,
+            -(a00 * a21 - a01 * a20) * invDet,
+             (a00 * a11 - a01 * a10) * invDet,
+            });
+    }
+
+    void Inverse(const Matrix4x4& m, Matrix4x4* out) {
+        // Load rows
+        simde__m128 row0 = simde_mm_loadu_ps((simde_float32*)m.Row(0));
+        simde__m128 row1 = simde_mm_loadu_ps((simde_float32*)m.Row(1));
+        simde__m128 row2 = simde_mm_loadu_ps((simde_float32*)m.Row(2));
+        simde__m128 row3 = simde_mm_loadu_ps((simde_float32*)m.Row(3));
+
+        // Transpose to get columns in row registers
+        simde__m128 tmp0 = simde_mm_shuffle_ps(row0, row1, 0x44);
+        simde__m128 tmp1 = simde_mm_shuffle_ps(row0, row1, 0xEE);
+        simde__m128 tmp2 = simde_mm_shuffle_ps(row2, row3, 0x44);
+        simde__m128 tmp3 = simde_mm_shuffle_ps(row2, row3, 0xEE);
 
         simde__m128 r0 = simde_mm_shuffle_ps(tmp0, tmp2, 0x88);
         simde__m128 r1 = simde_mm_shuffle_ps(tmp0, tmp2, 0xDD);
         simde__m128 r2 = simde_mm_shuffle_ps(tmp1, tmp3, 0x88);
         simde__m128 r3 = simde_mm_shuffle_ps(tmp1, tmp3, 0xDD);
 
-        // Now r0, r1, r2, r3 are the transposed rows of the matrix
+        // Compute minors
+        simde__m128 tmp4 = simde_mm_mul_ps(r2, r3);
+        simde__m128 tmp5 = simde_mm_shuffle_ps(tmp4, tmp4, 0xB1);
 
-        tmp0 = simde_mm_mul_ps(r2, r3);
-        tmp1 = simde_mm_shuffle_ps(tmp0, tmp0, 0xB1); // Shuffle for cross products
+        simde__m128 minor0 = simde_mm_sub_ps(
+            simde_mm_mul_ps(r1, tmp5),
+            simde_mm_shuffle_ps(simde_mm_mul_ps(r1, tmp5), simde_mm_mul_ps(r1, tmp5), 0x4E)
+        );
 
-        tmp2 = simde_mm_mul_ps(r1, tmp1);
-        tmp3 = simde_mm_mul_ps(r0, tmp1);
-        tmp2 = simde_mm_sub_ps(tmp2, simde_mm_shuffle_ps(tmp2, tmp2, 0x4E));
-        tmp3 = simde_mm_sub_ps(tmp3, simde_mm_shuffle_ps(tmp3, tmp3, 0x4E));
+        simde__m128 minor1 = simde_mm_sub_ps(
+            simde_mm_mul_ps(r0, tmp5),
+            simde_mm_shuffle_ps(simde_mm_mul_ps(r0, tmp5), simde_mm_mul_ps(r0, tmp5), 0x4E)
+        );
 
-        minor0 = tmp2;
-        minor1 = tmp3;
+        tmp4 = simde_mm_mul_ps(r1, r2);
+        tmp5 = simde_mm_shuffle_ps(tmp4, tmp4, 0xB1);
 
-        tmp0 = simde_mm_mul_ps(r1, r2);
-        tmp1 = simde_mm_shuffle_ps(tmp0, tmp0, 0xB1);
+        simde__m128 minor2 = simde_mm_sub_ps(
+            simde_mm_mul_ps(r3, tmp5),
+            simde_mm_shuffle_ps(simde_mm_mul_ps(r3, tmp5), simde_mm_mul_ps(r3, tmp5), 0x4E)
+        );
 
-        tmp2 = simde_mm_mul_ps(r3, tmp1);
-        tmp3 = simde_mm_mul_ps(r0, tmp1);
-        tmp2 = simde_mm_sub_ps(tmp2, simde_mm_shuffle_ps(tmp2, tmp2, 0x4E));
-        tmp3 = simde_mm_sub_ps(tmp3, simde_mm_shuffle_ps(tmp3, tmp3, 0x4E));
+        simde__m128 minor3 = simde_mm_sub_ps(
+            simde_mm_mul_ps(r0, tmp5),
+            simde_mm_shuffle_ps(simde_mm_mul_ps(r0, tmp5), simde_mm_mul_ps(r0, tmp5), 0x4E)
+        );
 
-        minor2 = tmp2;
-        minor3 = tmp3;
-
+        // Compute determinant
         simde__m128 det = simde_mm_mul_ps(r0, minor0);
         det = simde_mm_add_ps(det, simde_mm_shuffle_ps(det, det, 0x4E));
         det = simde_mm_add_ps(det, simde_mm_shuffle_ps(det, det, 0xB1));
 
+        // Extract scalar determinant for check
+        float detScalar;
+        simde_mm_store_ss(&detScalar, det);
+
+        if (fabsf(detScalar) < 1e-6f) {
+            *out = Matrix4x4::Identity(); // fallback to identity or error
+            return;
+        }
+
+        // Reciprocal determinant
         simde__m128 rDet = simde_mm_div_ps(simde_mm_set1_ps(1.0f), det);
 
+        // Scale adjugate by reciprocal determinant
         minor0 = simde_mm_mul_ps(minor0, rDet);
         minor1 = simde_mm_mul_ps(minor1, rDet);
         minor2 = simde_mm_mul_ps(minor2, rDet);
         minor3 = simde_mm_mul_ps(minor3, rDet);
 
-        simde_mm_storeu_ps(glm::value_ptr((*out)[0]), minor0);
-        simde_mm_storeu_ps(glm::value_ptr((*out)[1]), minor1);
-        simde_mm_storeu_ps(glm::value_ptr((*out)[2]), minor2);
-        simde_mm_storeu_ps(glm::value_ptr((*out)[3]), minor3);
+        // Store transposed (row-major) result
+        simde_mm_storeu_ps((simde_float32*)out->Row(0), minor0);
+        simde_mm_storeu_ps((simde_float32*)out->Row(1), minor1);
+        simde_mm_storeu_ps((simde_float32*)out->Row(2), minor2);
+        simde_mm_storeu_ps((simde_float32*)out->Row(3), minor3);
+    }
+
+    Vector3 Normalize(const Vector3& v) {
+        float length = v.Length();
+        if (length == 0.0f) {
+            return Vector3(0.0f, 0.0f, 0.0f);
+        }
+        return v / length;
     }
 }

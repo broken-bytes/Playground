@@ -7,6 +7,7 @@
 #endif
 
 #include <array>
+#include <thread>
 
 namespace playground::hardware {
     bool supportAVX = false;
@@ -37,6 +38,10 @@ namespace playground::hardware {
         supportAVX = true;
         supportAVX2 = false;
 #endif
+    }
+
+    uint8_t CPUCount() {
+        return std::thread::hardware_concurrency();
     }
 
     bool SupportsAVX() {

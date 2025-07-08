@@ -23,9 +23,11 @@ target_include_directories(Rendering PRIVATE ${Stb_INCLUDE_DIR})
 
 target_link_directories(Rendering PRIVATE ${EASTL_LIB_DIR})
 target_include_directories(Rendering PRIVATE ${EASTL_INC_DIR} ${EABASE_INC_DIR})
+target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/math/include)
 
-target_link_libraries(Rendering PRIVATE Logger AssetLoader Profiler Shared EASTL)
-target_link_libraries(Rendering PRIVATE SDL3::SDL3 glm::glm freeimage::FreeImage freeimage::FreeImagePlus)
+
+target_link_libraries(Rendering PRIVATE Logger AssetLoader Profiler Math Shared EASTL)
+target_link_libraries(Rendering PRIVATE SDL3::SDL3 freeimage::FreeImage freeimage::FreeImagePlus)
 
 if (WIN32)
     find_package(directx-headers CONFIG REQUIRED)

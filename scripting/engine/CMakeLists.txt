@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(PlaygroundScripting LANGUAGES Swift)
+project(PlaygroundScripting LANGUAGES Swift C CXX)
 
 set(CMAKE_OBJECT_PATH_MAX 200)
 set(CMAKE_SWIFT_FLAGS_DEBUG "-g -Xlinker -DEBUG -Xlinker /INCREMENTAL:NO")
@@ -31,6 +31,16 @@ endif()
 
 message(INFO ${SWIFT_FLAGS})
 
+add_subdirectory(Native)
+
 add_library(Playground SHARED ${ENGINE_SWIFT_SOURCES})
 add_dependencies(Playground PlaygroundScriptingMacros)
 target_compile_options(Playground PRIVATE -load-plugin-executable "${PlaygroundMacrosPath}" ${SWIFT_FLAGS})
+
+target_link_libraries(Playground PRIVATE PlaygroundNative)
+target_include_directories(Playground PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Native/include
+)
+set_target_properties(PlaygroundNative PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/Native/include"
+)
