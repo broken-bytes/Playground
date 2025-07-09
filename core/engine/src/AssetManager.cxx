@@ -4,6 +4,7 @@
 #include <rendering/Rendering.hxx>
 #include <physics/Physics.hxx>
 #include <shared/Hasher.hxx>
+#include <shared/JobSystem.hxx>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -17,7 +18,7 @@ namespace playground::assetmanager {
 
     void MarkModelUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
         if (handleId < _modelHandles.size()) {
-            _modelHandles[handleId]->state = ResourceState::Uploaded;
+            _modelHandles[handleId]->state.store(ResourceState::Uploaded);
             _modelHandles[handleId]->meshes = std::move(meshes);
             _modelHandles[handleId]->refCount--;
         }
@@ -25,9 +26,15 @@ namespace playground::assetmanager {
 
     void MarkMaterialUploadFinished(uint32_t handleId, uint32_t materialId) {
         if (handleId < _materialHandles.size()) {
-            _materialHandles[handleId]->state = ResourceState::Uploaded;
+            _materialHandles[handleId]->state.store(ResourceState::Uploaded);
             _materialHandles[handleId]->material = materialId;
             _materialHandles[handleId]->refCount--;
+
+            int index = 0;
+            for (auto& texture: _materialHandles[handleId]->textures) {
+                rendering::SetMaterialTexture(materialId, index++, texture.second->texture);
+                std::cout << "Material Texture: " << texture.second->texture << std::endl;
+            }
         }
     }
 
@@ -36,7 +43,11 @@ namespace playground::assetmanager {
             _textureHandles[handleId]->state = ResourceState::Uploaded;
             _textureHandles[handleId]->data = nullptr;
             _textureHandles[handleId]->texture = texture;
+            std::cout << "Texture: " << texture << std::endl;
             _textureHandles[handleId]->refCount--;
+
+            jobsystem::Submit(_textureHandles[handleId]->signalUploadCompletionJob);
+            _textureHandles[handleId]->signalUploadCompletionJob = nullptr;
         }
     }
 
@@ -47,14 +58,15 @@ namespace playground::assetmanager {
         for (uint32_t i = 0; i < _modelHandles.size(); ++i) {
             handle = _modelHandles[i];
             if (handle->hash == hash) {
-                if (handle->state == ResourceState::Uploaded || handle->state == ResourceState::Loading || handle->state == ResourceState::Created) {
+                auto state = handle->state.load();
+                if (state == ResourceState::Uploaded || state == ResourceState::Loading || state == ResourceState::Created) {
                     handle->refCount++;
                     return handle;
                 }
-                else if (handle->state == ResourceState::Unloaded) {
+                else if (state == ResourceState::Unloaded) {
                     auto rawMeshData = playground::assetloader::LoadMeshes(name);
                     handle->refCount = 1;
-                    handle->state = ResourceState::Created;
+                    handle->state.store(ResourceState::Created);
                     playground::rendering::QueueUploadModel(rawMeshData, i, MarkModelUploadFinished);
 
                     return handle;
@@ -66,7 +78,7 @@ namespace playground::assetmanager {
 
         auto newHandle = new ModelHandle {
             .hash = hash,
-            .state = ResourceState::Created,
+            .state = {ResourceState::Created},
             .refCount = 1,
             .meshes = {},
         };
@@ -83,59 +95,72 @@ namespace playground::assetmanager {
     MaterialHandle* LoadMaterial(const char* name) {
         auto hash = shared::Hash(name);
 
+        std::optional<uint32_t> handleId;
         MaterialHandle* handle;
         for (uint32_t i = 0; i < _materialHandles.size(); ++i) {
             handle = _materialHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
                     handle->refCount++;
+
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
-                    auto rawMaterialData = playground::assetloader::LoadMaterial(name);
+                    handle = _materialHandles[i];
+                    handleId = i;
                     handle->refCount = 1;
-                    handle->state = ResourceState::Created;
+                    handle->state.store(ResourceState::Created);
 
-                    auto shader = assetloader::LoadShader(rawMaterialData.shaderName);
-
-                    rendering::QueueUploadMaterial(
-                        shader.vertexShader,
-                        shader.pixelShader,
-                        i,
-                        MarkMaterialUploadFinished
-                    );
-
-                    return handle;
+                    break;
                 }
             }
         }
 
-        auto rawMaterialData = playground::assetloader::LoadMaterial(name);
-        auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
+        if (!handleId.has_value()) {
+            handleId = _materialHandles.size();
 
-        for (auto& texture : rawMaterialData.textures) {
-            LoadTexture(texture.value.c_str());
+            handle = new MaterialHandle{
+              .hash = hash,
+              .state = {ResourceState::Created},
+              .refCount = 1,
+              .material = 0,
+            };
+
+            _materialHandles.push_back(handle);
         }
 
-        auto newHandle = new MaterialHandle {
-            .hash = hash,
-            .state = ResourceState::Created,
-            .refCount = 1,
-            .material = 0,
-        };
+        auto materialName = std::string(name);
+        auto rawMaterialData = playground::assetloader::LoadMaterial(materialName);
 
-        uint32_t handleId;
-        handleId = _materialHandles.size();
-        _materialHandles.push_back(newHandle);
+        auto materialLoadJob = jobsystem::JobHandle::Create(materialName + "_MATERIAL_UPLOAD_JOB", jobsystem::JobPriority::Low, [rawMaterialData, handleId]() {
+            auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
 
-        rendering::QueueUploadMaterial(
-            shader.vertexShader,
-            shader.pixelShader,
-            handleId,
-            MarkMaterialUploadFinished
-        );
+            rendering::QueueUploadMaterial(
+                shader.vertexShader,
+                shader.pixelShader,
+                handleId.value(),
+                MarkMaterialUploadFinished
+            );
+        });
 
-        return _materialHandles[handleId];
+        std::vector<std::shared_ptr<jobsystem::JobHandle>> textureJobs;
+
+        for (auto& texture : rawMaterialData.textures) {
+            auto texHandle = LoadTexture(texture.value.c_str(), materialLoadJob.get());
+            handle->textures.insert({ texture.name, texHandle });
+        }
+
+        for (auto& textureJob : textureJobs) {
+            materialLoadJob->AddDependency(textureJob);
+        }
+
+        for (auto& textureJob : textureJobs) {
+            jobsystem::Submit(textureJob);
+        }
+
+        jobsystem::Submit(materialLoadJob);
+
+        return _materialHandles[handleId.value()];
     }
 
     ShaderHandle* LoadShader(const char* name) {
@@ -178,46 +203,64 @@ namespace playground::assetmanager {
         return _shaderHandles[handleId];
     }
 
-    TextureHandle* LoadTexture(const char* name) {
+    TextureHandle* LoadTexture(const char* name, jobsystem::JobHandle* materialUploadJob) {
         auto hash = shared::Hash(name);
 
+        std::optional<uint32_t> handleId;
         TextureHandle* handle;
         for (uint32_t i = 0; i < _textureHandles.size(); ++i) {
             handle = _textureHandles[i];
             if (handle->hash == hash) {
-                if (handle->state == ResourceState::Uploaded) {
+                if (handle->state.load() == ResourceState::Uploaded) {
                     handle->refCount++;
+
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto rawTextureData = playground::assetloader::LoadTexture(name);
                     handle->refCount = 1;
-                    handle->state = ResourceState::Created;
-                    handle->data = std::make_shared<assetloader::RawTextureData>(rawTextureData);
-
-                    return handle;
+                    handle->state.store(ResourceState::Created);
                 }
             }
         }
 
-        auto rawTextureData = playground::assetloader::LoadTexture(name);
+        if (!handleId.has_value()) {
+            handleId = _textureHandles.size();
 
-        auto data = std::make_shared<assetloader::RawTextureData>(rawTextureData);
+            handle = new TextureHandle{
+                .hash = hash,
+                .state = {ResourceState::Created},
+                .refCount = 1,
+                .data = {}
+            };
 
-        auto newHandle = new TextureHandle{
-            .hash = hash,
-            .state = ResourceState::Created,
-            .refCount = 1,
-            .data = data
-        };
+            _textureHandles.push_back(handle);
+        }
 
-        uint32_t handleId;
-        handleId = _textureHandles.size();
-        _textureHandles.push_back(newHandle);
+        std::string textureName = std::string(name);
 
-        rendering::QueueUploadTexture(data, handleId, MarkTextureUploadFinished);
+        handle->signalUploadCompletionJob = jobsystem::JobHandle::Create(
+            textureName + "_TEXTURE_UPLOAD_JOB",
+            jobsystem::JobPriority::Low, [handle, handleId, textureName]() {
+                // Dummy job, only signals texture readyness after GPU upload
+        });
 
-        return _textureHandles[handleId];
+        auto textureLoadJob = jobsystem::JobHandle::Create(textureName + "_TEXTURE_UPLOAD_JOB", jobsystem::JobPriority::Low, [handle, handleId, textureName]() {
+            auto rawTextureData = playground::assetloader::LoadTexture(textureName);
+            auto data = std::make_shared<assetloader::RawTextureData>(rawTextureData);
+            handle->data = data;
+
+            rendering::QueueUploadTexture(data, handleId.value(), MarkTextureUploadFinished);
+        });
+
+        if (materialUploadJob != nullptr) {
+            materialUploadJob->AddDependency(textureLoadJob);
+            materialUploadJob->AddDependency(handle->signalUploadCompletionJob);
+        }
+
+        jobsystem::Submit(textureLoadJob);
+
+        return _textureHandles[handleId.value()];
     }
 
     PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name) {

@@ -7,11 +7,12 @@
 #include <directx/d3dx12.h>
 #include <wrl.h>
 
+#include "rendering/Heap.hxx"
 #include "rendering/d3d12/D3D12CPUResourceHandle.hxx"
 #include "rendering/d3d12/D3D12GPUResourceHandle.hxx"
 
 namespace playground::rendering::d3d12 {
-	class D3D12Heap {
+	class D3D12Heap : public Heap {
 	public:
     	D3D12Heap(Microsoft::WRL::ComPtr<ID3D12Device> device,
 			D3D12_DESCRIPTOR_HEAP_TYPE type,

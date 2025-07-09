@@ -259,10 +259,12 @@ namespace playground::rendering {
         auto instanceBuffer = frames[logicFrameIndex]->InstanceBuffer();
         {
             ZoneScopedN("RenderThread: Update Instance Buffer");
+            uint16_t instanceOffset = 0;
             for (const auto& drawCall : nextFrame.drawCalls) {
                 for (int x = 0; x < drawCall.instanceData.size(); x++) {
                     const auto& instanceData = drawCall.instanceData[x];
-                    instanceBuffer->SetData(&instanceData, 1, x);
+                    instanceBuffer->SetData(&instanceData, 1, instanceOffset);
+                    instanceOffset++;
                 }
             }
         }
@@ -291,18 +293,22 @@ namespace playground::rendering {
 
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
 
+        graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap()});
+        graphicsContext->BindSRVHeapToSlot(device->GetSrvHeap(), BINDLESS_TEXTURES_SLOT);
+
         graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
         graphicsContext->SetScissor(0, 0, config.Width, config.Height);
 
         graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
         graphicsContext->BindCamera(0);
-        if (textures.size() > 0) {
-            graphicsContext->BindTexture(textures[0], 6);
-            graphicsContext->BindSampler(sampler, 7);
-        }
+        graphicsContext->BindSampler(sampler, 7);
+
         uint32_t instanceOffet = 0;
 
         for (auto& drawcall : nextFrame.drawCalls) {
+            // TODO: Mark materials dirty and bulk update all dirty ones
+            graphicsContext->SetMaterialData(drawcall.material, materials[drawcall.material]->textures.data(), textures.size() * sizeof(uint32_t));
+
             graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
             graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
             graphicsContext->BindMaterial(materials[drawcall.material]);
@@ -497,6 +503,17 @@ namespace playground::rendering {
             materialId = materials.size() - 1;
         }
 
+        material->id = materialId;
         job.callback(job.handle, materialId);
+    }
+
+    void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId) {
+        auto material = materials[materialId];
+
+        if (material->textures.size() <= slot) {
+            material->textures.resize(material->textures.size() + 1);
+        }
+
+        material->textures[slot] = textures[textureId]->ID();
     }
 }

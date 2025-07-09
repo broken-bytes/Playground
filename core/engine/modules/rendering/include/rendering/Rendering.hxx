@@ -65,5 +65,8 @@ namespace playground::rendering {
     auto UploadTexture(TextureUploadJob& job) -> void;
     auto CreateMaterial(MaterialUploadJob job) -> void;
 
+    // Material setup
+    void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId);
+
     auto SubmitFrame(RenderFrame frame) -> void;
 }

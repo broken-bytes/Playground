@@ -16,7 +16,7 @@ namespace playground::rendering::d3d12 {
             CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle,
             CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle,
             Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap,
-            void* data,
+            const void* data,
             uint64_t count,
             uint64_t alignedStride,
             BindingMode bindingMode,
@@ -24,6 +24,8 @@ namespace playground::rendering::d3d12 {
         ) {
             _heap = heap;
             const UINT bufferSize = (count * alignedStride + 255) & ~255;
+
+            assert(bufferSize > 0);
 
             D3D12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
@@ -71,8 +73,6 @@ namespace playground::rendering::d3d12 {
                 device->CreateConstantBufferView(&viewDesc, _cpuHandles[0]);
             }
 
-            _data = std::malloc(bufferSize);
-
             _buffer->Map(0, nullptr, reinterpret_cast<void**>(&_data));
 
             _buffer->SetName(std::wstring(name.begin(), name.end()).c_str());
@@ -82,9 +82,6 @@ namespace playground::rendering::d3d12 {
 
         virtual ~D3D12ConstantBuffer() {
             _buffer->Unmap(0, nullptr);
-
-            // TODO: Find out why this crashes
-            //std::free(_data);
         }
 
         inline void SetData(const void* data, size_t count, size_t offset) override {

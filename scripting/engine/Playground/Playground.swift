@@ -37,6 +37,7 @@ func startUp() {
     initSystems()
 
     let materialhandle = AssetHandler.loadMaterial(named: "default.mat")
+    let groundMaterialhandle = AssetHandler.loadMaterial(named: "ground.mat")
     let modelhandle = AssetHandler.loadModel(named: "default.mod")
     let physicsMaterialHandle = AssetHandler.loadPhysicsMaterial(named: "default.pmat")
 
@@ -55,7 +56,7 @@ func startUp() {
     camEntity.addComponent(&scale)
 
     let floor = Entity("Floor")
-    var floorMaterial = MaterialComponent(handle: materialhandle)
+    var floorMaterial = MaterialComponent(handle: groundMaterialhandle)
     floor.addComponent(&floorMaterial)
     var floorMesh = MeshComponent(handle: modelhandle, meshId: 0)
     floor.addComponent(&floorMesh)

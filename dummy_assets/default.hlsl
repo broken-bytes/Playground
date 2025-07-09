@@ -35,13 +35,12 @@ cbuffer CameraBuffer : register(b2)
 
 cbuffer MaterialData : register(b3)
 {
-    float4 windPos;
-    float4 windDir;
+    int diffuseTextureId;
 };
 
 StructuredBuffer<PointLight> lights : register(t0);
 
-Texture2D diffuse : register(t1);
+Texture2D textures[] : register(t1);
 SamplerState defaultSampler : register(s0);
 
 struct VSInput {
@@ -80,8 +79,9 @@ VSOutput VSMain(VSInput vin)
 
 float4 PSMain(VSOutput pin) : SV_TARGET
 {
+    Texture2D diffuseTexture = textures[diffuseTextureId];
     // Sample texture
-    float4 texColor = diffuse.Sample(defaultSampler, pin.uv);
+    float4 texColor = diffuseTexture.Sample(defaultSampler, pin.uv);
 
     // Directional light setup
     float3 L = normalize(-directionalLight.direction.xyz); // Light coming *toward* surface

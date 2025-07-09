@@ -9,6 +9,8 @@
 #include <thread>
 #include "shared/Arena.hxx"
 #include <EASTL/fixed_vector.h>
+#include <sstream>
+#include <iostream>
 
 namespace playground::jobsystem {
     using ArenaType = memory::VirtualArena;
@@ -66,12 +68,22 @@ namespace playground::jobsystem {
 
     class Worker {
     public:
-        Worker(uint8_t index, bool isHighPerf, std::function<bool(std::shared_ptr<JobHandle>&)> pullJob) {
+        Worker(std::string name, uint8_t index, bool isHighPerf, std::function<bool(std::shared_ptr<JobHandle>&)> pullJob) {
             _isRunning = true;
             _idleSpins = 0;
             auto cores = GetCoresByEfficiency(isHighPerf);
             
-            _thread = std::thread([pullJob, cores, index, this]() {
+            _thread = std::thread([name, pullJob, cores, index, this]() {
+#ifdef _WIN32
+                std::wstring wStr;
+                wStr.reserve(name.size() + 1);
+                size_t convertedChars = 0;
+                mbstowcs_s(&convertedChars, wStr.data(), name.size() + 1, name.data(), _TRUNCATE);
+                SetThreadDescription(
+                    GetCurrentThread(),
+                    wStr.c_str()
+                );
+#endif
                 if (!cores.empty()) {
                     uint32_t coreId = cores[index].id;
                     PinCurrentThreadToCore(coreId);
@@ -107,12 +119,20 @@ namespace playground::jobsystem {
         uint64_t _idleSpins;
     };
 
+    JobHandle::~JobHandle() {
+    }
+
     void JobHandle::Add() {
         _counter->fetch_add(1, std::memory_order_relaxed);
     }
 
+    void JobHandle::Sub() {
+        _counter->fetch_sub(1, std::memory_order_relaxed);
+    }
+
     void JobHandle::Complete() {
         _work();
+
         _counter->fetch_sub(1, std::memory_order_release);
 
         auto parent = _parent.lock();
@@ -121,13 +141,20 @@ namespace playground::jobsystem {
             return;
         }
 
-        if (parent->_counter->load() == 0) {
+        parent->Sub();
+
+        // When counter is 1 (only parent has a ref on its own left) we submit the parent
+        if (parent->_counter->load() == 1) {
             Submit(parent);
         }
     }
 
     bool JobHandle::IsDone() const {
         return _counter->load(std::memory_order_acquire) == 0;
+    }
+
+    bool JobHandle::IsReady() const {
+        return _counter->load(std::memory_order_acquire) == 1;
     }
 
     JobPriority JobHandle::Priority() const {
@@ -140,14 +167,15 @@ namespace playground::jobsystem {
         dependency->_parent = shared_from_this();
     }
 
-    JobHandle::JobHandle(JobPriority priority, std::function<void()> work) {
+    JobHandle::JobHandle(std::string name, JobPriority priority, std::function<void()> work) : _name(name) {
         _priority = JobPriority::Low;
         _work = std::move(work);
-        _counter = std::make_shared<std::atomic<uint64_t>>(0);
+        _counter = std::make_shared<std::atomic<uint64_t>>(1);
     }
 
     eastl::fixed_vector<std::shared_ptr<Worker>, 32, false, Allocator> workers(alloc);
     eastl::fixed_vector<std::shared_ptr<JobHandle>, 512, false, Allocator> pendingJobs(alloc);
+    std::mutex pendingMutex;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> highPerfQueue;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> lowPerfQueue;
 
@@ -195,11 +223,17 @@ namespace playground::jobsystem {
         lowPerfWorkers = maxLowPerfWorkers;
 
         for (int x = 0; x < maxHighPerfWorkers; x++) {
-            workers.push_back(std::make_shared<Worker>(x, true, [](auto& job) { return PullHighPerformanceTask(job); }));
+            std::stringstream ss;
+            ss << "H_WORKER_THREAD" << +x;
+
+            workers.push_back(std::make_shared<Worker>(ss.str(), x, true, [](auto& job) { return PullHighPerformanceTask(job); }));
         }
 
         for (int x = 0; x < maxLowPerfWorkers; x++) {
-            workers.push_back(std::make_shared<Worker>(x, false, [](auto& job) { return PullLowPerformanceTask(job); }));
+            std::stringstream ss;
+            ss << "E_WORKER_THREAD" << +x;
+
+            workers.push_back(std::make_shared<Worker>(ss.str(), x, false, [](auto& job) { return PullLowPerformanceTask(job); }));
         }
     }
 
@@ -207,6 +241,12 @@ namespace playground::jobsystem {
         auto it = std::find(pendingJobs.begin(), pendingJobs.end(), job);
         if (it != pendingJobs.end()) {
             pendingJobs.erase(it);
+        }
+
+        if (!job->IsReady()) {
+            std::scoped_lock pendingLock{ pendingMutex };
+            pendingJobs.push_back(job);
+            return;
         }
 
         if (job->Priority() == JobPriority::High) {

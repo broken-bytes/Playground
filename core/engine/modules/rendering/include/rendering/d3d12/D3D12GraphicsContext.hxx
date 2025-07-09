@@ -20,6 +20,7 @@
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyD3D12.hpp>
 #include <EASTL/vector.h>
+#include <EASTL/unordered_map.h>
 #include <shared/Arena.hxx>
 
 namespace playground::rendering::d3d12 {
@@ -52,14 +53,16 @@ namespace playground::rendering::d3d12 {
         auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void override;
         auto BindCamera(uint8_t index) -> void override;
         auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void override;
+        auto BindHeaps(std::vector<std::shared_ptr<Heap>> heaps) -> void override;
         auto BindMaterial(std::shared_ptr<Material>) -> void override;
-        auto BindTexture(std::shared_ptr<Texture> tetxure, uint8_t slot) -> void override;
+        auto BindSRVHeapToSlot(std::shared_ptr<Heap> heap, uint8_t slot) -> void override;
         auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void override;
         auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
         auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void override;
         auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void override;
+        auto SetMaterialData(uint32_t materialId, const void* data, size_t size) -> void override;
         auto SetDirectionalLight(
             DirectionalLight& light
         ) -> void override;
@@ -80,7 +83,19 @@ namespace playground::rendering::d3d12 {
         auto MouseOverID() -> uint64_t override;
 
     private:
-        Microsoft::WRL::ComPtr<ID3D12Device9> _device;
+        using StackArenaType = memory::StackArena<4096>;
+        using StackAllocator = memory::ArenaAllocator<StackArenaType>;
+        using HeapArenaType = memory::VirtualArena;
+        using HeapAllocator = memory::ArenaAllocator<HeapArenaType>;
+        using MaterialBufferMap = eastl::unordered_map<uint32_t, std::shared_ptr<D3D12ConstantBuffer>, eastl::hash<uint32_t>, eastl::equal_to<uint32_t>, HeapAllocator>;
+
+        StackArenaType _arena = StackArenaType();
+        StackAllocator _stackAllocator = StackAllocator(&_arena, "Graphics Context Stack Allocator");
+        HeapArenaType _heapArena = HeapArenaType(1024 * 1024 * 10); // 16Mb for material buffers. 1 Material = max 1kb -> Max 16K+ materials
+        HeapAllocator _heapAllocator = HeapAllocator(&_heapArena, "Graphics Context Heap Allocator");
+
+        std::string _name;
+        std::shared_ptr<D3D12Device> _device;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _graphicsQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _transferQueue;
         Microsoft::WRL::ComPtr<ID3D12Fence> _fence;
@@ -94,18 +109,13 @@ namespace playground::rendering::d3d12 {
         std::shared_ptr<D3D12ConstantBuffer> _cameraBuffer;
         std::shared_ptr<D3D12StructuredBuffer> _pointLightsBuffer;
         std::shared_ptr<D3D12ConstantBuffer> _directionalLightBuffer;
+        MaterialBufferMap _materialBuffers;
 
         UINT64 _fenceValue = 0;
         HANDLE _fenceEvent;
 
         bool _isOffscreen;
         std::unique_ptr<D3D12ReadbackBuffer> _mouseOverBuffer;
-
-        using ArenaType = memory::VirtualArena;
-        using Allocator = memory::ArenaAllocator<ArenaType>;
-
-        ArenaType _arena = ArenaType(64 * 1024);
-        Allocator _allocator = Allocator(&_arena, "Graphics Context Allocator");
 #if ENABLE_PROFILER
         tracy::D3D12QueueCtx* _tracyCtx;
 #endif

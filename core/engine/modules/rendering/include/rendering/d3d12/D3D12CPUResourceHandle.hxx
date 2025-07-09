@@ -7,13 +7,13 @@ namespace playground::rendering::d3d12 {
     class D3D12ResourceHandle : public CPUResourceHandle
     {
     public:
-        D3D12ResourceHandle(CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle, CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle)
+        D3D12ResourceHandle(uint32_t id, CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle, CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle) : CPUResourceHandle(id)
         {
             _cpuHandle = cpuHandle;
             _gpuHandle = gpuHandle;
         }
 
-        D3D12ResourceHandle(CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle) {
+        D3D12ResourceHandle(uint32_t id, CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle) : CPUResourceHandle(id) {
             _cpuHandle = cpuHandle;
             _gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE();
         }

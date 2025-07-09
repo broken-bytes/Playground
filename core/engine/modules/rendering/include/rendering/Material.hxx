@@ -11,18 +11,14 @@
 #include <string>
 
 namespace playground::rendering {
-	class Material {
-        struct MaterialBuffer {
-            std::array<float, 16> floats;
-            std::array<int, 16> ints;
-            std::array<math::Vector2, 16> vec2s;
-            std::array<math::Vector3, 16> vec3s;
-            std::array<math::Vector4, 16> vec4s;
-            std::array<uint32_t, 8> textures;
-        };
-
-	public:
-		Material() {}
+	struct Material {
+        uint32_t id = 0;
+        std::vector<uint32_t> textures = {};
+        std::vector<float> floats = {};
+        std::vector<int> ints = {};
+        std::vector<math::Vector2> vec2s = {};
+        std::vector<math::Vector3> vec3s = {};
+        std::vector<math::Vector4> vec4s = {};
 	};
 }
 

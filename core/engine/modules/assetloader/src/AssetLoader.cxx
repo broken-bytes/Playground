@@ -55,7 +55,7 @@ namespace playground::assetloader {
         auto data = TryLoadFile(std::string(textureName));
 
         if (data.empty()) {
-            throw std::runtime_error("Failed to load data for tetxure: " + std::string(textureName));
+            throw std::runtime_error("Failed to load data for texture: " + std::string(textureName));
         }
 
         std::string binaryStr(data.begin(), data.end());

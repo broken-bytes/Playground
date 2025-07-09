@@ -10,10 +10,15 @@
 #include <audio/AudioClip.hxx>
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace playground::jobsystem {
+    class JobHandle;
+}
 
 namespace playground::assetmanager {
     enum ResourceState {
@@ -25,25 +30,27 @@ namespace playground::assetmanager {
 
     struct ModelHandle {
         uint64_t hash;
-        ResourceState state;
+        std::atomic<ResourceState> state;
         std::atomic<uint32_t> refCount;
         std::vector<playground::rendering::Mesh> meshes;
         std::vector<assetloader::RawMeshData> rawMeshData;
     };
 
-    struct MaterialHandle {
-        uint64_t hash;
-        ResourceState state;
-        uint32_t refCount;
-        uint32_t material;
-    };
-
     struct TextureHandle {
         uint64_t hash;
-        ResourceState state;
+        std::atomic<ResourceState> state;
         uint32_t refCount;
         std::shared_ptr<assetloader::RawTextureData> data;
+        std::shared_ptr<jobsystem::JobHandle> signalUploadCompletionJob;
         uint32_t texture;
+    };
+
+    struct MaterialHandle {
+        uint64_t hash;
+        std::atomic<ResourceState> state;
+        std::map<std::string, TextureHandle*> textures;
+        uint32_t refCount;
+        uint32_t material;
     };
 
     struct ShaderHandle {
@@ -70,6 +77,6 @@ namespace playground::assetmanager {
     ModelHandle* LoadModel(const char* name);
     MaterialHandle* LoadMaterial(const char* name);
     ShaderHandle* LoadShader(const char* name);
-    TextureHandle* LoadTexture(const char* name);
+    TextureHandle* LoadTexture(const char* name, jobsystem::JobHandle* materialUploadJob);
     PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);
 }

@@ -112,6 +112,10 @@ namespace playground::rendering::d3d12 {
             return _handle->GetGPUHandle();
         }
 
+        uint32_t ID() const override {
+            return _handle->ID();
+        }
+
     private:
         eastl::vector<eastl::vector<uint8_t, Allocator>, Allocator> _data;
         Microsoft::WRL::ComPtr<ID3D12Resource> _texture;

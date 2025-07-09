@@ -48,13 +48,16 @@ namespace playground::rendering::d3d12 {
         auto CreateTexture(uint32_t width, uint32_t height, std::vector<std::vector<uint8_t>> mips, Allocator& allocator) -> std::shared_ptr<Texture> override;
         auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> override;
         auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window)->std::shared_ptr<Swapchain> override;
-        auto CreateConstantBuffer(void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> override;
+        auto CreateConstantBuffer(const void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> override;
         auto CreateStructuredBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<StructuredBuffer> override;
         auto CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> override;
 
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
         auto WaitForIdleGPU() -> void override;
+
+        auto GetSrvHeap()->std::shared_ptr<Heap> override;
+        auto GetSamplerHeap()->std::shared_ptr<Heap> override;
 
         auto GetDevice() -> Microsoft::WRL::ComPtr<ID3D12Device9> {
             return _device;

@@ -109,10 +109,16 @@ namespace playground::drawcallbatcher {
             for (int y = 0; y < next.count; y++) {
                 auto item = next.start[y];
 
-                if (!item.modelHandle || !item.materialHandle) continue;
-                if (item.modelHandle->state != assetmanager::ResourceState::Uploaded ||
-                    item.materialHandle->state != assetmanager::ResourceState::Uploaded)
+                if (item.modelHandle == nullptr || item.materialHandle == nullptr) {
                     continue;
+                }
+
+                auto modelState = item.modelHandle->state.load();
+                auto materialState = item.materialHandle->state.load();
+
+                if (modelState != assetmanager::ResourceState::Uploaded || materialState != assetmanager::ResourceState::Uploaded) {
+                    continue;
+                }
 
                 const auto& mesh = item.modelHandle->meshes[item.meshId];
                 BatchKey key{ item.materialHandle->material, mesh.vertexBuffer, mesh.indexBuffer };

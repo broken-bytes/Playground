@@ -49,10 +49,10 @@ namespace playground::rendering::d3d12
 	auto D3D12Heap::HandleForHeapStart() -> std::shared_ptr<D3D12ResourceHandle> {
 		auto cdx = CD3DX12_CPU_DESCRIPTOR_HANDLE(_heap->GetCPUDescriptorHandleForHeapStart());
         if (!_isShaderVisible) {
-            return std::make_shared<D3D12ResourceHandle>(cdx);
+            return std::make_shared<D3D12ResourceHandle>(0, cdx);
         }
         auto gdx = CD3DX12_GPU_DESCRIPTOR_HANDLE(_heap->GetGPUDescriptorHandleForHeapStart());
-		return std::make_shared<D3D12ResourceHandle>(cdx, gdx);
+		return std::make_shared<D3D12ResourceHandle>(0, cdx, gdx);
 	};
 
 	auto D3D12Heap::Native() -> Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> {
@@ -62,12 +62,12 @@ namespace playground::rendering::d3d12
 	auto D3D12Heap::HandleFor(std::uint32_t index) -> std::shared_ptr<D3D12ResourceHandle> {
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(_heap->GetCPUDescriptorHandleForHeapStart(), index, _increment);
         if (!_isShaderVisible) {
-            return std::make_shared<D3D12ResourceHandle>(handle);
+            return std::make_shared<D3D12ResourceHandle>(index, handle);
         }
 
         CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(_heap->GetGPUDescriptorHandleForHeapStart(), index, _increment);
 
-		return std::make_shared<D3D12ResourceHandle>(handle, gpuHandle);
+		return std::make_shared<D3D12ResourceHandle>(index, handle, gpuHandle);
 	}
 
 	auto D3D12Heap::NextHandle() -> std::shared_ptr<D3D12ResourceHandle>
@@ -75,13 +75,11 @@ namespace playground::rendering::d3d12
 		assert(_index < _desc.NumDescriptors);
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(_heap->GetCPUDescriptorHandleForHeapStart(), _index, _increment);
         if (!_isShaderVisible) {
-            _index++;
-            return std::make_shared<D3D12ResourceHandle>(handle);
+            return std::make_shared<D3D12ResourceHandle>(_index++, handle);
         }
         CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(_heap->GetGPUDescriptorHandleForHeapStart(), _index, _increment);
 
-        _index++;
-		return std::make_shared<D3D12ResourceHandle>(handle, gpuHandle);
+		return std::make_shared<D3D12ResourceHandle>(_index++, handle, gpuHandle);
 	}
 
 	auto D3D12Heap::IsFilled() -> bool

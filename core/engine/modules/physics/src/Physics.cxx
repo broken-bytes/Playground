@@ -29,8 +29,10 @@
 #include <stdint.h>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <functional>
 #include <vector>
+#include <shared_mutex>
 
 namespace playground::physics {
     class PhysXAllocator : public physx::PxAllocatorCallback {
@@ -114,8 +116,10 @@ namespace playground::physics {
         }
 
         void submitTask(physx::PxBaseTask& task) override {
-            _jobCounter.fetch_add(1);
-            auto job = jobsystem::JobHandle::Create(jobsystem::JobPriority::High, [&task, this]() {
+            auto index = _jobCounter.fetch_add(1);
+            std::stringstream ss;
+            ss << "PHYSICS_JOB" << +index;
+            auto job = jobsystem::JobHandle::Create(ss.str(), jobsystem::JobPriority::High, [&task, this]() {
                 task.run();
                 task.release();
                 _jobCounter.fetch_sub(1);
@@ -173,7 +177,7 @@ namespace playground::physics {
     moodycamel::ConcurrentQueue<uint32_t> freeMaterialIdsQueue;
 
     std::unique_ptr<PhysxCpuDispatcher> dispatcher;
-    std::mutex physxMutex;
+    std::shared_mutex physxMutex;
 
     void Init() {
         foundation = PxCreateFoundation(
@@ -266,15 +270,14 @@ namespace playground::physics {
     }
 
     uint64_t CreateRigidBody(float mass, float damping, math::Vector3 position, math::Quaternion rotation) {
+        std::unique_lock lock(physxMutex);
+
         auto transform = physx::PxTransform(position.X, position.Y, position.Z, physx::PxQuat(rotation.X, rotation.Y, rotation.Z, rotation.W));
         physx::PxRigidDynamic* rigidDynamic = physics->createRigidDynamic(transform);
         rigidDynamic->setMass(mass);
         rigidDynamic->setLinearDamping(damping);
 
-        {
-            std::scoped_lock<std::mutex> lock(physxMutex);
-            scene->addActor(*rigidDynamic);
-        }
+        scene->addActor(*rigidDynamic);
 
         uint64_t bodyId = 0;
         if (freeBodyIdsQueue.try_dequeue(bodyId)) {
@@ -289,13 +292,12 @@ namespace playground::physics {
     }
 
     uint64_t CreateStaticBody(math::Vector3 position, math::Quaternion rotation) {
+        std::unique_lock lock(physxMutex);
+
         auto transform = physx::PxTransform(position.X, position.Y, position.Z, physx::PxQuat(rotation.X, rotation.Y, rotation.Z, rotation.W));
         physx::PxRigidStatic* rigidStatic = physics->createRigidStatic(transform);
 
-        {
-            std::scoped_lock<std::mutex> lock(physxMutex);
-            scene->addActor(*rigidStatic);
-        }
+        scene->addActor(*rigidStatic);
 
         uint64_t bodyId = 0;
         if (freeBodyIdsQueue.try_dequeue(bodyId)) {
@@ -310,6 +312,8 @@ namespace playground::physics {
     }
 
     uint64_t CreateBoxCollider(uint32_t materialId, math::Quaternion rotation, math::Vector3 dimensions, math::Vector3 offset) {
+        std::unique_lock lock(physxMutex);
+
         physx::PxBoxGeometry boxGeom(dimensions.X, dimensions.Y, dimensions.Z);
         physx::PxShape* shape = physics->createShape(boxGeom, *materials[materialId]);
 
@@ -332,22 +336,19 @@ namespace playground::physics {
     }
 
     void AddShapeToBody(uint64_t body, uint64_t shape) {
+        std::unique_lock lock(physxMutex);
+
         auto collider = shapes.at(shape);
         auto actor = bodies.at(body);
-
-        {
-            std::scoped_lock<std::mutex> lock(physxMutex);
-            actor->attachShape(*collider);
-        }
+        actor->attachShape(*collider);
     }
 
     void RemoveBody(uint64_t body) {
+        std::unique_lock lock(physxMutex);
+
         auto actor = bodies.at(body);
         if (actor) {
-            {
-                std::scoped_lock<std::mutex> lock(physxMutex);
-                scene->removeActor(*actor);
-            }
+            scene->removeActor(*actor);
             actor->release();
             bodies[body] = nullptr;
             freeBodyIdsQueue.enqueue(body);
@@ -355,18 +356,18 @@ namespace playground::physics {
     }
 
     void RemoveShape(uint64_t shape) {
+        std::unique_lock lock(physxMutex);
+
         auto collider = shapes.at(shape);
         if (collider) {
-            {
-                std::scoped_lock<std::mutex> lock(physxMutex);
-                collider->release();
-            }
+            collider->release();
             shapes[shape] = nullptr;
             freeShapeIdsQueue.enqueue(shape);
         }
     }
 
     void GetBodyPosition(uint64_t id, math::Vector3* position) {
+        std::shared_lock lock(physxMutex);
         auto pos = bodies[id]->getGlobalPose().p;
         position->X = pos.x;
         position->Y = pos.y;
@@ -374,6 +375,7 @@ namespace playground::physics {
     }
 
     void GetBodyRotation(uint64_t id, math::Quaternion* rotation) {
+        std::shared_lock lock(physxMutex);
         auto rot = bodies[id]->getGlobalPose().q;
         rotation->X = rot.x;
         rotation->Y = rot.y;

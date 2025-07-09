@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <pix.h>
 #include <cassert>
+#include <sstream>
 #include "rendering/Context.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
@@ -38,9 +39,9 @@ namespace playground::rendering::d3d12
 #if ENABLE_PROFILER
         , tracy::D3D12QueueCtx* ctx
 #endif
-    )
+    ) : _name(name), _materialBuffers({}, _heapAllocator)
     {
-        _device = device->GetDevice();
+        _device = device;
         _graphicsQueue = graphicsQueue;
         _transferQueue = transferQueue;
         _opaqueCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_OPAQUE_COMMAND_LIST"));
@@ -54,14 +55,14 @@ namespace playground::rendering::d3d12
         _shadowCommandList->Close();
         _transferCommandList->Close();
 
-        _device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
+        _device->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
         _opaqueRootSignature = opaqueRootSignature;
 
         _isOffscreen = isOffscreen;
 
-        _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(_device, 1, 1);
+        _mouseOverBuffer = std::make_unique<D3D12ReadbackBuffer>(_device->GetDevice(), 1, 1);
 
         _cameraBuffer = std::static_pointer_cast<D3D12ConstantBuffer>(device->CreateConstantBuffer(nullptr, MAX_CAMERA_COUNT, sizeof(CameraBuffer), ConstantBuffer::BindingMode::RootCBV, name + "_CAMERA_BUFFER"));
 
@@ -103,7 +104,7 @@ namespace playground::rendering::d3d12
         _shadowCommandList->Begin();
         _transferCommandList->Begin();
 
-        _allocator.arena->Reset();
+        _stackAllocator.arena->Reset();
     }
 
     auto D3D12GraphicsContext::BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {
@@ -193,14 +194,25 @@ namespace playground::rendering::d3d12
         _cameraBuffer->SetData(reinterpret_cast<void*>(cameras.data()), MAX_CAMERA_COUNT, 0);
     }
 
+    auto D3D12GraphicsContext::BindHeaps(std::vector<std::shared_ptr<Heap>> heaps) -> void {
+        eastl::vector<ID3D12DescriptorHeap*, StackAllocator> lists(_stackAllocator);
+
+        for (auto& heap : heaps) {
+            lists.push_back(std::static_pointer_cast<D3D12Heap>(heap)->Native().Get());
+        }
+
+        _currentPassList->Native()->SetDescriptorHeaps(lists.size(), lists.data());
+    }
+
     auto D3D12GraphicsContext::BindMaterial(std::shared_ptr<Material> material) -> void {
         auto list = _currentPassList->Native();
         auto dxMat = std::static_pointer_cast<D3D12Material>(material);
         list->SetPipelineState(dxMat->pso.Get());
+        list->SetGraphicsRootConstantBufferView(3, _materialBuffers[material->id]->GPUAdress(0));
     }
 
-    auto D3D12GraphicsContext::BindTexture(std::shared_ptr<Texture> texture, uint8_t slot) -> void {
-        _currentPassList->BindTexture(texture, slot);
+    auto D3D12GraphicsContext::BindSRVHeapToSlot(std::shared_ptr<Heap> heap, uint8_t slot) -> void {
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(slot, std::static_pointer_cast<D3D12Heap>(heap)->HandleForHeapStart()->GetGPUHandle());
     }
 
     auto D3D12GraphicsContext::BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void {
@@ -216,7 +228,7 @@ namespace playground::rendering::d3d12
         _shadowCommandList->Close();
         _transferCommandList->Close();
 
-        eastl::vector<ID3D12CommandList*, Allocator> lists(_allocator);
+        eastl::vector<ID3D12CommandList*, StackAllocator> lists(_stackAllocator);
         lists.push_back(_opaqueCommandList->Native().Get());
         lists.push_back(_transparentCommandList->Native().Get());
         lists.push_back(_shadowCommandList->Native().Get());
@@ -322,7 +334,7 @@ namespace playground::rendering::d3d12
         UINT numRows = 0;
         UINT64 rowSizeInBytes = 0;
         D3D12_SUBRESOURCE_FOOTPRINT subresourceFootprint = {};
-        _device->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footprint, &numRows, &rowSizeInBytes, &totalBytes);
+        _device->GetDevice()->GetCopyableFootprints(&textureDesc, 0, 1, 0, &footprint, &numRows, &rowSizeInBytes, &totalBytes);
 
         D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
         srcLocation.pResource = d3d312RenderTarget;
@@ -343,6 +355,27 @@ namespace playground::rendering::d3d12
         );
 
         _transferCommandList->Native()->ResourceBarrier(1, &renderTargetBarrier);
+    }
+
+    auto D3D12GraphicsContext::SetMaterialData(uint32_t materialId, const void* data, size_t size) -> void {
+        ZoneScopedN("RenderThread: Set Material Data");
+        ZoneColor(tracy::Color::Orange3);
+
+        // We need to create the material first
+        if (_materialBuffers.find(materialId) == _materialBuffers.end()) {
+            std::stringstream ss;
+            ss << _name << "_MATERIAL_" << +materialId;
+            _materialBuffers.insert(
+                {
+                    materialId,
+                    std::static_pointer_cast<D3D12ConstantBuffer>(
+                        _device->CreateConstantBuffer(data, 1, size, ConstantBuffer::BindingMode::RootCBV, ss.str())
+                    )
+                }
+            );
+        }
+
+        _materialBuffers[materialId]->SetData(data, size, 0);
     }
 
     auto D3D12GraphicsContext::SetDirectionalLight(

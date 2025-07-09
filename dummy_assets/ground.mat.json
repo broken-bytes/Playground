@@ -1,7 +1,7 @@
 {
   "shaderName": "default.shader",
   "textures": [
-    { "name": "diffuse", "value": "default.tex" }
+    { "name": "diffuse", "value": "ground.tex" }
   ],
   "props": [
   ]

@@ -101,7 +101,7 @@ namespace playground::rendering::d3d12 {
         // 32 RTVS (2-3 for the back buffers and 30~ for render textures)
         _rtvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128);
         // Use chunks of 512 entries per shader heap
-        _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 8192);
+        _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_SRV_HEAP_SIZE);
         // 32 Depth stencils are enough for any type of render pipeline
         _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 128);
 
@@ -452,7 +452,15 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12SwapChain>(bufferCount, _graphicsQueue, width, height, (HWND)window);
     }
 
-    auto D3D12Device::CreateConstantBuffer(void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> {
+    auto D3D12Device::GetSrvHeap() -> std::shared_ptr<Heap> {
+        return _srvHeaps->Heap();
+    }
+
+    auto D3D12Device::GetSamplerHeap() -> std::shared_ptr<Heap> {
+        return _samplerHeaps->Heap();
+    }
+
+    auto D3D12Device::CreateConstantBuffer(const void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> {
         auto handle = _srvHeaps->NextHandle();
         return std::make_shared<D3D12ConstantBuffer>(
             _device,
@@ -488,7 +496,7 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
-        CD3DX12_ROOT_PARAMETER rootParameters[8];
+        std::array<CD3DX12_ROOT_PARAMETER, 8> rootParameters = {};
 
         // 1️ Per-frame CBV (Camera, Lighting, Material props, etc.)
         CD3DX12_DESCRIPTOR_RANGE cbvRanges[4];
@@ -497,8 +505,7 @@ namespace playground::rendering::d3d12 {
         rootParameters[2].InitAsConstantBufferView(CAMERA_BUFFER_BINDING); // b2
 
         CD3DX12_DESCRIPTOR_RANGE materialCbvRange;
-        materialCbvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, MATERIAL_BUFFER_BINDING); // b3
-        rootParameters[3].InitAsDescriptorTable(1, &materialCbvRange, D3D12_SHADER_VISIBILITY_ALL);
+        rootParameters[3].InitAsConstantBufferView(MATERIAL_BUFFER_BINDING);
 
         // 2 (SRV)
         CD3DX12_DESCRIPTOR_RANGE vertexSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, INSTANCE_BUFFER_BINDING);
@@ -508,8 +515,8 @@ namespace playground::rendering::d3d12 {
         CD3DX12_DESCRIPTOR_RANGE lightRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
         rootParameters[5].InitAsDescriptorTable(1, &lightRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        // For t1 (diffuse)
-        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1
+        // For t1 (textures)
+        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRV_HEAP_SIZE, 1); // FIXME: t1 (use 8192 SRVs for now)
         rootParameters[6].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // 4 Sampler Descriptor Table
@@ -518,8 +525,8 @@ namespace playground::rendering::d3d12 {
 
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
-            _countof(rootParameters),
-            rootParameters,
+            rootParameters.size(),
+            rootParameters.data(),
             0, nullptr, // No static samplers
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
         );

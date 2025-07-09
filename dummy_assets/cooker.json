@@ -6,6 +6,10 @@
             "type": "Material"
         },
         {
+            "location": "ground.mat.json",
+            "type": "Material"
+        },
+        {
             "location": "default.hlsl",
             "type": "Shader"
         },
@@ -15,6 +19,10 @@
         },
         {
             "location": "default.png",
+            "type": "Texture"
+        },
+        {
+            "location": "ground.png",
             "type": "Texture"
         },
         {
