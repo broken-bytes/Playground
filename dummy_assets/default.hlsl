@@ -9,8 +9,14 @@ struct PointLight {
 
 struct DirectionalLight
 {
+    float4x4 viewProj;
     float4 direction;
     float4 colour;
+};
+
+struct ShadowCaster {
+    float4x4 viewProj;
+    uint shadowMapIndex;
 };
 
 cbuffer Globals: register(b0)
@@ -38,7 +44,11 @@ cbuffer MaterialData : register(b3)
     int diffuseTextureId;
 };
 
-StructuredBuffer<PointLight> lights : register(t0);
+cbuffer ShadowCastersCount: register(b4) {
+    uint shadowCastersCount;
+};
+
+StructuredBuffer<ShadowCaster> shadowCasters : register(t0);
 
 Texture2D textures[] : register(t1);
 SamplerState defaultSampler : register(s0);

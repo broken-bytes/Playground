@@ -161,6 +161,12 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::inputmanager::Init();
     playground::physicsmanager::Init();
 
+    // Register mandatory assets
+
+    // Shadow shader
+    auto shadowShader = playground::assetmanager::LoadShader("shadows.shader");
+    playground::rendering::RegisterShadowShader(shadowShader->vertexShader);
+
     gameThread = std::thread([config]() {
         playground::audio::Init();
 #if ENABLE_INSPECTOR

@@ -16,6 +16,7 @@
 #include "rendering/Heap.hxx"
 #include "rendering/TextureFormat.hxx"
 #include "rendering/Shader.hxx"
+#include "rendering/ShadowMap.hxx"
 #include "rendering/Swapchain.hxx"
 #include "rendering/IndexBuffer.hxx"
 #include "rendering/VertexBuffer.hxx"
@@ -71,7 +72,9 @@ namespace playground::rendering {
         virtual auto CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> = 0;
         virtual auto CreateTexture(uint32_t width, uint32_t height, std::vector<std::vector<uint8_t>> mips, Allocator& allocator) -> std::shared_ptr<Texture> = 0;
         virtual auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> = 0;
+        virtual auto CreateShadowMap(uint32_t width, uint32_t height, std::string name) -> std::shared_ptr<ShadowMap> = 0;
         virtual auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window) -> std::shared_ptr<Swapchain> = 0;
+        virtual auto CreateShadowMaterial(const std::string vertexShader) -> std::shared_ptr<Material> = 0;
 
         virtual auto GetSrvHeap() -> std::shared_ptr<Heap> = 0;
         virtual auto GetSamplerHeap() -> std::shared_ptr<Heap> = 0;

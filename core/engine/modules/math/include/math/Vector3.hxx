@@ -44,6 +44,14 @@ namespace playground::math {
             return !(*this == other);
         }
 
+        inline Vector3 Normalise() const {
+            float length = Length();
+            if (length == 0.0f) {
+                return Vector3(0.0f, 0.0f, 0.0f);
+            }
+            return *this / length;
+        }
+
         inline float Length() const {
             return sqrt(X * X + Y * Y + Z * Z);
         }

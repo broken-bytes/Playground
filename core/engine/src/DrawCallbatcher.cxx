@@ -75,10 +75,27 @@ namespace playground::drawcallbatcher {
     }
 
     void SetSun(math::Vector3 direction, math::Vector4 colour, float intensity) {
+        math::Matrix4x4 viewMatrix{};
+        math::Vector3 lightDirNormalized = direction.Normalise();
+        math::Vector3 eye = -lightDirNormalized * rendering::SUN_FAR_PLANE;
+        math::Vector3 target = math::Vector3(0, 0, 0);
+        math::Vector3 forward = (target - eye).Normalise();
+        math::Vector3 up = math::Vector3(0, 1, 0);
+        math::Quaternion lightRotation = math::Quaternion::LookRotation(forward, up);
+        GetViewMatrix(&eye, &lightRotation, &viewMatrix);
+
+        math::Matrix4x4 projectionMatrix{};
+        math::OrthographicLH(
+            -rendering::SUN_SIZE, rendering::SUN_SIZE,
+            -rendering::SUN_SIZE, rendering::SUN_SIZE,
+            rendering::SUN_NEAR_PLANE, rendering::SUN_FAR_PLANE,
+            &projectionMatrix
+        );
+
         sun = rendering::DirectionalLight{
-            .direction = math::Vector4(math::Normalize(direction), 0.0f),
-            .colour = colour,
-            .intensity = intensity
+            .viewProj = viewMatrix * projectionMatrix,
+            .direction = math::Vector4(direction, 0),
+            .colour = math::Vector4(colour.X, colour.Y, colour.Z, intensity),
         };
     }
 

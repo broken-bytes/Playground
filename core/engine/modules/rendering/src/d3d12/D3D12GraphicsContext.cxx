@@ -5,6 +5,7 @@
 #include <cassert>
 #include <sstream>
 #include "rendering/Context.hxx"
+#include "rendering/ShadowCaster.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12GraphicsContext.hxx"
 #include "rendering/d3d12/D3D12CommandAllocator.hxx"
@@ -30,6 +31,7 @@ namespace playground::rendering::d3d12
         std::string name,
         std::shared_ptr<D3D12Device> device,
         Microsoft::WRL::ComPtr<ID3D12RootSignature> opaqueRootSignature,
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> shadowsRootSignature,
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> transferQueue,
         void* window,
@@ -59,6 +61,7 @@ namespace playground::rendering::d3d12
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
         _opaqueRootSignature = opaqueRootSignature;
+        _shadowsRootSignature = shadowsRootSignature;
 
         _isOffscreen = isOffscreen;
 
@@ -69,6 +72,8 @@ namespace playground::rendering::d3d12
         _pointLightsBuffer = std::static_pointer_cast<D3D12StructuredBuffer>(device->CreateStructuredBuffer(nullptr, MAX_POINT_LIGHTS, sizeof(PointLight), name + "_POINT_LIGHT_BUFFER"));
 
         _directionalLightBuffer = std::static_pointer_cast<D3D12ConstantBuffer>(device->CreateConstantBuffer(nullptr, 1, sizeof(DirectionalLight), ConstantBuffer::BindingMode::RootCBV, name + "_DIRECTIONAL_LIGHT_BUFFER"));
+
+        _shadowCastersBuffer = std::static_pointer_cast<D3D12StructuredBuffer>(device->CreateStructuredBuffer(nullptr, MAX_SHADOW_MAPS_PER_FRAME, sizeof(ShadowCaster), name + "_SHADOW_CASTERS_BUFFER"));
 
 #if ENABLE_PROFILER
         _tracyCtx = ctx;
@@ -108,57 +113,30 @@ namespace playground::rendering::d3d12
     }
 
     auto D3D12GraphicsContext::BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void {
-        PIXBeginEvent(PIX_COLOR_INDEX((int)pass + 2), "Begin Opaque Pass");
-        ZoneScopedN("RenderThread: Begin Opaque Pass");
+        PIXBeginEvent(PIX_COLOR_INDEX((int)pass + 2), "Begin Render Pass");
+        ZoneScopedN("RenderThread: Begin Render Pass");
         ZoneColor(tracy::Color::Orange2);
         assert(_currentPassList == nullptr && "A render pass was already started. Did you forget to end it?");
 
-        D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
-        rtDesc.cpuDescriptor = std::static_pointer_cast<D3D12RenderTarget>(colour)->Handle();
-        rtDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-        rtDesc.BeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
-            .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
-            .Color = { 0.2f, 0.6f, 0.3f, 1 },
-        };
-        rtDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-
-        D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsDesc = {};
-        dsDesc.cpuDescriptor = std::static_pointer_cast<D3D12DepthBuffer>(depth)->Handle();
-        dsDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-        dsDesc.DepthBeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
-            .DepthStencil = D3D12_DEPTH_STENCIL_VALUE {
-                .Depth = 1,
-                .Stencil = 0,
-            },
-        };
-        dsDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
-        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
-
         switch (pass) {
         case RenderPass::Opaque:
-            _currentPassList = _opaqueCommandList;
-            _currentPassList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
-            _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
-            _currentPassList->BindConstantBuffer(_directionalLightBuffer, DIRECTIONAL_LIGHT_BUFFER_BINDING, 0);
+            StartOpaqueRenderPass(colour, depth);
             break;
         case RenderPass::Transparent:
             _currentPassList = _transparentCommandList;
             break;
         case RenderPass::Shadow:
-            _currentPassList = _shadowCommandList;
+            StartShadowRenderPass(depth);
             break;
         default:
             _currentPassList = _opaqueCommandList;
             break;
         }
-
-        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
     }
 
     auto D3D12GraphicsContext::EndRenderPass() -> void {
         assert(_currentPassList != nullptr && "No render pass was started. Did you forget to start one?");
-        ZoneScopedN("RenderThread: End Opaque Pass");
+        ZoneScopedN("RenderThread: End Render Pass");
         ZoneColor(tracy::Color::Orange2);
         _currentPassList->Native()->EndRenderPass();
         _currentPassList = nullptr;
@@ -194,6 +172,13 @@ namespace playground::rendering::d3d12
         _cameraBuffer->SetData(reinterpret_cast<void*>(cameras.data()), MAX_CAMERA_COUNT, 0);
     }
 
+    auto D3D12GraphicsContext::SetShadowCastersData(std::vector<ShadowCaster>& shadowCasters) -> void {
+        ZoneScopedN("RenderThread: Set ShadowCasters Data");
+        ZoneColor(tracy::Color::Orange3);
+        _shadowCastersBuffer->SetData(reinterpret_cast<void*>(shadowCasters.data()), shadowCasters.size(), 0);
+        _shadowCastersCount = shadowCasters.size();
+    }
+
     auto D3D12GraphicsContext::BindHeaps(std::vector<std::shared_ptr<Heap>> heaps) -> void {
         eastl::vector<ID3D12DescriptorHeap*, StackAllocator> lists(_stackAllocator);
 
@@ -209,6 +194,12 @@ namespace playground::rendering::d3d12
         auto dxMat = std::static_pointer_cast<D3D12Material>(material);
         list->SetPipelineState(dxMat->pso.Get());
         list->SetGraphicsRootConstantBufferView(3, _materialBuffers[material->id]->GPUAdress(0));
+    }
+
+    auto D3D12GraphicsContext::BindShadowMaterial(std::shared_ptr<Material> material) -> void {
+        auto list = _currentPassList->Native();
+        auto dxMat = std::static_pointer_cast<D3D12Material>(material);
+        list->SetPipelineState(dxMat->pso.Get());
     }
 
     auto D3D12GraphicsContext::BindSRVHeapToSlot(std::shared_ptr<Heap> heap, uint8_t slot) -> void {
@@ -229,16 +220,16 @@ namespace playground::rendering::d3d12
         _transferCommandList->Close();
 
         eastl::vector<ID3D12CommandList*, StackAllocator> lists(_stackAllocator);
+        lists.push_back(_shadowCommandList->Native().Get());
         lists.push_back(_opaqueCommandList->Native().Get());
         lists.push_back(_transparentCommandList->Native().Get());
-        lists.push_back(_shadowCommandList->Native().Get());
         lists.push_back(_transferCommandList->Native().Get());
 
         _graphicsQueue->ExecuteCommandLists(lists.size(), lists.data());
 
         _fenceValue++;
         _graphicsQueue->Signal(_fence.Get(), _fenceValue);
-        
+
         PIXEndEvent();
     }
 
@@ -271,6 +262,28 @@ namespace playground::rendering::d3d12
             std::static_pointer_cast<D3D12Texture>(texture)->Texture().Get(),
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+
+        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void {
+        // Transition GPU buffer to texture state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12ShadowMap>(map)->Resource().Get(),
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+
+        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void {
+        // Transition GPU buffer to texture state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12ShadowMap>(map)->Resource().Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE
         );
 
         _transferCommandList->Native()->ResourceBarrier(1, &barrier);
@@ -426,5 +439,72 @@ namespace playground::rendering::d3d12
         _mouseOverBuffer->Read(reinterpret_cast<void**>(&data), &numRead);
 
         return *data;
+    }
+
+    void D3D12GraphicsContext::StartOpaqueRenderPass(
+        std::shared_ptr<RenderTarget> colour,
+        std::shared_ptr<DepthBuffer> depth
+    ) {
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Opaque Render Pass");
+        ZoneScopedN("RenderThread: Start Opaque Render Pass");
+        ZoneColor(tracy::Color::Orange2);
+
+        D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
+        rtDesc.cpuDescriptor = std::static_pointer_cast<D3D12RenderTarget>(colour)->Handle();
+        rtDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+        rtDesc.BeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
+            .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+            .Color = { 0.2f, 0.6f, 0.3f, 1 },
+        };
+        rtDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
+        D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsDesc = {};
+        dsDesc.cpuDescriptor = std::static_pointer_cast<D3D12DepthBuffer>(depth)->Handle();
+        dsDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+        dsDesc.DepthBeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
+            .DepthStencil = D3D12_DEPTH_STENCIL_VALUE {
+                .Depth = 1,
+                .Stencil = 0,
+            },
+        };
+        dsDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
+        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+        _currentPassList = _opaqueCommandList;
+        _currentPassList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
+        _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
+        _currentPassList->BindConstantBuffer(_directionalLightBuffer, 1, 0);
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(SHADOW_CASTERS_BUFFER_BINDING, _shadowCastersBuffer->GPUHandle());
+        _currentPassList->Native()->SetGraphicsRoot32BitConstant(SHADOW_CASTERS_COUNT_BINDING, _shadowCastersCount, 0);
+
+        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
+    }
+
+    void D3D12GraphicsContext::StartShadowRenderPass(
+        std::shared_ptr<DepthBuffer> depth
+    ) {
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Shadow Render Pass");
+        ZoneScopedN("RenderThread: Start Shadow Render Pass");
+        ZoneColor(tracy::Color::Orange2);
+
+        D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsDesc = {};
+        dsDesc.cpuDescriptor = std::static_pointer_cast<D3D12DepthBuffer>(depth)->Handle();
+        dsDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+        dsDesc.DepthBeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
+            .DepthStencil = D3D12_DEPTH_STENCIL_VALUE {
+                .Depth = 1,
+                .Stencil = 0,
+            },
+        };
+        dsDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
+        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+        _currentPassList = _shadowCommandList;
+        _currentPassList->Native()->SetGraphicsRootSignature(_shadowsRootSignature.Get());
+        _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
+        // FIXME: Move into renderer?
+        _currentPassList->BindConstantBuffer(_directionalLightBuffer, 0, 0);
+
+        _currentPassList->Native()->BeginRenderPass(0, nullptr, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
     }
 }

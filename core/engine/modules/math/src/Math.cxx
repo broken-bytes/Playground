@@ -65,7 +65,7 @@ namespace playground::math {
     }
 
     void GetViewMatrix(const Vector3* position, const Quaternion* rotation, Matrix4x4* outMat) {
-        // First compute the rotation matrix from the *normalized* quaternion (no inverse)
+        // First compute the rotation matrix from the *normalised* quaternion (no inverse)
         const float x = rotation->X;
         const float y = rotation->Y;
         const float z = rotation->Z;
@@ -101,8 +101,8 @@ namespace playground::math {
     }
 
     void LookAtLH(const Vector3& eye, const Vector3& target, const Vector3& up, Matrix4x4* out) {
-        Vector3 zAxis = Normalize(target - eye);
-        Vector3 xAxis = Normalize(up.Cross(zAxis));
+        Vector3 zAxis = (target - eye).Normalise();
+        Vector3 xAxis = up.Cross(zAxis).Normalise();
         Vector3 yAxis = zAxis.Cross(xAxis);
 
         auto result = Matrix4x4({
@@ -113,6 +113,19 @@ namespace playground::math {
         });
 
         *out = result;
+    }
+
+    void OrthographicLH(float left, float right, float bottom, float top, float nearZ, float farZ, Matrix4x4* out) {
+        float rml = right - left;
+        float tmb = top - bottom;
+        float fmn = farZ - nearZ;
+
+        *out = Matrix4x4({
+            2.0f / rml, 0.0f,       0.0f,           -(right + left) / rml,
+            0.0f,       2.0f / tmb, 0.0f,           -(top + bottom) / tmb,
+            0.0f,       0.0f,       1.0f / fmn,     -nearZ / fmn,
+            0.0f,       0.0f,       0.0f,           1.0f
+            });
     }
 
     void GetProjectionMatrix(float fovYDegrees, float aspectRatio, float nearPlane, float farPlane, Matrix4x4* outMat) {
@@ -262,13 +275,5 @@ namespace playground::math {
         simde_mm_storeu_ps((simde_float32*)out->Row(1), minor1);
         simde_mm_storeu_ps((simde_float32*)out->Row(2), minor2);
         simde_mm_storeu_ps((simde_float32*)out->Row(3), minor3);
-    }
-
-    Vector3 Normalize(const Vector3& v) {
-        float length = v.Length();
-        if (length == 0.0f) {
-            return Vector3(0.0f, 0.0f, 0.0f);
-        }
-        return v / length;
     }
 }

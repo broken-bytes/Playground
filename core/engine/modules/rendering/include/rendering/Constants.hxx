@@ -6,15 +6,26 @@ namespace playground::rendering {
 
     constexpr uint16_t MAX_SRV_HEAP_SIZE = 8192;
 
+    // Buffer Bindings (b[n])
     constexpr uint8_t GLOBALS_BUFFER_BINDING = 0;
     constexpr uint8_t DIRECTIONAL_LIGHT_BUFFER_BINDING = 1;
     constexpr uint8_t CAMERA_BUFFER_BINDING = 2;
     constexpr uint8_t MATERIAL_BUFFER_BINDING = 3;
+    constexpr uint8_t SHADOW_CASTERS_COUNT_BINDING = 4;
+
+    // SRV Bindings (t[n])
+    constexpr uint8_t SHADOW_CASTERS_BUFFER_BINDING = 5;
     constexpr uint8_t BINDLESS_TEXTURES_SLOT = 6;
-
-    constexpr uint8_t INSTANCE_BUFFER_BINDING = 0;
-
     constexpr uint8_t POINT_LIGHT_SRV_BINDING = 0;
 
+
     constexpr uint16_t MAX_BATCH_SIZE = 1024;
+
+    // Shadow constants
+    constexpr uint16_t MAX_SHADOW_RES_DIRECTIONAL_LIGHT = 4096;
+    constexpr uint16_t MAX_SHADOW_RES_POINT_AND_SPOT_LIGHT = 1024;
+    constexpr uint8_t MAX_SHADOW_MAPS_PER_FRAME = 32;
+    constexpr uint16_t SUN_SIZE = 500;
+    constexpr float SUN_NEAR_PLANE = 0.1f;
+    constexpr float SUN_FAR_PLANE = 500;
 }

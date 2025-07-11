@@ -7,6 +7,7 @@
 #include "rendering/ReadbackBuffer.hxx"
 #include "rendering/RenderPass.hxx"
 #include "rendering/RenderTarget.hxx"
+#include "rendering/ShadowCaster.hxx"
 #include "rendering/Swapchain.hxx"
 #include "rendering/IndexBuffer.hxx"
 #include "rendering/VertexBuffer.hxx"
@@ -29,13 +30,17 @@ namespace playground::rendering {
         virtual auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void = 0;
         virtual auto BindCamera(uint8_t index) -> void = 0;
         virtual auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void = 0;
+        virtual auto SetShadowCastersData(std::vector<ShadowCaster>& shadowCasters) -> void = 0;
         virtual auto BindHeaps(std::vector<std::shared_ptr<Heap>> heaps) -> void = 0;
         virtual auto BindMaterial(std::shared_ptr<Material> material) -> void = 0;
+        virtual auto BindShadowMaterial(std::shared_ptr<Material> material) -> void = 0;
         virtual auto BindSRVHeapToSlot(std::shared_ptr<Heap> heap, uint8_t slot) -> void = 0;
         virtual auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void = 0;
         virtual auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto TransitionTexture(std::shared_ptr<Texture> texture) -> void = 0;
+        virtual auto TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void = 0;
+        virtual auto TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void = 0;
         virtual auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void = 0;
         virtual auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void = 0;
         virtual auto SetMaterialData(uint32_t materialId, const void* data, size_t size) -> void = 0;

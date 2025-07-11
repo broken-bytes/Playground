@@ -65,6 +65,10 @@ namespace playground::rendering {
     auto UploadTexture(TextureUploadJob& job) -> void;
     auto CreateMaterial(MaterialUploadJob job) -> void;
 
+    auto RegisterShadowShader(
+        const std::string& vertexShaderCode
+    ) -> void;
+
     // Material setup
     void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId);
 

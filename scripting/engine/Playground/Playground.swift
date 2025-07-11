@@ -42,7 +42,7 @@ func startUp() {
     let physicsMaterialHandle = AssetHandler.loadPhysicsMaterial(named: "default.pmat")
 
     let entity = Entity("Sun")
-    var sun = SunComponent(direction: Vector3(x: 0.1, y: -0.5, z: 0.2), colour: Colour(r: 1, g: 1, b: 1, a: 1), intensity: 3)
+    var sun = SunComponent(direction: Vector3(x: 0.1, y: -0.5, z: 0.2), colour: Colour(r: 1, g: 1, b: 1, a: 1), intensity: 1)
     entity.addComponent(&sun)
 
     let camEntity = Entity("Camera")

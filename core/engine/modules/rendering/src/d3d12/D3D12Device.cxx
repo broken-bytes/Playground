@@ -25,6 +25,7 @@
 #include "rendering/d3d12/D3D12SwapChain.hxx"
 #include "rendering/d3d12/D3D12DepthBuffer.hxx"
 #include "rendering/d3d12/D3D12RenderTarget.hxx"
+#include "rendering/d3d12/D3D12ShadowMap.hxx"
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
@@ -102,8 +103,8 @@ namespace playground::rendering::d3d12 {
         _rtvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128);
         // Use chunks of 512 entries per shader heap
         _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_SRV_HEAP_SIZE);
-        // 32 Depth stencils are enough for any type of render pipeline
-        _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 128);
+        // 128 Depth stencils are enough for any type of render pipeline
+        _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 512);
 
         // Create sampler heap
         // 6 Samplers:
@@ -116,6 +117,7 @@ namespace playground::rendering::d3d12 {
         _samplerHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 8);
 
         _rootSignature = CreateRootSignature();
+        _shadowRootSignature = CreateShadowRootSignature();
 
         _graphicsQueue = CreateCommandQueue(CommandListType::Graphics, "GraphicsQueue");
         _computeQueue = CreateCommandQueue(CommandListType::Compute, "ComputeQueue");
@@ -149,6 +151,7 @@ namespace playground::rendering::d3d12 {
         _dsvHeaps = nullptr;
         _samplerHeaps = nullptr;
         _rootSignature = nullptr;
+        _shadowRootSignature = nullptr;
         _graphicsQueue = nullptr;
         _computeQueue = nullptr;
         _copyQueue = nullptr;
@@ -162,6 +165,7 @@ namespace playground::rendering::d3d12 {
             name,
             shared_from_this(),
             _rootSignature,
+            _shadowRootSignature,
             _graphicsQueue,
             _uploadQueue,
             window,
@@ -169,7 +173,7 @@ namespace playground::rendering::d3d12 {
             height,
             offscreen
 #if ENABLE_PROFILER
-            ,_tracyCtx
+            , _tracyCtx
 #endif
         );
     }
@@ -177,7 +181,7 @@ namespace playground::rendering::d3d12 {
     auto D3D12Device::CreateUploadContext(std::string name) -> std::shared_ptr<UploadContext>
     {
         return std::make_shared<D3D12UploadContext>(
-            name, 
+            name,
             shared_from_this(),
             _uploadQueue
         );
@@ -282,7 +286,7 @@ namespace playground::rendering::d3d12 {
         _device->CreateRenderTargetView(rtv.Get(), nullptr, nextHandle->GetCPUHandle());
 
         rtv->SetName(std::wstring(name.begin(), name.end()).c_str());
-        
+
 
         return std::make_shared<D3D12RenderTarget>(rtv, nextHandle->GetCPUHandle());
     }
@@ -339,13 +343,13 @@ namespace playground::rendering::d3d12 {
 
     auto D3D12Device::CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material>
     {
-        auto pso = CreatePipelineState(vertexShader, pixelShader, _rootSignature);
+        auto pso = CreatePipelineState(vertexShader, &pixelShader, _rootSignature);
         auto material = std::make_shared<D3D12Material>(pso);
 
         return material;
     }
 
-    auto D3D12Device::CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature) -> Microsoft::WRL::ComPtr<ID3D12PipelineState>
+    auto D3D12Device::CreatePipelineState(const std::string& vertexShader, const std::string* pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature) -> Microsoft::WRL::ComPtr<ID3D12PipelineState>
     {
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -355,14 +359,16 @@ namespace playground::rendering::d3d12 {
         D3D12_SHADER_BYTECODE vertexShaderBytecode = {};
         vertexShaderBytecode.pShaderBytecode = vertexShader.data();
         vertexShaderBytecode.BytecodeLength = vertexShader.size();
-
-        D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
-        pixelShaderBytecode.pShaderBytecode = pixelShader.data();
-        pixelShaderBytecode.BytecodeLength = pixelShader.size();
-
-        // Load compiled shaders
         psoDesc.VS = vertexShaderBytecode;
-        psoDesc.PS = pixelShaderBytecode;
+
+        if (pixelShader != nullptr) {
+            D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
+            pixelShaderBytecode.pShaderBytecode = pixelShader->data();
+            pixelShaderBytecode.BytecodeLength = pixelShader->size();
+
+            // Load compiled shaders
+            psoDesc.PS = pixelShaderBytecode;
+        }
 
         // Rasterizer state (Default)
         D3D12_RASTERIZER_DESC rasterizerDesc = {};
@@ -385,8 +391,10 @@ namespace playground::rendering::d3d12 {
         psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+        psoDesc.NumRenderTargets = pixelShader == nullptr ? 0 : 1;
+        if (psoDesc.NumRenderTargets > 0) {
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+        }
         psoDesc.SampleDesc.Count = 1;
         psoDesc.SampleDesc.Quality = 0;
 
@@ -448,8 +456,22 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12TextureSampler>(_device, _samplerHeaps->NextHandle(), filtering, wrapping);
     }
 
+    auto D3D12Device::CreateShadowMap(uint32_t width, uint32_t height, std::string name)->std::shared_ptr<ShadowMap> {
+        auto dsvHandle = _dsvHeaps->NextHandle();
+        auto srvHandle = _srvHeaps->NextHandle();
+
+        return std::make_shared<D3D12ShadowMap>(GetDevice(), dsvHandle, srvHandle, width, height, name);
+    }
+
     auto D3D12Device::CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window) -> std::shared_ptr<Swapchain> {
         return std::make_shared<D3D12SwapChain>(bufferCount, _graphicsQueue, width, height, (HWND)window);
+    }
+
+    auto D3D12Device::CreateShadowMaterial(const std::string vertexShader) -> std::shared_ptr<Material> {
+        auto pso = CreatePipelineState(vertexShader, nullptr, _shadowRootSignature);
+        auto material = std::make_shared<D3D12Material>(pso);
+
+        return material;
     }
 
     auto D3D12Device::GetSrvHeap() -> std::shared_ptr<Heap> {
@@ -498,30 +520,59 @@ namespace playground::rendering::d3d12 {
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
         std::array<CD3DX12_ROOT_PARAMETER, 8> rootParameters = {};
 
-        // 1️ Per-frame CBV (Camera, Lighting, Material props, etc.)
-        CD3DX12_DESCRIPTOR_RANGE cbvRanges[4];
+        // Per-frame CBV (Camera, Lighting, Material props, etc.)
         rootParameters[0].InitAsConstantBufferView(GLOBALS_BUFFER_BINDING); // b0
         rootParameters[1].InitAsConstantBufferView(DIRECTIONAL_LIGHT_BUFFER_BINDING); // b1
         rootParameters[2].InitAsConstantBufferView(CAMERA_BUFFER_BINDING); // b2
+        rootParameters[3].InitAsConstantBufferView(MATERIAL_BUFFER_BINDING); // b3
+        rootParameters[4].InitAsConstants(1, SHADOW_CASTERS_COUNT_BINDING, 0); // b4
 
-        CD3DX12_DESCRIPTOR_RANGE materialCbvRange;
-        rootParameters[3].InitAsConstantBufferView(MATERIAL_BUFFER_BINDING);
-
-        // 2 (SRV)
-        CD3DX12_DESCRIPTOR_RANGE vertexSrvRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, INSTANCE_BUFFER_BINDING);
-        rootParameters[4].InitAsDescriptorTable(1, &vertexSrvRange, D3D12_SHADER_VISIBILITY_VERTEX);
-
-        // For t0 (lights)
-        CD3DX12_DESCRIPTOR_RANGE lightRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
-        rootParameters[5].InitAsDescriptorTable(1, &lightRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        // For t0 (shadowmaps)
+        CD3DX12_DESCRIPTOR_RANGE shadowMapsRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        rootParameters[SHADOW_CASTERS_BUFFER_BINDING].InitAsDescriptorTable(1, &shadowMapsRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // For t1 (textures)
-        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRV_HEAP_SIZE, 1); // FIXME: t1 (use 8192 SRVs for now)
-        rootParameters[6].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRV_HEAP_SIZE, 1);
+        rootParameters[BINDLESS_TEXTURES_SLOT].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
         // 4 Sampler Descriptor Table
         CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
         rootParameters[7].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // Define the root signature descriptor
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
+            rootParameters.size(),
+            rootParameters.data(),
+            0, nullptr, // No static samplers
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+        );
+
+        // Serialize and create the root signature
+        Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
+        Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
+        HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+
+        if (FAILED(hr)) {
+            if (errorBlob) {
+                OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+            }
+            throw std::runtime_error("Failed to serialize root signature");
+        }
+
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+        hr = _device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create root signature");
+        }
+
+        return rootSignature;
+    }
+
+    auto D3D12Device::CreateShadowRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
+        std::array<CD3DX12_ROOT_PARAMETER, 1> rootParameters = {};
+
+        // 1️ Per-frame CBV (Camera, Lighting, Material props, etc.)
+        rootParameters[0].InitAsConstantBufferView(0); // b0
 
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(

@@ -1,11 +1,12 @@
 #pragma once
 
-#include "math/Vector3.hxx"
 #include "math/Matrix4x4.hxx"
 #include <cmath>
 #include <simde/x86/avx.h>
 
 namespace playground::math {
+    struct Vector3;
+
     struct Quaternion {
         float X;
         float Y;
@@ -77,6 +78,10 @@ namespace playground::math {
 
             return mat;
         }
+
+        Quaternion Normalise();
+
+        static Quaternion LookRotation(const Vector3& forward, const Vector3& up);
 
         Quaternion operator*(const Quaternion& other) const {
             return Quaternion(

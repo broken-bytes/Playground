@@ -4,6 +4,7 @@
 #include "rendering/RenderPass.hxx"
 #include "rendering/ReadbackBuffer.hxx"
 #include "rendering/DirectionalLight.hxx"
+#include "rendering/ShadowCaster.hxx"
 #include "rendering/d3d12/D3D12CommandAllocator.hxx"
 #include "rendering/d3d12/D3D12CommandList.hxx"
 #include "rendering/d3d12/D3D12Device.hxx"
@@ -13,6 +14,7 @@
 #include "rendering/d3d12/D3D12ReadbackBuffer.hxx"
 #include "rendering/d3d12/D3D12ConstantBuffer.hxx"
 #include "rendering/d3d12/D3D12StructuredBuffer.hxx"
+#include "rendering/d3d12/D3D12ShadowMap.hxx"
 #include <array>
 #include <memory>
 #include <wrl.h>
@@ -30,6 +32,7 @@ namespace playground::rendering::d3d12 {
             std::string name,
             std::shared_ptr<D3D12Device> device,
             Microsoft::WRL::ComPtr<ID3D12RootSignature> opaqueRootSignature,
+            Microsoft::WRL::ComPtr<ID3D12RootSignature> shadowsRootSignature,
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> transferQueue,
             void* window,
@@ -53,13 +56,17 @@ namespace playground::rendering::d3d12 {
         auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void override;
         auto BindCamera(uint8_t index) -> void override;
         auto SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void override;
+        auto SetShadowCastersData(std::vector<ShadowCaster>& shadowCasters) -> void override;
         auto BindHeaps(std::vector<std::shared_ptr<Heap>> heaps) -> void override;
         auto BindMaterial(std::shared_ptr<Material>) -> void override;
+        auto BindShadowMaterial(std::shared_ptr<Material> material) -> void override;
         auto BindSRVHeapToSlot(std::shared_ptr<Heap> heap, uint8_t slot) -> void override;
         auto BindSampler(std::shared_ptr<Sampler> sampler, uint8_t slot) -> void override;
         auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
+        auto TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void override;
+        auto TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void override;
         auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void override;
         auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void override;
         auto SetMaterialData(uint32_t materialId, const void* data, size_t size) -> void override;
@@ -100,6 +107,7 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _transferQueue;
         Microsoft::WRL::ComPtr<ID3D12Fence> _fence;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _opaqueRootSignature;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> _shadowsRootSignature;
         std::shared_ptr<D3D12CommandAllocator> _commandAllocator;
         std::shared_ptr<D3D12CommandList> _opaqueCommandList;
         std::shared_ptr<D3D12CommandList> _transparentCommandList;
@@ -109,6 +117,8 @@ namespace playground::rendering::d3d12 {
         std::shared_ptr<D3D12ConstantBuffer> _cameraBuffer;
         std::shared_ptr<D3D12StructuredBuffer> _pointLightsBuffer;
         std::shared_ptr<D3D12ConstantBuffer> _directionalLightBuffer;
+        std::shared_ptr<D3D12StructuredBuffer> _shadowCastersBuffer;
+        uint8_t _shadowCastersCount;
         MaterialBufferMap _materialBuffers;
 
         UINT64 _fenceValue = 0;
@@ -119,5 +129,14 @@ namespace playground::rendering::d3d12 {
 #if ENABLE_PROFILER
         tracy::D3D12QueueCtx* _tracyCtx;
 #endif
+
+        void StartOpaqueRenderPass(
+            std::shared_ptr<RenderTarget> colour,
+            std::shared_ptr<DepthBuffer> depth
+        );
+
+        void StartShadowRenderPass(
+            std::shared_ptr<DepthBuffer> depth
+        );
     };
 }

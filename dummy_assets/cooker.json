@@ -2,6 +2,10 @@
     "maxSize": 128,
     "assets": [
         {
+            "location": "shadows.hlsl",
+            "type": "Shader"
+        },
+        {
             "location": "default.mat.json",
             "type": "Material"
         },

@@ -9,6 +9,7 @@
 #include "rendering/Camera.hxx"
 #include "rendering/Sampler.hxx"
 #include "rendering/DirectionalLight.hxx"
+#include "rendering/ShadowCaster.hxx"
 #include <math/Quaternion.hxx>
 #include <math/Vector3.hxx>
 #include <math/Matrix4x4.hxx>
@@ -40,13 +41,18 @@ namespace playground::rendering {
         math::Matrix4x4 NormalMatrix;
     };
 
+    struct LightBuffer {
+        math::Matrix4x4 ViewProjection;
+        uint32_t ShadowMapId;
+    };
+
     struct SimulationBuffer {
         float deltaTime;
         float sinTime;
         float cosTime;
         float timeSinceStart;
         int frameIndex;
-    };;
+    };
 
     Config config;
 
@@ -92,6 +98,10 @@ namespace playground::rendering {
     std::vector<uint32_t> freeMeshIds = {};
 
     std::array<CameraBuffer, MAX_CAMERA_COUNT> cameras = {};
+    ShadowCaster sunLight;
+    std::array<ShadowCaster, MAX_SHADOW_MAPS_PER_FRAME> lights = { };
+
+    std::shared_ptr<Material> shadowMaterial = nullptr;
 
     bool didUpload = false;
 
@@ -133,13 +143,14 @@ namespace playground::rendering {
 
             auto gfxName = "GraphicsContext_" + std::to_string(x);
             auto ulName = "UploadContext_" + std::to_string(x);
+            auto shadowMapsBufferName = "ShadowMapsBuffer" + std::to_string(x);
 
             auto graphicsContext = device->CreateGraphicsContext(gfxName, window, width, height, offscreen);
             auto uploadContext = device->CreateUploadContext(ulName);
 
             auto instanceBuffer = device->CreateInstanceBuffer(131072, sizeof(ObjectBuffer));
 
-            frames.emplace_back(std::make_shared<Frame>(rendertarget, depthBuffer, graphicsContext, uploadContext, instanceBuffer));
+            frames.emplace_back(std::make_shared<Frame>(x, device, rendertarget, depthBuffer, graphicsContext, uploadContext, instanceBuffer));
         }
 
         sampler = device->CreateSampler(TextureFiltering::Anisotropic, TextureWrapping::Repeat);
@@ -269,10 +280,7 @@ namespace playground::rendering {
             }
         }
 
-        auto renderTarget = frames[backBufferIndex]->RenderTarget();
-        auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
-
-        for (int x = 0; x < nextFrame.cameras.size(); x ++) {
+        for (int x = 0; x < nextFrame.cameras.size(); x++) {
             assert(x < MAX_CAMERA_COUNT && "Max cameras exceeded");
 
             auto& cam = nextFrame.cameras[x];
@@ -291,19 +299,52 @@ namespace playground::rendering {
         graphicsContext->SetCameraData(cameras);
         graphicsContext->SetDirectionalLight(nextFrame.sun);
 
+        uint32_t instanceOffet = 0;
+
+        if (shadowMaterial != nullptr) {
+            auto shadowMap = frames[backBufferIndex]->DirectionalLightShadowMap();
+            graphicsContext->BeginRenderPass(RenderPass::Shadow, nullptr, shadowMap->GetDepthBuffer());
+            graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
+
+            graphicsContext->SetViewport(0, 0, shadowMap->Width(), shadowMap->Height(), 0, 1);
+            graphicsContext->SetScissor(0, 0, shadowMap->Width(), shadowMap->Height());
+            graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
+            graphicsContext->BindShadowMaterial(shadowMaterial);
+
+            for (auto& drawcall : nextFrame.drawCalls) {
+                graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
+                graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
+
+                graphicsContext->Draw(indexBuffers[drawcall.indexBuffer]->Size(), 0, 0, drawcall.instanceData.size(), instanceOffet);
+
+                instanceOffet = instanceOffet + drawcall.instanceData.size();
+            }
+
+            instanceOffet = 0;
+            graphicsContext->EndRenderPass();
+
+            // Transition all shadow maps to pixel shader readable
+        }
+
+        auto renderTarget = frames[backBufferIndex]->RenderTarget();
+        auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
+
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
-
-        graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap()});
-        graphicsContext->BindSRVHeapToSlot(device->GetSrvHeap(), BINDLESS_TEXTURES_SLOT);
-
+        graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
+        graphicsContext->BindCamera(0);
         graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
         graphicsContext->SetScissor(0, 0, config.Width, config.Height);
-
         graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
-        graphicsContext->BindCamera(0);
+        graphicsContext->BindSRVHeapToSlot(device->GetSrvHeap(), BINDLESS_TEXTURES_SLOT);
         graphicsContext->BindSampler(sampler, 7);
 
-        uint32_t instanceOffet = 0;
+        std::vector<ShadowCaster> shadowcasters = {};
+        shadowcasters.reserve(MAX_SHADOW_MAPS_PER_FRAME + 1);
+
+        shadowcasters.emplace_back(nextFrame.sun.viewProj, frames[backBufferIndex]->DirectionalLightShadowMap()->ID());
+
+        // TODO: Add other lights to the buffer
+        graphicsContext->SetShadowCastersData(shadowcasters);
 
         for (auto& drawcall : nextFrame.drawCalls) {
             // TODO: Mark materials dirty and bulk update all dirty ones
@@ -505,6 +546,12 @@ namespace playground::rendering {
 
         material->id = materialId;
         job.callback(job.handle, materialId);
+    }
+
+    auto RegisterShadowShader(
+        const std::string& vertexShaderCode
+    ) -> void {
+        shadowMaterial = device->CreateShadowMaterial(vertexShaderCode);
     }
 
     void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId) {

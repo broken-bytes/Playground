@@ -253,6 +253,7 @@ namespace playground::physics {
     }
 
     void Shutdown() {
+        while (!dispatcher->IsFinished()) { }
         scene->release();
     }
 
