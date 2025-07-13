@@ -16,5 +16,6 @@ namespace playground::rendering {
         virtual ~Context() = default;
         virtual auto Begin() -> void = 0;
         virtual auto Finish() -> void = 0;
+        virtual auto WaitFor(const Context& other) -> void = 0;
     };
 }

@@ -179,7 +179,10 @@ namespace playground::physics {
     std::unique_ptr<PhysxCpuDispatcher> dispatcher;
     std::shared_mutex physxMutex;
 
+    bool isRunning = false;
+
     void Init() {
+        isRunning = true;
         foundation = PxCreateFoundation(
             PX_PHYSICS_VERSION,
             allocator,
@@ -235,6 +238,9 @@ namespace playground::physics {
     }
 
     void Update(double fixedDelta) {
+        if (!isRunning) {
+            return;
+        }
         scene->simulate(fixedDelta, nullptr);
         uint32_t error;
 
@@ -253,6 +259,7 @@ namespace playground::physics {
     }
 
     void Shutdown() {
+        isRunning = false;
         while (!dispatcher->IsFinished()) { }
         scene->release();
     }

@@ -97,22 +97,22 @@ namespace playground::math {
             r10, r11, r12, ty,
             r20, r21, r22, tz,
             0.0f, 0.0f, 0.0f, 1.0f
-            });
+        });
     }
 
     void LookAtLH(const Vector3& eye, const Vector3& target, const Vector3& up, Matrix4x4* out) {
-        Vector3 zAxis = (target - eye).Normalise();
-        Vector3 xAxis = up.Cross(zAxis).Normalise();
-        Vector3 yAxis = zAxis.Cross(xAxis);
+        Vector3 zAxis = (target - eye).Normalise();        // Forward
+        Vector3 xAxis = up.Cross(zAxis).Normalise();       // Right
+        Vector3 yAxis = zAxis.Cross(xAxis);                // Up
 
-        auto result = Matrix4x4({
-            xAxis.X, xAxis.Y, xAxis.Z, -xAxis.Dot(eye),
-            yAxis.X, yAxis.Y, yAxis.Z, -yAxis.Dot(eye),
-            zAxis.X, zAxis.Y, zAxis.Z, -zAxis.Dot(eye),
-            0.0f,    0.0f,    0.0f,     1.0f
-        });
+        std::array<float, 16> flat = {
+            xAxis.X, yAxis.X, zAxis.X, 0.0f,
+            xAxis.Y, yAxis.Y, zAxis.Y, 0.0f,
+            xAxis.Z, yAxis.Z, zAxis.Z, 0.0f,
+            -xAxis.Dot(eye), -yAxis.Dot(eye), -zAxis.Dot(eye), 1.0f
+        };
 
-        *out = result;
+        *out = Matrix4x4(flat);
     }
 
     void OrthographicLH(float left, float right, float bottom, float top, float nearZ, float farZ, Matrix4x4* out) {

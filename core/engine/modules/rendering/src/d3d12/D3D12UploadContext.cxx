@@ -27,7 +27,14 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12UploadContext::Begin() -> void {
+        if (_fenceValue != 0 && _fence->GetCompletedValue() < _fenceValue) {
+            _fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
+            WaitForSingleObject(_fenceEvent, INFINITE);
+        }
+
         PIXBeginEvent(PIX_COLOR_INDEX(1), "Begin Upload Context");
+        ZoneScopedN("RenderThread: Upload CTX Begin");
+        ZoneColor(tracy::Color::Purple1);
 
         _list->Reset();
         for (auto& buffer : _indexBuffers) {
@@ -49,9 +56,13 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12UploadContext::Finish() -> void {
+        ZoneScopedN("RenderThread: Upload CTX Finish");
+        ZoneColor(tracy::Color::Purple3);
         auto list = _list->Native();
 
         for (auto& buffer : _indexBuffers) {
+            ZoneScopedN("RenderThread: Copy Index Buffer");
+            ZoneColor(tracy::Color::RebeccaPurple);
             auto d3d12Buffer = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->Buffer();
             auto uploadBuffer = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->StagingBuffer();
             auto size = std::static_pointer_cast<D3D12IndexBuffer>(buffer)->View().SizeInBytes;
@@ -60,6 +71,8 @@ namespace playground::rendering::d3d12 {
         }
 
         for (auto& buffer : _vertexBuffers) {
+            ZoneScopedN("RenderThread: Copy Vertex Buffer");
+            ZoneColor(tracy::Color::RebeccaPurple);
             auto d3d12Buffer = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->Buffer();
             auto uploadBuffer = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->StagingBuffer();
             auto size = std::static_pointer_cast<D3D12VertexBuffer>(buffer)->View().SizeInBytes;
@@ -68,6 +81,8 @@ namespace playground::rendering::d3d12 {
         }
 
         for (auto& buffer : _instanceBuffers) {
+            ZoneScopedN("RenderThread: Copy Instance Buffer");
+            ZoneColor(tracy::Color::RebeccaPurple);
             auto d3d12Buffer = std::static_pointer_cast<D3D12InstanceBuffer>(buffer)->Buffer();
             auto uploadBuffer = std::static_pointer_cast<D3D12InstanceBuffer>(buffer)->StagingBuffer();
             auto size = std::static_pointer_cast<D3D12InstanceBuffer>(buffer)->View().SizeInBytes;
@@ -76,6 +91,8 @@ namespace playground::rendering::d3d12 {
         }
 
         for (auto& texture : _textures) {
+            ZoneScopedN("RenderThread: Copy Texture");
+            ZoneColor(tracy::Color::RebeccaPurple);
             auto d3d12Texture = std::static_pointer_cast<D3D12Texture>(texture)->Texture();
             auto textureUploadBuffer = std::static_pointer_cast<D3D12Texture>(texture)->StagingBuffer();
             auto textureData = std::static_pointer_cast<D3D12Texture>(texture)->TextureData();
@@ -92,24 +109,26 @@ namespace playground::rendering::d3d12 {
             auto x = 0;
         }
 
-        _list->Close();
+        {
+            ZoneScopedN("RenderThread: Upload CTX Submit List");
+            ZoneColor(tracy::Color::RebeccaPurple);
+            _list->Close();
 
-        std::vector<ID3D12CommandList*> commandLists;
-        commandLists.push_back(list.Get());
+            std::vector<ID3D12CommandList*> commandLists;
+            commandLists.push_back(list.Get());
 
-        _queue->ExecuteCommandLists(commandLists.size(), commandLists.data());
+            _queue->ExecuteCommandLists(commandLists.size(), commandLists.data());
 
-        _queue->Signal(_fence.Get(), _fenceValue);
+            _fenceValue++;
 
-        // Wait until the GPU has finished execution
-        if (_fence->GetCompletedValue() < _fenceValue) {
-            _fence->SetEventOnCompletion(_fenceValue, _fenceEvent);
-            WaitForSingleObject(_fenceEvent, INFINITE);
+            _queue->Signal(_fence.Get(), _fenceValue);
         }
 
-        _fenceValue++;
-
         PIXEndEvent();
+    }
+
+    auto D3D12UploadContext::WaitFor(const Context& other) -> void {
+        // No-op for D3D12UploadContext, as it does not need to wait for other contexts.
     }
 
     auto D3D12UploadContext::Upload(std::shared_ptr<Texture> texture) -> void {

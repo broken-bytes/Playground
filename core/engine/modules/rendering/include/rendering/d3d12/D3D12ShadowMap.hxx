@@ -27,14 +27,14 @@ namespace playground::rendering::d3d12 {
             desc.Height = height;
             desc.DepthOrArraySize = 1;
             desc.MipLevels = 1;
-            desc.Format = DXGI_FORMAT_R32_TYPELESS;
+            desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
             desc.SampleDesc.Count = 1;
             desc.SampleDesc.Quality = 0;
             desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
             desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
             D3D12_CLEAR_VALUE clearValue = {};
-            clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+            clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
             clearValue.DepthStencil.Depth = 1.0f;
             clearValue.DepthStencil.Stencil = 0;
 
@@ -50,17 +50,18 @@ namespace playground::rendering::d3d12 {
             );
 
             D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-            dsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // For depth-only rendering
+            dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
             dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
             dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
             device->CreateDepthStencilView(_shadowMap.Get(), &dsvDesc, _dsvHandle->GetCPUHandle());
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-            srvDesc.Format = DXGI_FORMAT_R32_FLOAT; // Shader-readable view of depth
+            srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS; // Shader-readable view of depth
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.Texture2D.MipLevels = 1;
+            srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
             _shadowMap->SetName(std::wstring(name.begin(), name.end()).c_str());
 

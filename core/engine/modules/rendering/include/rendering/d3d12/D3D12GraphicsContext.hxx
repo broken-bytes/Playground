@@ -50,6 +50,7 @@ namespace playground::rendering::d3d12 {
         auto BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void override;
         auto EndRenderPass() -> void override;
         auto Finish() -> void override;
+        auto WaitFor(const Context& other) -> void override;
         auto Draw(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void override;
         auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;

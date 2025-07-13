@@ -20,6 +20,8 @@
 #include <memory>
 
 namespace playground::rendering {
+    class UploadContext;
+
     class GraphicsContext : public Context {
     public:
         virtual auto BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void = 0;

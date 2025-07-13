@@ -21,6 +21,9 @@
 #include <concurrentqueue.h>
 #include <iostream>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 struct BatchKey {
     playground::rendering::MaterialHandle material;
     playground::rendering::VertexBufferHandle vertexBuffer;
@@ -75,25 +78,30 @@ namespace playground::drawcallbatcher {
     }
 
     void SetSun(math::Vector3 direction, math::Vector4 colour, float intensity) {
-        math::Matrix4x4 viewMatrix{};
-        math::Vector3 lightDirNormalized = direction.Normalise();
-        math::Vector3 eye = -lightDirNormalized * rendering::SUN_FAR_PLANE;
-        math::Vector3 target = math::Vector3(0, 0, 0);
-        math::Vector3 forward = (target - eye).Normalise();
-        math::Vector3 up = math::Vector3(0, 1, 0);
-        math::Quaternion lightRotation = math::Quaternion::LookRotation(forward, up);
-        GetViewMatrix(&eye, &lightRotation, &viewMatrix);
+        math::Vector3 lightDir = direction.Normalise();
 
-        math::Matrix4x4 projectionMatrix{};
-        math::OrthographicLH(
-            -rendering::SUN_SIZE, rendering::SUN_SIZE,
-            -rendering::SUN_SIZE, rendering::SUN_SIZE,
-            rendering::SUN_NEAR_PLANE, rendering::SUN_FAR_PLANE,
-            &projectionMatrix
+        math::Vector3 cameraPos = cameras.front().Position;
+        math::Vector3 target = math::Vector3(0, -15, 0);
+        math::Vector3 eye = target - lightDir * 50.0f;
+
+        math::Vector3 up = fabs(lightDir.Y) > 0.99f ? math::Vector3(0, 0, 1) : math::Vector3(0, 1, 0);
+        math::Matrix4x4 viewMatrix;
+        math::LookAtLH(eye, target, up, &viewMatrix);
+
+        float extent = 200.0f;
+        float nearDist = 0.0f;           // start at the light
+        float farDist = extent * 4.0f;    // go 200 units out
+
+        auto testOrtho = math::Matrix4x4::OrthographicOffCenter(
+            -extent, +extent,
+            -extent, +extent,
+            nearDist,
+            farDist
         );
 
         sun = rendering::DirectionalLight{
-            .viewProj = viewMatrix * projectionMatrix,
+            .viewMatrix = viewMatrix,
+            .projectionMatrix = testOrtho,
             .direction = math::Vector4(direction, 0),
             .colour = math::Vector4(colour.X, colour.Y, colour.Z, intensity),
         };

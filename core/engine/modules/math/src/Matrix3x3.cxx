@@ -8,20 +8,17 @@ namespace playground::math {
                    0.0f, 0.0f, 1.0f } {
     }
 
-    Matrix3x3::Matrix3x3(const std::array<float, 9>& elems)
-        : elements(elems) {
-    }
 
     float& Matrix3x3::operator()(int row, int col) {
-        return elements[row * 3 + col];
+        return elements[row][col];
     }
 
     const float& Matrix3x3::operator()(int row, int col) const {
-        return elements[row * 3 + col];
+        return elements[row][col];
     }
 
     const float* Matrix3x3::Row(int row) const {
-        return elements.data() + row * 3;
+        return elements[row].data();
     }
 
     Matrix3x3 Matrix3x3::operator*(const Matrix3x3& other) const {
@@ -48,12 +45,13 @@ namespace playground::math {
     }
 
     Matrix4x4 Matrix3x3::ToMatrix4x4() const {
-        return Matrix4x4({
-            elements[0], elements[1], elements[2], 0.0f,
-            elements[3], elements[4], elements[5], 0.0f,
-            elements[6], elements[7], elements[8], 0.0f,
-            0.0f,        0.0f,        0.0f,        1.0f
-            });
+        std::array<float, 16> flat = {
+            elements[0][0], elements[0][1], elements[0][2], 0.0f,
+            elements[1][0], elements[1][1], elements[1][2], 0.0f,
+            elements[2][0], elements[2][1], elements[2][2], 0.0f,
+            0.0f,           0.0f,           0.0f,           1.0f
+        };
+        return Matrix4x4(flat);
     }
 
     std::string Matrix3x3::ToString() const {

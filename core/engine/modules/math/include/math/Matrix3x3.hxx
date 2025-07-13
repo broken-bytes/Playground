@@ -8,11 +8,17 @@ namespace playground::math {
     struct Matrix4x4;
 
     struct Matrix3x3 {
-        std::array<float, 9> elements;
+        std::array<std::array<float, 3>, 3> elements;
 
         Matrix3x3();
 
-        Matrix3x3(const std::array<float, 9>& elems);
+        Matrix3x3(std::array<float, 9> flatArray) {
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    elements[i][j] = flatArray[i * 3 + j];
+                }
+            }
+        }
 
         float& operator()(int row, int col);
 

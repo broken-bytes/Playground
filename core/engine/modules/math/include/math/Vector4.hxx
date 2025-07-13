@@ -4,6 +4,8 @@
 #include <cmath>
 
 namespace playground::math {
+    struct Matrix4x4;
+
     struct Vector4 {
         float X;
         float Y;
@@ -51,6 +53,8 @@ namespace playground::math {
         Vector4 operator*(float scalar) const {
             return Vector4(X * scalar, Y * scalar, Z * scalar, W * scalar);
         }
+
+        Vector4 operator*(const Matrix4x4& m) const;
 
         Vector4 operator/(float scalar) const {
             if (scalar != 0.0f) {

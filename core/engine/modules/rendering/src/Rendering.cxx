@@ -289,9 +289,10 @@ namespace playground::rendering {
             auto buff = CameraBuffer{
                 .ViewMatrix = cam.GetViewMatrix(),
                 .ProjectionMatrix = cam.GetProjectionMatrix()
+                //.ViewMatrix = nextFrame.sun.viewMatrix,
+                //.ProjectionMatrix = nextFrame.sun.projectionMatrix,
             };
-
-
+            
             cameras[x] = buff;
         }
 
@@ -303,6 +304,9 @@ namespace playground::rendering {
 
         if (shadowMaterial != nullptr) {
             auto shadowMap = frames[backBufferIndex]->DirectionalLightShadowMap();
+
+            graphicsContext->TransitionShadowMapToDepthBuffer(shadowMap);
+
             graphicsContext->BeginRenderPass(RenderPass::Shadow, nullptr, shadowMap->GetDepthBuffer());
             graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
 
@@ -320,11 +324,12 @@ namespace playground::rendering {
                 instanceOffet = instanceOffet + drawcall.instanceData.size();
             }
 
-            instanceOffet = 0;
             graphicsContext->EndRenderPass();
 
-            // Transition all shadow maps to pixel shader readable
+            graphicsContext->TransitionShadowMapToPixelShader(shadowMap);
         }
+
+        instanceOffet = 0;
 
         auto renderTarget = frames[backBufferIndex]->RenderTarget();
         auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
@@ -341,14 +346,14 @@ namespace playground::rendering {
         std::vector<ShadowCaster> shadowcasters = {};
         shadowcasters.reserve(MAX_SHADOW_MAPS_PER_FRAME + 1);
 
-        shadowcasters.emplace_back(nextFrame.sun.viewProj, frames[backBufferIndex]->DirectionalLightShadowMap()->ID());
+        shadowcasters.emplace_back(nextFrame.sun.viewMatrix, nextFrame.sun.projectionMatrix, frames[backBufferIndex]->DirectionalLightShadowMap()->ID());
 
         // TODO: Add other lights to the buffer
         graphicsContext->SetShadowCastersData(shadowcasters);
 
         for (auto& drawcall : nextFrame.drawCalls) {
             // TODO: Mark materials dirty and bulk update all dirty ones
-            graphicsContext->SetMaterialData(drawcall.material, materials[drawcall.material]->textures.data(), textures.size() * sizeof(uint32_t));
+            graphicsContext->SetMaterialData(drawcall.material, materials[drawcall.material]->textures.data(), textures.size());
 
             graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
             graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
@@ -368,6 +373,8 @@ namespace playground::rendering {
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
         graphicsContext->CopyToSwapchainBackBuffer(frames[backBufferIndex]->RenderTarget(), swapchain);
+
+        graphicsContext->WaitFor(*frames[backBufferIndex]->UploadContext().get());
 		graphicsContext->Finish();
 
         swapchain->Swap();
@@ -447,6 +454,8 @@ namespace playground::rendering {
     }
 
     auto UploadModel(ModelUploadJob& job) -> void {
+        ZoneScopedN("RenderThread: Upload Model");
+        ZoneColor(tracy::Color::Violet);
         auto meshes = std::vector<Mesh>();
         for (auto& mesh : job.meshes) {
             const UINT vertexBufferSize = mesh.vertices.size();
@@ -501,6 +510,8 @@ namespace playground::rendering {
     }
 
     auto UploadTexture(TextureUploadJob& job) -> void {
+        ZoneScopedN("RenderThread: Upload Texture");
+        ZoneColor(tracy::Color::Violet);
         auto backBufferIndex = swapchain->BackBufferIndex();
 
         auto texture = device->CreateTexture(job.rawData->Width, job.rawData->Height, job.rawData->MipMaps, frames[backBufferIndex]->Alloc());

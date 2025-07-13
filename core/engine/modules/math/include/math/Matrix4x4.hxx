@@ -5,15 +5,24 @@
 
 namespace playground::math {
     struct Matrix3x3;
+    struct Vector4;
 
     struct Matrix4x4 {
-        std::array<float, 16> elements;
+        std::array<std::array<float, 4>, 4> elements;
 
         Matrix4x4();
 
-        Matrix4x4(const std::array<float, 16>& elements);
+        Matrix4x4(std::array<float, 16> flatArray) {
+            for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    elements[i][j] = flatArray[i * 4 + j];
+                }
+            }
+        }
 
         Matrix4x4 operator*(const Matrix4x4& other) const;
+
+        Vector4 operator*(const Vector4& v) const;
 
         Matrix4x4& operator*=(const Matrix4x4& other);
 
@@ -39,71 +48,34 @@ namespace playground::math {
             return Matrix4x4();
         }
 
-        static Matrix4x4 Zero() {
-            return Matrix4x4(std::array<float, 16>{0.0f, 0.0f, 0.0f, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 0.0f});
-        }
+        static Matrix4x4 Zero();
+        static Matrix4x4 Translation(float x, float y, float z);
+        static Matrix4x4 Scaling(float sx, float sy, float sz);
+        static Matrix4x4 RotationX(float angle);
+        static Matrix4x4 RotationY(float angle);
+        static Matrix4x4 RotationZ(float angle);
+        static Matrix4x4 Perspective(float fov, float aspect, float nearPlane, float farPlane);
+        static Matrix4x4 Orthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane);
 
-        static Matrix4x4 Translation(float x, float y, float z) {
-            return Matrix4x4(std::array<float, 16>{1.0f, 0.0f, 0.0f, x,
-                                                   0.0f, 1.0f, 0.0f, y,
-                                                   0.0f, 0.0f, 1.0f, z,
-                                                   0.0f, 0.0f, 0.0f, 1.0f});
-        }
+        static Matrix4x4 OrthographicOffCenter(float left, float right, float bottom, float top, float nearZ, float farZ)
+        {
+            Matrix4x4 result = {};  // zero-initialize all elements
 
-        static Matrix4x4 Scaling(float sx, float sy, float sz) {
-            return Matrix4x4(std::array<float, 16>{sx, 0.0f, 0.0f, 0.0f,
-                                                   0.0f, sy, 0.0f, 0.0f,
-                                                   0.0f, 0.0f, sz, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 1.0f});
-        }
+            float rml = right - left;
+            float tmb = top - bottom;
+            float fmn = farZ - nearZ;
 
-        static Matrix4x4 RotationX(float angle) {
-            float c = cos(angle);
-            float s = sin(angle);
-            return Matrix4x4(std::array<float, 16>{1.0f, 0.0f, 0.0f, 0.0f,
-                                                   0.0f, c, -s, 0.0f,
-                                                   0.0f, s, c, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 1.0f});
-        }
+            result.elements[0][0] = 2.0f / rml;
+            result.elements[1][1] = 2.0f / tmb;
+            result.elements[2][2] = 1.0f / fmn;
 
-        static Matrix4x4 RotationY(float angle) {
-            float c = cos(angle);
-            float s = sin(angle);
-            return Matrix4x4(std::array<float, 16>{c, 0.0f, s, 0.0f,
-                                                   0.0f, 1.0f, 0.0f, 0.0f,
-                                                   -s, 0.0f, c, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 1.0f});
-        }
+            result.elements[0][3] = -(right + left) / rml;
+            result.elements[1][3] = -(top + bottom) / tmb;
+            result.elements[2][3] = -nearZ / fmn;
 
-        static Matrix4x4 RotationZ(float angle) {
-            float c = cos(angle);
-            float s = sin(angle);
-            return Matrix4x4(std::array<float, 16>{c, -s, 0.0f, 0.0f,
-                                                   s, c, 0.0f, 0.0f,
-                                                   0.0f, 0.0f, 1.0f, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 1.0f});
-        }
+            result.elements[3][3] = 1.0f;
 
-        static Matrix4x4 Perspective(float fov, float aspect, float nearPlane, float farPlane) {
-            float tanHalfFov = tan(fov / 2.0f);
-            return Matrix4x4(std::array<float, 16>{
-                1.0f / (aspect * tanHalfFov), 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f / tanHalfFov, 0.0f, 0.0f,
-                0.0f, 0.0f, -(farPlane + nearPlane) / (farPlane - nearPlane), -1.0f,
-                0.0f, 0.0f, -(2.0f * farPlane * nearPlane) / (farPlane - nearPlane), 0.0f
-            });
-        }
-
-        static Matrix4x4 Orthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane) {
-            return Matrix4x4(std::array<float, 16>{
-                2.0f / (right - left), 0.0f, 0.0f, -(right + left) / (right - left),
-                0.0f, 2.0f / (top - bottom), 0.0f, -(top + bottom) / (top - bottom),
-                0.0f, 0.0f, -2.0f / (farPlane - nearPlane), -(farPlane + nearPlane) / (farPlane - nearPlane),
-                0.0f, 0.0f, 0.0f, 1.0f
-            });
+            return result;
         }
 
         std::string ToString() const;

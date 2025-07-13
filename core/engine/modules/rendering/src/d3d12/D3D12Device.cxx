@@ -373,9 +373,15 @@ namespace playground::rendering::d3d12 {
         // Rasterizer state (Default)
         D3D12_RASTERIZER_DESC rasterizerDesc = {};
         rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
-        rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+        rasterizerDesc.CullMode = pixelShader == nullptr ? D3D12_CULL_MODE_FRONT : D3D12_CULL_MODE_BACK;
         rasterizerDesc.FrontCounterClockwise = FALSE;
         rasterizerDesc.DepthClipEnable = TRUE;
+
+        if (pixelShader == nullptr) {
+            rasterizerDesc.DepthBias = 1000;
+            rasterizerDesc.DepthBiasClamp = 0.0f;
+            rasterizerDesc.SlopeScaledDepthBias = 1.0f;
+        }
 
         psoDesc.RasterizerState = rasterizerDesc;
 
@@ -383,12 +389,12 @@ namespace playground::rendering::d3d12 {
         D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
         depthStencilDesc.DepthEnable = TRUE;
         depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+        depthStencilDesc.DepthFunc = pixelShader == nullptr ? D3D12_COMPARISON_FUNC_LESS : D3D12_COMPARISON_FUNC_LESS_EQUAL;
         depthStencilDesc.StencilEnable = FALSE;
 
         // Attach depth-stencil state
         psoDesc.DepthStencilState = depthStencilDesc;
-        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.DSVFormat = pixelShader == nullptr ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         psoDesc.NumRenderTargets = pixelShader == nullptr ? 0 : 1;
@@ -535,15 +541,27 @@ namespace playground::rendering::d3d12 {
         CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRV_HEAP_SIZE, 1);
         rootParameters[BINDLESS_TEXTURES_SLOT].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        // 4 Sampler Descriptor Table
-        CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
+        // 4 Sampler Descriptor Table (for dynamic samplers)
+        CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 1);
         rootParameters[7].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        const CD3DX12_STATIC_SAMPLER_DESC shadow(
+            0,
+            D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            0.0f,
+            16,
+            D3D12_COMPARISON_FUNC_LESS,
+            D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK
+        );
 
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
             rootParameters.size(),
             rootParameters.data(),
-            0, nullptr, // No static samplers
+            1, &shadow,
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
         );
 

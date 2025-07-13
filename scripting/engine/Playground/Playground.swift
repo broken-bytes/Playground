@@ -170,8 +170,8 @@ func initSystems() {
     ECSHandler.createSystem("StaticbodyTransformSystem", filter: [StaticbodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: staticbodyTransformSystem)
     ECSHandler.createSystem("RenderSystem", filter: [WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
     ECSHandler.createSystem("RenderResetSystem", filter: [], multiThreaded: false, delegate: renderResetSystem)
-    ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
     ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: false, delegate: cameraSystem)
+    ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
 
     Logger.info("Initialised ECS Systems")
 }

@@ -25,10 +25,19 @@ namespace playground::rendering::d3d12 {
 
         auto Begin() -> void override;
         auto Finish() -> void override;
+        auto WaitFor(const Context& other) -> void override;
         auto Upload(std::shared_ptr<Texture> texture) -> void override;
         auto Upload(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto Upload(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto Upload(std::shared_ptr<InstanceBuffer> buffer) -> void override;
+
+        auto Fence() const -> Microsoft::WRL::ComPtr<ID3D12Fence> {
+            return _fence;
+        }
+
+        auto FenceValue() const -> UINT64 {
+            return _fenceValue;
+        }
 
     private:
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _queue;
@@ -39,7 +48,7 @@ namespace playground::rendering::d3d12 {
         std::vector<std::shared_ptr<InstanceBuffer>> _instanceBuffers;
         Microsoft::WRL::ComPtr<ID3D12Fence> _fence;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
-        UINT64 _fenceValue = 1;
+        UINT64 _fenceValue = 0;
         HANDLE _fenceEvent;
     };
 }

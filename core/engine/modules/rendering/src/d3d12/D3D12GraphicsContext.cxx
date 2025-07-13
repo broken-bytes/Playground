@@ -18,6 +18,7 @@
 #include "rendering/d3d12/D3D12IndexBuffer.hxx"
 #include "rendering/d3d12/D3D12VertexBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
+#include "rendering/d3d12/D3D12UploadContext.hxx"
 #include "rendering/PointLight.hxx"
 #include "rendering/DirectionalLight.hxx"
 #include <profiler/Profiler.hxx>
@@ -221,9 +222,9 @@ namespace playground::rendering::d3d12
 
         eastl::vector<ID3D12CommandList*, StackAllocator> lists(_stackAllocator);
         lists.push_back(_shadowCommandList->Native().Get());
+        lists.push_back(_transferCommandList->Native().Get());
         lists.push_back(_opaqueCommandList->Native().Get());
         lists.push_back(_transparentCommandList->Native().Get());
-        lists.push_back(_transferCommandList->Native().Get());
 
         _graphicsQueue->ExecuteCommandLists(lists.size(), lists.data());
 
@@ -231,6 +232,14 @@ namespace playground::rendering::d3d12
         _graphicsQueue->Signal(_fence.Get(), _fenceValue);
 
         PIXEndEvent();
+    }
+
+    auto D3D12GraphicsContext::WaitFor(const Context& other) -> void {
+        // TODO: Implement platform-agonstic fence logic for waits
+        // Cast the D3D12UploadContext for now.
+        const auto& d3d12Context = static_cast<const D3D12UploadContext&>(other);
+
+        _graphicsQueue->Wait(d3d12Context.Fence().Get(), d3d12Context.FenceValue());
     }
 
     auto D3D12GraphicsContext::TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void {
@@ -382,7 +391,7 @@ namespace playground::rendering::d3d12
                 {
                     materialId,
                     std::static_pointer_cast<D3D12ConstantBuffer>(
-                        _device->CreateConstantBuffer(data, 1, size, ConstantBuffer::BindingMode::RootCBV, ss.str())
+                        _device->CreateConstantBuffer(data, 1, sizeof(uint32_t), ConstantBuffer::BindingMode::RootCBV, ss.str())
                     )
                 }
             );

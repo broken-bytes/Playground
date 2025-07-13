@@ -2,7 +2,8 @@
 
 struct DirectionalLight
 {
-    float4x4 viewProj;
+    float4x4 viewMatrix;
+    float4x4 projectionMatrix;
     float4 direction;
     float4 colour;
 };
@@ -31,13 +32,14 @@ VSOutput VSMain(VSInput input)
     VSOutput output;
 
     float4 worldPos = mul(float4(input.position, 1.0f), input.modelMatrix);
-    float4 clipPos = mul(worldPos, directionalLight.viewProj);
+    // Transform world position to light clip space
+    float4 lightViewPos = mul(worldPos, directionalLight.viewMatrix);
+    float4 clipPos = mul(lightViewPos, directionalLight.projectionMatrix);
+
     output.position = clipPos;
 
     return output;
 }
 
-float PSMain() : SV_DEPTH
-{
-    return 0.0f;
-}
+void PSMain() {}
+
