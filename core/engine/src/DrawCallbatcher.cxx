@@ -82,17 +82,17 @@ namespace playground::drawcallbatcher {
 
         math::Vector3 cameraPos = cameras.front().Position;
         math::Vector3 target = math::Vector3(0, -15, 0);
-        math::Vector3 eye = target - lightDir * 50.0f;
+        math::Vector3 eye = target - lightDir * 25;
 
         math::Vector3 up = fabs(lightDir.Y) > 0.99f ? math::Vector3(0, 0, 1) : math::Vector3(0, 1, 0);
         math::Matrix4x4 viewMatrix;
         math::LookAtLH(eye, target, up, &viewMatrix);
 
-        float extent = 200.0f;
-        float nearDist = 0.0f;           // start at the light
-        float farDist = extent * 4.0f;    // go 200 units out
+        float extent = 50;
+        float nearDist = 0.025f;
+        float farDist = 50;
 
-        auto testOrtho = math::Matrix4x4::OrthographicOffCenter(
+        auto ortho = math::Matrix4x4::OrthographicOffCenter(
             -extent, +extent,
             -extent, +extent,
             nearDist,
@@ -101,7 +101,7 @@ namespace playground::drawcallbatcher {
 
         sun = rendering::DirectionalLight{
             .viewMatrix = viewMatrix,
-            .projectionMatrix = testOrtho,
+            .projectionMatrix = ortho,
             .direction = math::Vector4(direction, 0),
             .colour = math::Vector4(colour.X, colour.Y, colour.Z, intensity),
         };

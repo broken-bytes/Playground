@@ -73,27 +73,39 @@ struct VSOutput {
     float4 worldPos : TEXCOORD1;
 };
 
-float SampleShadowMap(float4 worldPos, ShadowCaster sc)
+float SampleShadowMapPCF(float4 worldPos, ShadowCaster sc)
 {
-    // 1) project into light-space
+    // Project world position to light space
     float4 scView = mul(worldPos, sc.viewMatrix);
-    float4 scProj = mul(scView,  sc.projectionMatrix);
+    float4 scProj = mul(scView, sc.projectionMatrix);
 
     if (scProj.w <= 0.0f) return 1.0f;
 
-    float2 uv = float2(scProj.x, -scProj.y) * 0.5f + 0.5f;    
-    float depth = scProj.z + 0.001f;
-    // 3) only sample if inside this cascade’s bounds
-    if (uv.x < 0 || uv.x > 1 ||
-        uv.y < 0 || uv.y > 1)
-    {
-        // outside, treat as fully lit
+    // Perspective divide
+    float3 proj = scProj.xyz / scProj.w;
+
+    // Map from [-1,1] to [0,1]
+    float2 uv = float2(proj.x, -proj.y) * 0.5f + 0.5f;
+    float depth = proj.z;
+
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0)
         return 1.0f;
+
+    // PCF: 3x3 kernel
+    float shadow = 0.0f;
+    float2 texelSize = 1.0f / float2(4096, 4096); // replace with actual shadow map size if needed
+
+    for (int x = -1; x <= 1; ++x)
+    for (int y = -1; y <= 1; ++y)
+    {
+        float2 offset = float2(x, y) * texelSize;
+        float sample = textures[sc.shadowMapIndex].SampleCmpLevelZero(shadowSampler, uv + offset, depth);
+        shadow += sample;
     }
 
-    // 4) do the comparison
-    // no clamping on uv or depth here
-    return textures[sc.shadowMapIndex].SampleCmpLevelZero(shadowSampler, uv, depth);
+    shadow /= 9.0f; // average the 3x3 result
+
+    return shadow;
 }
 
 VSOutput VSMain(VSInput vin)
@@ -129,7 +141,7 @@ float4 PSMain(VSOutput pin) : SV_TARGET
     float shadowFactor = 1.0f;
     for (uint i = 0; i < shadowCastersCount; ++i)
     {
-        shadowFactor *= SampleShadowMap(pin.worldPos, shadowCasters[i]);
+        shadowFactor *= SampleShadowMapPCF(pin.worldPos, shadowCasters[i]);
     }
 
     // Surface normal

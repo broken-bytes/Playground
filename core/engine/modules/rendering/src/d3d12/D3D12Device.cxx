@@ -374,13 +374,13 @@ namespace playground::rendering::d3d12 {
         D3D12_RASTERIZER_DESC rasterizerDesc = {};
         rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
         rasterizerDesc.CullMode = pixelShader == nullptr ? D3D12_CULL_MODE_FRONT : D3D12_CULL_MODE_BACK;
-        rasterizerDesc.FrontCounterClockwise = FALSE;
+        rasterizerDesc.FrontCounterClockwise = FALSE; // TODO: CHECK IF ACNE CAN BE FIXED
         rasterizerDesc.DepthClipEnable = TRUE;
 
         if (pixelShader == nullptr) {
-            rasterizerDesc.DepthBias = 1000;
-            rasterizerDesc.DepthBiasClamp = 0.0f;
-            rasterizerDesc.SlopeScaledDepthBias = 1.0f;
+            rasterizerDesc.DepthBias = 0.005f;
+            rasterizerDesc.DepthBiasClamp = 0;
+            rasterizerDesc.SlopeScaledDepthBias = 0;
         }
 
         psoDesc.RasterizerState = rasterizerDesc;
@@ -389,12 +389,12 @@ namespace playground::rendering::d3d12 {
         D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
         depthStencilDesc.DepthEnable = TRUE;
         depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        depthStencilDesc.DepthFunc = pixelShader == nullptr ? D3D12_COMPARISON_FUNC_LESS : D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depthStencilDesc.DepthFunc = pixelShader == nullptr ? D3D12_COMPARISON_FUNC_LESS_EQUAL : D3D12_COMPARISON_FUNC_LESS_EQUAL;
         depthStencilDesc.StencilEnable = FALSE;
 
         // Attach depth-stencil state
         psoDesc.DepthStencilState = depthStencilDesc;
-        psoDesc.DSVFormat = pixelShader == nullptr ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_D32_FLOAT;
+        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         psoDesc.NumRenderTargets = pixelShader == nullptr ? 0 : 1;
@@ -553,8 +553,8 @@ namespace playground::rendering::d3d12 {
             D3D12_TEXTURE_ADDRESS_MODE_BORDER,
             0.0f,
             16,
-            D3D12_COMPARISON_FUNC_LESS,
-            D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK
+            D3D12_COMPARISON_FUNC_LESS_EQUAL,
+            D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
         );
 
         // Define the root signature descriptor
