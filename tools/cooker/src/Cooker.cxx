@@ -6,6 +6,7 @@
 #include <assetpipeline/loaders/TextureLoader.hxx>
 #include <assetpipeline/loaders/ShaderLoader.hxx>
 #include <assetpipeline/loaders/PhysicsMaterialLoader.hxx>
+#include <assetpipeline/loaders/CubemapLoader.hxx>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/types/vector.hpp>
@@ -126,6 +127,36 @@ int main(int argc, char** argv) {
             buffer = playground::editor::assetpipeline::CookPhysicsMaterial(physicsMaterial);
 
             ending = ".pmat";
+        }
+        else if (std::strcmp(asset.type.c_str(), "Cubemap") == 0) {
+            auto cubemap = playground::editor::assetpipeline::loaders::cubemaploader::LoadFromFile(filePath);
+
+            std::vector<playground::assetloader::RawTextureData> faces(6);
+
+            for(int x = 0; x < 6; x++) {
+                auto texture = playground::editor::assetpipeline::loaders::textureloader::LoadFromFile(cubemap.faces[x], false);
+
+                if (x == 0) {
+                    cubemap.Width = texture.Width;
+                    cubemap.Height = texture.Height;
+                    cubemap.Channels = texture.Channels;
+                }
+
+                if (x > 0) {
+                    if (cubemap.Width != texture.Width || cubemap.Height != texture.Height || cubemap.Channels != texture.Channels) {
+                        std::cout << "Cubemap face " << x << " does not match previous face dimensions. All faces must have the same dimensions." << std::endl;
+                        return -1;
+                    }
+                }
+
+                faces[x] = texture;
+            }
+
+            cubemap.facesData = faces;
+
+            buffer = playground::editor::assetpipeline::CookCubemap(cubemap);
+
+            ending = ".cube";
         }
         else {
             std::cout << "Unknown asset type: " << asset.type.c_str() << std::endl;

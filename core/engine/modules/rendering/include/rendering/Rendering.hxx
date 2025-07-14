@@ -21,6 +21,7 @@
 #include "rendering/ModelUploadJob.hxx"
 #include "rendering/MaterialUploadJob.hxx"
 #include "rendering/TextureUploadJob.hxx"
+#include "rendering/CubemapUploadJob.hxx"
 #include "rendering/RenderFrame.hxx"
 #include <assetloader/RawMeshData.hxx>
 #include <assetloader/RawTextureData.hxx>
@@ -61,8 +62,10 @@ namespace playground::rendering {
         std::function<void(uint32_t, uint32_t)>
     ) -> void;
     auto QueueUploadTexture(std::shared_ptr<assetloader::RawTextureData> texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void;
+    auto QueueUploadCubemap(std::shared_ptr<assetloader::RawCubemapData> cubemap, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void;
     auto UploadModel(ModelUploadJob& job) -> void;
     auto UploadTexture(TextureUploadJob& job) -> void;
+    auto UploadCubemap(CubemapUploadJob& job) -> void;
     auto CreateMaterial(MaterialUploadJob job) -> void;
 
     auto RegisterShadowShader(

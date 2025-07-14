@@ -6,6 +6,7 @@
 #include "rendering/VertexBuffer.hxx"
 #include "rendering/InstanceBuffer.hxx"
 #include "rendering/Texture.hxx"
+#include "rendering/Cubemap.hxx"
 
 namespace playground::rendering {
     class UploadContext : public Context {
@@ -13,6 +14,7 @@ namespace playground::rendering {
         virtual ~UploadContext() = default;
 
         virtual auto Upload(std::shared_ptr<Texture> texture) -> void = 0;
+        virtual auto Upload(std::shared_ptr<Cubemap> cubemap) -> void = 0;
         virtual auto Upload(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto Upload(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto Upload(std::shared_ptr<InstanceBuffer> buffer) -> void = 0;

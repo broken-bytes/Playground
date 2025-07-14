@@ -12,6 +12,7 @@
 #include "rendering/d3d12/D3D12InstanceBuffer.hxx"
 #include "rendering/InstanceBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
+#include "rendering/d3d12/D3D12Cubemap.hxx"
 
 namespace playground::rendering::d3d12 {
     class D3D12UploadContext : public UploadContext {
@@ -27,6 +28,7 @@ namespace playground::rendering::d3d12 {
         auto Finish() -> void override;
         auto WaitFor(const Context& other) -> void override;
         auto Upload(std::shared_ptr<Texture> texture) -> void override;
+        auto Upload(std::shared_ptr<Cubemap> cubemap) -> void override;
         auto Upload(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto Upload(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto Upload(std::shared_ptr<InstanceBuffer> buffer) -> void override;
@@ -43,6 +45,7 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _queue;
         std::shared_ptr<D3D12CommandList> _list;
         std::vector<std::shared_ptr<Texture>> _textures;
+        std::vector<std::shared_ptr<Cubemap>> _cubemaps;
         std::vector<std::shared_ptr<IndexBuffer>> _indexBuffers;
         std::vector<std::shared_ptr<VertexBuffer>> _vertexBuffers;
         std::vector<std::shared_ptr<InstanceBuffer>> _instanceBuffers;

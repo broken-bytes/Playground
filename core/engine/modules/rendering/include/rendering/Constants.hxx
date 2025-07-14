@@ -14,10 +14,11 @@ namespace playground::rendering {
     constexpr uint8_t SHADOW_CASTERS_COUNT_BINDING = 4;
 
     // SRV Bindings (t[n])
-    constexpr uint8_t SHADOW_CASTERS_BUFFER_BINDING = 5;
-    constexpr uint8_t BINDLESS_TEXTURES_SLOT = 6;
+    constexpr uint8_t BINDLESS_TEXTURES_SLOT = 5;
+    constexpr uint8_t BINDLESS_CUBEMAPS_SLOT = 6;
+    constexpr uint8_t BINDLESS_SHADOW_MAPS_SLOT = 7;
+    constexpr uint8_t SHADOW_CASTERS_BUFFER_BINDING = 8;
     constexpr uint8_t POINT_LIGHT_SRV_BINDING = 0;
-
 
     constexpr uint16_t MAX_BATCH_SIZE = 1024;
 

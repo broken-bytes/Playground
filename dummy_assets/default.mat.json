@@ -3,6 +3,7 @@
   "textures": [
     { "name": "diffuse", "value": "default.tex" }
   ],
+  "cubemaps": [],
   "props": [
   ]
 }

@@ -1,18 +1,19 @@
-#include "assetpipeline/loaders/MaterialLoader.hxx"
-#include <assetloader/RawMaterialData.hxx>
+#include "assetpipeline/loaders/CubemapLoader.hxx"
+#include <fstream>
 #include <cereal/archives/json.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
 #include <cereal/external/rapidjson/rapidjson.h>
 #include <filesystem>
-#include <fstream>
 
-namespace playground::editor::assetpipeline::loaders::materialloader {
+namespace playground::editor::assetpipeline::loaders::cubemaploader {
     auto LoadFromFile(
         std::filesystem::path path
-    ) -> assetloader::RawMaterialData {
+    ) -> assetloader::RawCubemapData {
         std::ifstream file;
         file.open(path);
         if (!file.is_open()) {
-            throw std::runtime_error("Failed to open material file: " + path.string());
+            throw std::runtime_error("Failed to open cubemap file: " + path.string());
         }
 
         std::string binaryStr((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -30,15 +31,12 @@ namespace playground::editor::assetpipeline::loaders::materialloader {
 
         std::istringstream iss(binaryStr);
 
-        assetloader::RawMaterialData loadedMaterial;
+        assetloader::RawCubemapData loadedCubemap;
         {
             try {
                 cereal::JSONInputArchive archive(iss);
                 archive(
-                    cereal::make_nvp("shaderName", loadedMaterial.shaderName),
-                    cereal::make_nvp("textures", loadedMaterial.textures),
-                    cereal::make_nvp("cubemaps", loadedMaterial.cubemaps),
-                    cereal::make_nvp("props", loadedMaterial.props)
+                    cereal::make_nvp("faces", loadedCubemap.faces)
                 );
             }
             catch (const cereal::RapidJSONException& e) {
@@ -46,6 +44,6 @@ namespace playground::editor::assetpipeline::loaders::materialloader {
             }
         }
 
-        return loadedMaterial;
+        return loadedCubemap;
     }
 }

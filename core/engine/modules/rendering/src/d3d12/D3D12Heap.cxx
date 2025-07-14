@@ -59,15 +59,15 @@ namespace playground::rendering::d3d12
 		return _heap;
 	}
 
-	auto D3D12Heap::HandleFor(std::uint32_t index) -> std::shared_ptr<D3D12ResourceHandle> {
+	auto D3D12Heap::HandleFor(std::uint32_t index, uint32_t id) -> std::shared_ptr<D3D12ResourceHandle> {
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(_heap->GetCPUDescriptorHandleForHeapStart(), index, _increment);
         if (!_isShaderVisible) {
-            return std::make_shared<D3D12ResourceHandle>(index, handle);
+            return std::make_shared<D3D12ResourceHandle>(id, handle);
         }
 
         CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(_heap->GetGPUDescriptorHandleForHeapStart(), index, _increment);
 
-		return std::make_shared<D3D12ResourceHandle>(index, handle, gpuHandle);
+		return std::make_shared<D3D12ResourceHandle>(id, handle, gpuHandle);
 	}
 
 	auto D3D12Heap::NextHandle() -> std::shared_ptr<D3D12ResourceHandle>

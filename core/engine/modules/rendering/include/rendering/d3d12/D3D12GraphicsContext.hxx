@@ -66,11 +66,12 @@ namespace playground::rendering::d3d12 {
         auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
+        auto TransitionCubemap(std::shared_ptr<Cubemap> cubemap) -> void override;
         auto TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void override;
         auto TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void override;
         auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void override;
         auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void override;
-        auto SetMaterialData(uint32_t materialId, const void* data, size_t size) -> void override;
+        auto SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void override;
         auto SetDirectionalLight(
             DirectionalLight& light
         ) -> void override;

@@ -16,6 +16,7 @@
 #include "rendering/CameraBuffer.hxx"
 #include "rendering/Texture.hxx"
 #include "rendering/DirectionalLight.hxx"
+#include "rendering/Cubemap.hxx"
 #include <array>
 #include <memory>
 
@@ -41,11 +42,12 @@ namespace playground::rendering {
         virtual auto TransitionIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto TransitionTexture(std::shared_ptr<Texture> texture) -> void = 0;
+        virtual auto TransitionCubemap(std::shared_ptr<Cubemap> cubemap) -> void = 0;
         virtual auto TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void = 0;
         virtual auto TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void = 0;
         virtual auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void = 0;
         virtual auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void = 0;
-        virtual auto SetMaterialData(uint32_t materialId, const void* data, size_t size) -> void = 0;
+        virtual auto SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void = 0;
         virtual auto SetDirectionalLight(
             DirectionalLight& light
         ) -> void = 0;

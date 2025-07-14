@@ -49,7 +49,8 @@ namespace playground::rendering
             _device(device),
             _modelUploadQueue(_tempAllocator),
             _materialUploadQueue(_tempAllocator),
-            _textureUploadQueue(_tempAllocator)
+            _textureUploadQueue(_tempAllocator),
+            _cubemapUploadQueue(_tempAllocator)
         {
             _renderTarget = renderTarget;
             _depth = depth;
@@ -110,6 +111,11 @@ namespace playground::rendering
             return _textureUploadQueue;
         }
 
+        auto CubemapUploadQueue() -> eastl::deque<CubemapUploadJob, Allocator>&
+        {
+            return _cubemapUploadQueue;
+        }
+
         auto GraphicsContext() -> std::shared_ptr<GraphicsContext> {
             return _graphicsContext;
         }
@@ -131,6 +137,10 @@ namespace playground::rendering
             return _texturesToTransition;
         }
 
+        auto CubemapsToTransition() -> std::vector<uint32_t>& const {
+            return _cubemapsToTransition;
+        }
+
     private:
         VirtualArenaType _tempArena;
         VirtualAllocator _tempAllocator;
@@ -145,6 +155,7 @@ namespace playground::rendering
         eastl::deque<ModelUploadJob, VirtualAllocator> _modelUploadQueue;
         eastl::deque<MaterialUploadJob, VirtualAllocator> _materialUploadQueue;
         eastl::deque<TextureUploadJob, VirtualAllocator> _textureUploadQueue;
+        eastl::deque<CubemapUploadJob, VirtualAllocator> _cubemapUploadQueue;
         std::shared_ptr<rendering::GraphicsContext> _graphicsContext;
         std::shared_ptr<rendering::UploadContext> _uploadContext;
         std::shared_ptr<rendering::InstanceBuffer> _instanceBuffer;
@@ -153,5 +164,6 @@ namespace playground::rendering
         eastl::fixed_vector<std::shared_ptr<ShadowMap>, MAX_SHADOW_MAPS_PER_FRAME, false, VirtualAllocator> _shadowMaps;
 
         std::vector<uint32_t> _texturesToTransition;
+        std::vector<uint32_t> _cubemapsToTransition;
     };
 }

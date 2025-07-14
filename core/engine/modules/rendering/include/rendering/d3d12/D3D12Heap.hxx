@@ -33,7 +33,7 @@ namespace playground::rendering::d3d12 {
 		auto Native() -> Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>;
 
     	[[nodiscard]]
-		auto HandleFor(std::uint32_t index) -> std::shared_ptr<D3D12ResourceHandle>;
+		auto HandleFor(std::uint32_t index, uint32_t id) -> std::shared_ptr<D3D12ResourceHandle>;
 
 		[[nodiscard]]
 		auto NextHandle() -> std::shared_ptr<D3D12ResourceHandle>;

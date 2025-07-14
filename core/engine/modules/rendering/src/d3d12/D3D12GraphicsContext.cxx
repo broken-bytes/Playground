@@ -194,7 +194,7 @@ namespace playground::rendering::d3d12
         auto list = _currentPassList->Native();
         auto dxMat = std::static_pointer_cast<D3D12Material>(material);
         list->SetPipelineState(dxMat->pso.Get());
-        list->SetGraphicsRootConstantBufferView(3, _materialBuffers[material->id]->GPUAdress(0));
+        list->SetGraphicsRootConstantBufferView(MATERIAL_BUFFER_BINDING, _materialBuffers[material->id]->GPUAdress(0));
     }
 
     auto D3D12GraphicsContext::BindShadowMaterial(std::shared_ptr<Material> material) -> void {
@@ -269,6 +269,18 @@ namespace playground::rendering::d3d12
         // Transition GPU buffer to texture state
         CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
             std::static_pointer_cast<D3D12Texture>(texture)->Texture().Get(),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+
+        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionCubemap(std::shared_ptr<Cubemap> cubemap) -> void
+    {
+        // Transition GPU buffer to texture state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12Cubemap>(cubemap)->Cubemap().Get(),
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
         );
@@ -379,9 +391,29 @@ namespace playground::rendering::d3d12
         _transferCommandList->Native()->ResourceBarrier(1, &renderTargetBarrier);
     }
 
-    auto D3D12GraphicsContext::SetMaterialData(uint32_t materialId, const void* data, size_t size) -> void {
+    template< typename T>
+    void Push(std::vector<uint8_t>& dst, T& value) {
+        const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&value);
+        dst.insert(dst.end(), ptr, ptr + sizeof(T));
+    }
+
+    auto D3D12GraphicsContext::SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void {
         ZoneScopedN("RenderThread: Set Material Data");
         ZoneColor(tracy::Color::Orange3);
+
+        std::vector<uint8_t> data;
+
+        data.resize((material->textures.size() + material->cubemaps.size()) * sizeof(uint32_t));
+
+        // Push the textures
+        for (const auto texture : material->textures) {
+            Push(data, texture);
+        }
+
+        // Push the cubemaps
+        for (const auto cubemap : material->cubemaps) {
+            Push(data, cubemap);
+        }
 
         // We need to create the material first
         if (_materialBuffers.find(materialId) == _materialBuffers.end()) {
@@ -391,13 +423,13 @@ namespace playground::rendering::d3d12
                 {
                     materialId,
                     std::static_pointer_cast<D3D12ConstantBuffer>(
-                        _device->CreateConstantBuffer(data, 1, sizeof(uint32_t), ConstantBuffer::BindingMode::RootCBV, ss.str())
+                        _device->CreateConstantBuffer(data.data(), 1, MAX_MATERIAL_SIZE_BYTES, ConstantBuffer::BindingMode::RootCBV, ss.str())
                     )
                 }
             );
         }
 
-        _materialBuffers[materialId]->SetData(data, size, 0);
+        _materialBuffers[materialId]->SetData(data.data(), 1, 0);
     }
 
     auto D3D12GraphicsContext::SetDirectionalLight(
@@ -483,8 +515,28 @@ namespace playground::rendering::d3d12
         _currentPassList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
         _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
         _currentPassList->BindConstantBuffer(_directionalLightBuffer, 1, 0);
-        _currentPassList->Native()->SetGraphicsRootDescriptorTable(SHADOW_CASTERS_BUFFER_BINDING, _shadowCastersBuffer->GPUHandle());
-        _currentPassList->Native()->SetGraphicsRoot32BitConstant(SHADOW_CASTERS_COUNT_BINDING, _shadowCastersCount, 0);
+        // TODO: Add offsets to the descriptor tables
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(
+            BINDLESS_TEXTURES_SLOT,
+            std::static_pointer_cast<D3D12Heap>(_device->GetSrvHeap())->HandleFor((uint16_t)SRVHeapResource::Texture2D, 0)->GetGPUHandle()
+        );
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(
+            BINDLESS_CUBEMAPS_SLOT,
+            std::static_pointer_cast<D3D12Heap>(_device->GetSrvHeap())->HandleFor((uint16_t)SRVHeapResource::TextureCube, 0)->GetGPUHandle()
+        );
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(
+            BINDLESS_SHADOW_MAPS_SLOT,
+            std::static_pointer_cast<D3D12Heap>(_device->GetSrvHeap())->HandleFor((uint16_t)SRVHeapResource::ShadowMap, 0)->GetGPUHandle()
+        );
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(
+            SHADOW_CASTERS_BUFFER_BINDING,
+            _shadowCastersBuffer->GPUHandle()
+        );
+        _currentPassList->Native()->SetGraphicsRoot32BitConstant(
+            SHADOW_CASTERS_COUNT_BINDING,
+            _shadowCastersCount,
+            0
+        );
 
         _currentPassList->Native()->BeginRenderPass(1, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
     }

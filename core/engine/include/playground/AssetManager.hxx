@@ -3,6 +3,7 @@
 #include <assetloader/RawMaterialData.hxx>
 #include <assetloader/RawMeshData.hxx>
 #include <assetloader/RawTextureData.hxx>
+#include <assetloader/RawCubemapData.hxx>
 #include <rendering/Material.hxx>
 #include <rendering/Mesh.hxx>
 #include <rendering/Shader.hxx>
@@ -74,9 +75,20 @@ namespace playground::assetmanager {
         uint32_t material;
     };
 
+    struct CubemapHandle {
+        uint64_t hash;
+        std::atomic<ResourceState> state;
+        uint32_t refCount;
+        std::shared_ptr<assetloader::RawCubemapData> data;
+        std::vector<std::shared_ptr<assetloader::RawTextureData>> faces;
+        std::shared_ptr<jobsystem::JobHandle> signalUploadCompletionJob;
+        uint32_t cubemap;
+    };
+
     ModelHandle* LoadModel(const char* name);
     MaterialHandle* LoadMaterial(const char* name);
     ShaderHandle* LoadShader(const char* name);
     TextureHandle* LoadTexture(const char* name, jobsystem::JobHandle* materialUploadJob);
     PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);
+    CubemapHandle* LoadCubemap(const char* name, jobsystem::JobHandle* materialUploadJob);
 }

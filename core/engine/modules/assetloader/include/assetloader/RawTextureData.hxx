@@ -15,7 +15,6 @@ namespace playground::assetloader
         uint16_t Height;
         uint8_t Channels;
 
-
         template <class Archive>
         void serialize(Archive& ar)
         {

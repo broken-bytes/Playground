@@ -32,6 +32,22 @@
         {
             "location": "default.pmat.json",
             "type": "PhysicsMaterial"
+        },
+        {
+            "location": "ground.png",
+            "type": "Texture"
+        },
+        {
+            "location": "skybox.cubemap.json",
+            "type": "Cubemap"
+        },
+        {
+            "location": "skybox.hlsl",
+            "type": "Shader"
+        },
+        {
+            "location": "skybox.mat.json",
+            "type": "Material"
         }
     ]
 }

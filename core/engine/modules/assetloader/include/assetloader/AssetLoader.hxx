@@ -7,6 +7,7 @@
 #include <assetloader/RawTextureData.hxx>
 #include <assetloader/RawShaderData.hxx>
 #include <assetloader/RawPhysicsMaterialData.hxx>
+#include <assetloader/RawCubemapData.hxx>
 
 namespace playground::assetloader {
     constexpr const char* ASSET_LOADER_VERSION = "01";
@@ -16,7 +17,8 @@ namespace playground::assetloader {
         TEXTURE = 0x54455854,
         MATERIAL = 0x4D41544C,
         SHADER = 0x53484144,
-        PHYSICS_MATERIAL = 0x50584D41
+        PHYSICS_MATERIAL = 0x50584D41,
+        CUBEMAP = 0x43554245
     };
 
     inline const char* MagicNumberStringFor(MAGIC_NUMBERS number) {
@@ -32,6 +34,8 @@ namespace playground::assetloader {
             return "0x53484144";
         case playground::assetloader::MAGIC_NUMBERS::PHYSICS_MATERIAL:
             return "0x50584D41";
+        case playground::assetloader::MAGIC_NUMBERS::CUBEMAP:
+            return "0x43554245";
         default:
             break;
         }
@@ -44,4 +48,5 @@ namespace playground::assetloader {
     RawMaterialData LoadMaterial(std::string_view name);
     RawShaderData LoadShader(std::string_view shaderName);
     RawPhysicsMaterialData LoadPhysicsMaterial(std::string_view name);
+    RawCubemapData LoadCubemap(std::string_view name);
 }

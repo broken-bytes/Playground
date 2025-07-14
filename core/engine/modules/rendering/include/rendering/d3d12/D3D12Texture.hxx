@@ -101,6 +101,7 @@ namespace playground::rendering::d3d12 {
         }
 
         auto Free() {
+            _stagingBuffer->Release();
             _stagingBuffer = nullptr;
         }
 

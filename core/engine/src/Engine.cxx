@@ -167,6 +167,9 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     auto shadowShader = playground::assetmanager::LoadShader("shadows.shader");
     playground::rendering::RegisterShadowShader(shadowShader->vertexShader);
 
+    // Skybox
+    auto skybox = playground::assetmanager::LoadCubemap("skybox.cube", nullptr);
+
     gameThread = std::thread([config]() {
         playground::audio::Init();
 #if ENABLE_INSPECTOR

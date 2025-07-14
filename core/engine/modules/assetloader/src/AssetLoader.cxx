@@ -130,4 +130,24 @@ namespace playground::assetloader {
 
         return loaded;
     }
+
+    RawCubemapData LoadCubemap(std::string_view name) {
+        auto data = TryLoadFile(std::string(name));
+
+        if (data.empty()) {
+            throw std::runtime_error("Failed to load data for cubemap: " + std::string(name));
+        }
+
+        std::string binaryStr(data.begin(), data.end());
+
+        std::istringstream iss(binaryStr, std::ios::binary);
+
+        RawCubemapData loaded;
+        {
+            cereal::BinaryInputArchive iarchive(iss);
+            iarchive(loaded);
+        }
+
+        return loaded;
+    }
 }

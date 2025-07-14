@@ -43,18 +43,20 @@ cbuffer CameraBuffer : register(b2)
 
 cbuffer MaterialData : register(b3)
 {
-    int diffuseTextureId;
+    uint diffuseTextureId;
 };
 
 cbuffer ShadowCastersCount: register(b4) {
     uint shadowCastersCount;
 };
 
-StructuredBuffer<ShadowCaster> shadowCasters : register(t0);
+Texture2D textures[] : register(t0, space0);
+TextureCube cubeMaps[] : register(t0, space1);
+Texture2D shadowMaps[] : register(t0, space2);
+StructuredBuffer<ShadowCaster> shadowCasters : register(t0, space3);
 
-Texture2D textures[] : register(t1);
-SamplerComparisonState shadowSampler : register(s0);
-SamplerState defaultSampler : register(s1);
+SamplerState defaultSampler : register(s0);
+SamplerComparisonState shadowSampler : register(s1);
 
 struct VSInput {
     float3 position : POSITION;
@@ -99,7 +101,7 @@ float SampleShadowMapPCF(float4 worldPos, ShadowCaster sc)
     for (int y = -1; y <= 1; ++y)
     {
         float2 offset = float2(x, y) * texelSize;
-        float sample = textures[sc.shadowMapIndex].SampleCmpLevelZero(shadowSampler, uv + offset, depth);
+        float sample = shadowMaps[sc.shadowMapIndex].SampleCmpLevelZero(shadowSampler, uv + offset, depth);
         shadow += sample;
     }
 

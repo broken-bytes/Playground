@@ -49,7 +49,12 @@ namespace playground::rendering::d3d12 {
             std::static_pointer_cast<D3D12Texture>(texture)->Free();
         }
 
+        for (auto& cubemap : _cubemaps) {
+            std::static_pointer_cast<D3D12Cubemap>(cubemap)->Free();
+        }
+
         _textures.clear();
+        _cubemaps.clear();
         _indexBuffers.clear();
         _vertexBuffers.clear();
         _instanceBuffers.clear();
@@ -105,8 +110,23 @@ namespace playground::rendering::d3d12 {
                 static_cast<UINT>(textureData.size()),
                 textureData.data()
             );
+        }
 
-            auto x = 0;
+        for (auto& cubemap : _cubemaps) {
+            ZoneScopedN("RenderThread: Copy Cubemaps");
+            ZoneColor(tracy::Color::RebeccaPurple);
+            auto d3d12Cubemap = std::static_pointer_cast<D3D12Cubemap>(cubemap)->Cubemap();
+            auto cubemapUploadBuffer = std::static_pointer_cast<D3D12Cubemap>(cubemap)->StagingBuffer();
+            auto cubemapData = std::static_pointer_cast<D3D12Cubemap>(cubemap)->CubemapData();
+            auto result = UpdateSubresources(
+                list.Get(),
+                d3d12Cubemap.Get(),
+                cubemapUploadBuffer.Get(),
+                0,
+                0,
+                static_cast<UINT>(cubemapData.size()),
+                cubemapData.data()
+            );
         }
 
         {
@@ -133,6 +153,10 @@ namespace playground::rendering::d3d12 {
 
     auto D3D12UploadContext::Upload(std::shared_ptr<Texture> texture) -> void {
         _textures.push_back(texture);
+    }
+
+    auto D3D12UploadContext::Upload(std::shared_ptr<Cubemap> cubemap) -> void {
+        _cubemaps.push_back(cubemap);
     }
 
     auto D3D12UploadContext::Upload(std::shared_ptr<IndexBuffer> buffer) -> void {

@@ -15,6 +15,7 @@ namespace playground::assetmanager {
     std::vector<ShaderHandle*> _shaderHandles = {};
     std::vector<TextureHandle*> _textureHandles = {};
     std::vector<PhysicsMaterialHandle*> _physicsMaterialHandles = {};
+    std::vector<CubemapHandle*> _cubemapHandles = {};
 
     void MarkModelUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
         if (handleId < _modelHandles.size()) {
@@ -48,6 +49,19 @@ namespace playground::assetmanager {
 
             jobsystem::Submit(_textureHandles[handleId]->signalUploadCompletionJob);
             _textureHandles[handleId]->signalUploadCompletionJob = nullptr;
+        }
+    }
+
+    void MarkCubemapUploadFinished(uint32_t handleId, uint32_t cubemap) {
+        if (handleId < _cubemapHandles.size()) {
+            _cubemapHandles[handleId]->state = ResourceState::Uploaded;
+            _cubemapHandles[handleId]->data = nullptr;
+            _cubemapHandles[handleId]->faces = {};
+            _cubemapHandles[handleId]->cubemap = cubemap;
+            _cubemapHandles[handleId]->refCount--;
+
+            jobsystem::Submit(_cubemapHandles[handleId]->signalUploadCompletionJob);
+            _cubemapHandles[handleId]->signalUploadCompletionJob = nullptr;
         }
     }
 
@@ -240,7 +254,7 @@ namespace playground::assetmanager {
         std::string textureName = std::string(name);
 
         handle->signalUploadCompletionJob = jobsystem::JobHandle::Create(
-            textureName + "_TEXTURE_UPLOAD_JOB",
+            textureName + "_TEXTURE_UPLOAD_JOB_COMPLETION",
             jobsystem::JobPriority::Low, [handle, handleId, textureName]() {
                 // Dummy job, only signals texture readyness after GPU upload
         });
@@ -301,5 +315,68 @@ namespace playground::assetmanager {
         _physicsMaterialHandles.push_back(newHandle);
 
         return _physicsMaterialHandles[handleId];
+    }
+
+    CubemapHandle* LoadCubemap(const char* name, jobsystem::JobHandle* materialUploadJob) {
+        auto hash = shared::Hash(name);
+
+        std::optional<uint32_t> handleId;
+        CubemapHandle* handle;
+        for (uint32_t i = 0; i < _cubemapHandles.size(); ++i) {
+            handle = _cubemapHandles[i];
+            if (handle->hash == hash) {
+                if (handle->state.load() == ResourceState::Uploaded) {
+                    handle->refCount++;
+
+                    return handle;
+                }
+                else if (handle->state == ResourceState::Unloaded) {
+                    auto rawCubemapData = playground::assetloader::LoadCubemap(name);
+                    handle->refCount = 1;
+                    handle->state.store(ResourceState::Created);
+                }
+            }
+        }
+
+        if (!handleId.has_value()) {
+            handleId = _cubemapHandles.size();
+
+            handle = new CubemapHandle{
+                .hash = hash,
+                .state = {ResourceState::Created},
+                .refCount = 1,
+                .data = {},
+                .faces = {},
+                .signalUploadCompletionJob = nullptr,
+                .cubemap = 0
+            };
+
+            _cubemapHandles.push_back(handle);
+        }
+
+        std::string cubemapName = std::string(name);
+
+        handle->signalUploadCompletionJob = jobsystem::JobHandle::Create(
+            cubemapName + "_CUBEMAP_UPLOAD_JOB_COMPLETION",
+            jobsystem::JobPriority::Low, [handle, handleId, cubemapName]() {
+                // Dummy job, only signals cubemap readyness after GPU upload
+        });
+
+        auto cubemapUploadJob = jobsystem::JobHandle::Create(cubemapName + "_CUBEMAP_UPLOAD_JOB", jobsystem::JobPriority::Low, [handle, handleId, cubemapName]() {
+            auto rawCubemapData = playground::assetloader::LoadCubemap(cubemapName);
+            auto data = std::make_shared<assetloader::RawCubemapData>(rawCubemapData);
+            handle->data = data;
+
+            rendering::QueueUploadCubemap(handle->data, handleId.value(), MarkCubemapUploadFinished);
+        });
+
+        if (materialUploadJob != nullptr) {
+            materialUploadJob->AddDependency(cubemapUploadJob);
+            materialUploadJob->AddDependency(handle->signalUploadCompletionJob);
+        }
+
+        jobsystem::Submit(cubemapUploadJob);
+
+        return _cubemapHandles[handleId.value()];
     }
 }

@@ -33,6 +33,7 @@
 #include "rendering/d3d12/D3D12InstanceBuffer.hxx"
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
+#include "rendering/d3d12/D3D12Cubemap.hxx"
 
 using namespace Microsoft::WRL;
 
@@ -100,11 +101,11 @@ namespace playground::rendering::d3d12 {
         // Create heaps
         // Start with one heap per type
         // 32 RTVS (2-3 for the back buffers and 30~ for render textures)
-        _rtvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128);
+        _rtvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, (uint16_t)RTVHeapResource::End);
         // Use chunks of 512 entries per shader heap
-        _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_SRV_HEAP_SIZE);
+        _srvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, (uint16_t)SRVHeapResource::End);
         // 128 Depth stencils are enough for any type of render pipeline
-        _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 512);
+        _dsvHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, (uint16_t)DSVHeapResource::End);
 
         // Create sampler heap
         // 6 Samplers:
@@ -114,7 +115,7 @@ namespace playground::rendering::d3d12 {
         // - Linear Wrap
         // - Anisotropic Clamp
         // - Anisotropic Wrap
-        _samplerHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 8);
+        _samplerHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, (uint16_t)SamplerHeapResource::End);
 
         _rootSignature = CreateRootSignature();
         _shadowRootSignature = CreateShadowRootSignature();
@@ -281,7 +282,7 @@ namespace playground::rendering::d3d12 {
             throw std::runtime_error("Failed to create render target");
         }
 
-        auto nextHandle = _rtvHeaps->NextHandle();
+        auto nextHandle = _rtvHeaps->NextHandle(RTVHeapResource::RenderTargetView);
 
         _device->CreateRenderTargetView(rtv.Get(), nullptr, nextHandle->GetCPUHandle());
 
@@ -328,7 +329,7 @@ namespace playground::rendering::d3d12 {
             throw std::runtime_error("Failed to create depth buffer");
         }
 
-        auto nextHandle = _dsvHeaps->NextHandle();
+        auto nextHandle = _dsvHeaps->NextHandle(DSVHeapResource::DepthStencilView);
         depthBuffer->SetName(std::wstring(name.begin(), name.end()).c_str());
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -374,13 +375,13 @@ namespace playground::rendering::d3d12 {
         D3D12_RASTERIZER_DESC rasterizerDesc = {};
         rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
         rasterizerDesc.CullMode = pixelShader == nullptr ? D3D12_CULL_MODE_FRONT : D3D12_CULL_MODE_BACK;
-        rasterizerDesc.FrontCounterClockwise = FALSE; // TODO: CHECK IF ACNE CAN BE FIXED
+        rasterizerDesc.FrontCounterClockwise = FALSE;
         rasterizerDesc.DepthClipEnable = TRUE;
 
         if (pixelShader == nullptr) {
-            rasterizerDesc.DepthBias = 0.005f;
+            rasterizerDesc.DepthBias = 0;
             rasterizerDesc.DepthBiasClamp = 0;
-            rasterizerDesc.SlopeScaledDepthBias = 0;
+            rasterizerDesc.SlopeScaledDepthBias = -0.25f;
         }
 
         psoDesc.RasterizerState = rasterizerDesc;
@@ -455,16 +456,20 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateTexture(uint32_t width, uint32_t height, std::vector<std::vector<uint8_t>> mips, Allocator& allocator) -> std::shared_ptr<Texture> {
-        return std::make_shared<D3D12Texture>(_device, width, height, mips, _srvHeaps->NextHandle(), allocator);
+        return std::make_shared<D3D12Texture>(_device, width, height, mips, _srvHeaps->NextHandle(SRVHeapResource::Texture2D), allocator);
+    }
+
+    auto D3D12Device::CreateCubemap(uint32_t width, uint32_t height, std::vector<std::vector<std::vector<uint8_t>>> faces, Allocator& allocator) -> std::shared_ptr<Cubemap> {
+        return std::make_shared<D3D12Cubemap>(_device, width, height, faces, _srvHeaps->NextHandle(SRVHeapResource::TextureCube), allocator);
     }
 
     auto D3D12Device::CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> {
-        return std::make_shared<D3D12TextureSampler>(_device, _samplerHeaps->NextHandle(), filtering, wrapping);
+        return std::make_shared<D3D12TextureSampler>(_device, _samplerHeaps->NextHandle(SamplerHeapResource::Sampler), filtering, wrapping);
     }
 
     auto D3D12Device::CreateShadowMap(uint32_t width, uint32_t height, std::string name)->std::shared_ptr<ShadowMap> {
-        auto dsvHandle = _dsvHeaps->NextHandle();
-        auto srvHandle = _srvHeaps->NextHandle();
+        auto dsvHandle = _dsvHeaps->NextHandle(DSVHeapResource::ShadowMapDSV);
+        auto srvHandle = _srvHeaps->NextHandle(SRVHeapResource::ShadowMap);
 
         return std::make_shared<D3D12ShadowMap>(GetDevice(), dsvHandle, srvHandle, width, height, name);
     }
@@ -489,7 +494,7 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateConstantBuffer(const void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> {
-        auto handle = _srvHeaps->NextHandle();
+        auto handle = _srvHeaps->NextHandle(SRVHeapResource::ConstantBuffer);
         return std::make_shared<D3D12ConstantBuffer>(
             _device,
             handle->GetCPUHandle(),
@@ -504,7 +509,7 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateStructuredBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<StructuredBuffer> {
-        auto handle = _srvHeaps->NextHandle();
+        auto handle = _srvHeaps->NextHandle(SRVHeapResource::StructuredBuffer);
         return std::make_shared<D3D12StructuredBuffer>(
             _device,
             handle->GetCPUHandle(),
@@ -524,7 +529,7 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
-        std::array<CD3DX12_ROOT_PARAMETER, 8> rootParameters = {};
+        std::array<CD3DX12_ROOT_PARAMETER, 9> rootParameters = {};
 
         // Per-frame CBV (Camera, Lighting, Material props, etc.)
         rootParameters[0].InitAsConstantBufferView(GLOBALS_BUFFER_BINDING); // b0
@@ -533,20 +538,38 @@ namespace playground::rendering::d3d12 {
         rootParameters[3].InitAsConstantBufferView(MATERIAL_BUFFER_BINDING); // b3
         rootParameters[4].InitAsConstants(1, SHADOW_CASTERS_COUNT_BINDING, 0); // b4
 
-        // For t0 (shadowmaps)
-        CD3DX12_DESCRIPTOR_RANGE shadowMapsRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-        rootParameters[SHADOW_CASTERS_BUFFER_BINDING].InitAsDescriptorTable(1, &shadowMapsRange, D3D12_SHADER_VISIBILITY_PIXEL);
-
-        // For t1 (textures)
-        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRV_HEAP_SIZE, 1);
+        uint16_t texturesCount = (uint16_t)SRVHeapResource::TextureCube;
+        texturesCount -= (uint16_t)SRVHeapResource::Texture2D;
+        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, texturesCount, 0, 0, 0);
         rootParameters[BINDLESS_TEXTURES_SLOT].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        // 4 Sampler Descriptor Table (for dynamic samplers)
-        CD3DX12_DESCRIPTOR_RANGE samplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 1);
-        rootParameters[7].InitAsDescriptorTable(1, &samplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        uint16_t cubemapsCount = (uint16_t)SRVHeapResource::ShadowMap;
+        cubemapsCount -= (uint16_t)SRVHeapResource::TextureCube;
+        CD3DX12_DESCRIPTOR_RANGE cubemapRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, cubemapsCount, 0, 1, 0);
+        rootParameters[BINDLESS_CUBEMAPS_SLOT].InitAsDescriptorTable(1, &cubemapRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        uint16_t shadowMapsCount = (uint16_t)SRVHeapResource::StructuredBuffer;
+        shadowMapsCount -= (uint16_t)SRVHeapResource::ShadowMap;
+        CD3DX12_DESCRIPTOR_RANGE shadowMapsRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, shadowMapsCount, 0, 2, 0);
+        rootParameters[BINDLESS_SHADOW_MAPS_SLOT].InitAsDescriptorTable(1, &shadowMapsRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        CD3DX12_DESCRIPTOR_RANGE shadowMapsBuffer(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 3, 0);
+        rootParameters[SHADOW_CASTERS_BUFFER_BINDING].InitAsDescriptorTable(1, &shadowMapsBuffer, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+            0,
+            D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            0.0f,
+            16,
+            D3D12_COMPARISON_FUNC_ALWAYS,
+            D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
+        );
 
         const CD3DX12_STATIC_SAMPLER_DESC shadow(
-            0,
+            1,
             D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
             D3D12_TEXTURE_ADDRESS_MODE_BORDER,
             D3D12_TEXTURE_ADDRESS_MODE_BORDER,
@@ -557,11 +580,13 @@ namespace playground::rendering::d3d12 {
             D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
         );
 
+        std::array<CD3DX12_STATIC_SAMPLER_DESC, 2> staticSamplers = { pointClamp, shadow };
+
         // Define the root signature descriptor
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
             rootParameters.size(),
             rootParameters.data(),
-            1, &shadow,
+            staticSamplers.size(), staticSamplers.data(),
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
         );
 

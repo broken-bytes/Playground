@@ -70,6 +70,20 @@ namespace playground::assetloader
         }
     };
 
+    struct CubemapProp {
+        std::string name;
+        std::string value;
+
+        template <class Archive>
+        void serialize(Archive& ar)
+        {
+            ar(
+                CEREAL_NVP(name),
+                CEREAL_NVP(value)
+            );
+        }
+    };
+
     struct MaterialProp {
         std::string type;
         std::string name;
@@ -93,6 +107,7 @@ namespace playground::assetloader
     struct RawMaterialData {
         std::string shaderName;
         std::vector<TextureProp> textures;
+        std::vector<CubemapProp> cubemaps;
         std::vector<MaterialProp> props;
 
         template <class Archive>
@@ -101,6 +116,7 @@ namespace playground::assetloader
             ar(
                 CEREAL_NVP(shaderName),
                 CEREAL_NVP(textures),
+                CEREAL_NVP(cubemaps),
                 CEREAL_NVP(props)
             );
         }

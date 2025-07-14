@@ -11,9 +11,12 @@
 #include <string>
 
 namespace playground::rendering {
+    constexpr uint16_t MAX_MATERIAL_SIZE_BYTES = 512;
+
 	struct Material {
         uint32_t id = 0;
         std::vector<uint32_t> textures = {};
+        std::vector<uint32_t> cubemaps = {};
         std::vector<float> floats = {};
         std::vector<int> ints = {};
         std::vector<math::Vector2> vec2s = {};

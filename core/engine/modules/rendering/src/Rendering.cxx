@@ -90,6 +90,8 @@ namespace playground::rendering {
     std::vector<uint32_t> freeIndexBufferIds = {};
 	std::vector<std::shared_ptr<Texture>> textures = {};
     std::vector<uint32_t> freeTextureIds = {};
+    std::vector<std::shared_ptr<Cubemap>> cubemaps = {};
+    std::vector<uint32_t> freeCubemapIds = {};
 	std::vector<std::shared_ptr<Shader>> shaders = {};
     std::vector<uint32_t> freeShaderIds = {};
 	std::vector<std::shared_ptr<Material>> materials = {};
@@ -104,8 +106,6 @@ namespace playground::rendering {
     std::shared_ptr<Material> shadowMaterial = nullptr;
 
     bool didUpload = false;
-
-    std::shared_ptr<Sampler> sampler = nullptr;
 
     bool isRunning = false;
     std::thread renderThread;
@@ -153,8 +153,6 @@ namespace playground::rendering {
             frames.emplace_back(std::make_shared<Frame>(x, device, rendertarget, depthBuffer, graphicsContext, uploadContext, instanceBuffer));
         }
 
-        sampler = device->CreateSampler(TextureFiltering::Anisotropic, TextureWrapping::Repeat);
-
         swapchain = device->CreateSwapchain(FRAME_COUNT, width, height, window);
 
         tracy::SetThreadName("Render Thread");
@@ -179,8 +177,6 @@ namespace playground::rendering {
         {
             frame = nullptr;
         }
-
-        sampler = nullptr;
 
         vertexBuffers = {};
         indexBuffers = {};
@@ -233,6 +229,16 @@ namespace playground::rendering {
             frames[backBufferIndex]->TexturesToTransition().push_back(job.handle);
         }
 
+        auto& cubemapQueue = frames[backBufferIndex]->CubemapUploadQueue();
+        while (cubemapQueue.size() > 0) {
+            auto job = cubemapQueue.back();
+            cubemapQueue.pop_back();
+
+            UploadCubemap(job);
+
+            frames[backBufferIndex]->CubemapsToTransition().push_back(job.handle);
+        }
+
         uploadContext->Upload(frames[backBufferIndex]->InstanceBuffer());
 
         uploadContext->Finish();
@@ -240,6 +246,7 @@ namespace playground::rendering {
         modelUploadQueue = {};
         materialUploadQueue = {};
         textureQueue = {};
+        cubemapQueue = {};
 	}
 
     auto Update() -> void {
@@ -257,6 +264,13 @@ namespace playground::rendering {
             }
 
             texTransitions = {};
+
+            auto& cubeTransitions = frames[backBufferIndex]->CubemapsToTransition();
+            for (auto cubemapId : cubeTransitions) {
+                graphicsContext->TransitionCubemap(cubemaps[cubemapId]);
+            }
+
+            cubeTransitions = {};
         }
 
         RenderFrame nextFrame;
@@ -340,8 +354,6 @@ namespace playground::rendering {
         graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
         graphicsContext->SetScissor(0, 0, config.Width, config.Height);
         graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
-        graphicsContext->BindSRVHeapToSlot(device->GetSrvHeap(), BINDLESS_TEXTURES_SLOT);
-        graphicsContext->BindSampler(sampler, 7);
 
         std::vector<ShadowCaster> shadowcasters = {};
         shadowcasters.reserve(MAX_SHADOW_MAPS_PER_FRAME + 1);
@@ -353,7 +365,7 @@ namespace playground::rendering {
 
         for (auto& drawcall : nextFrame.drawCalls) {
             // TODO: Mark materials dirty and bulk update all dirty ones
-            graphicsContext->SetMaterialData(drawcall.material, materials[drawcall.material]->textures.data(), textures.size());
+            graphicsContext->SetMaterialData(drawcall.material, materials[drawcall.material]);
 
             graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
             graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
@@ -453,6 +465,34 @@ namespace playground::rendering {
         frames[logicFrameIndex]->TextureUploadQueue().push_back(job);
     }
 
+    auto QueueUploadCubemap(std::shared_ptr<assetloader::RawCubemapData> cubemap, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
+        ZoneScopedN("RenderThread: Queue Upload Cubemap");
+        std::cout << "Queueing cubemap upload for handle: " << handle << std::endl;
+        std::cout << "Cubemap size: " << cubemap->Width << "x" << cubemap->Height << std::endl;
+        std::cout << "Faces: " << cubemap->facesData.size() << std::endl;
+
+        std::vector<std::vector<std::vector<uint8_t>>> facesRawData;
+        facesRawData.reserve(cubemap->facesData.size());
+
+        for (int face = 0; face < cubemap->facesData.size(); face++) {
+            facesRawData.push_back(std::vector<std::vector<uint8_t>>());
+            for(int mip = 0; mip < cubemap->facesData[face].MipMaps.size(); mip++) {
+                auto& mipData = cubemap->facesData[face].MipMaps[mip];
+                facesRawData[face].push_back(mipData);
+            }
+        }
+
+        cubemap->facesRawData = std::move(facesRawData);
+       
+        auto job = CubemapUploadJob{
+            .handle = handle,
+            .cubemapData = std::move(cubemap),
+            .callback = callback
+        };
+
+        frames[logicFrameIndex]->CubemapUploadQueue().push_back(job);
+    }
+
     auto UploadModel(ModelUploadJob& job) -> void {
         ZoneScopedN("RenderThread: Upload Model");
         ZoneColor(tracy::Color::Violet);
@@ -533,6 +573,30 @@ namespace playground::rendering {
         job.callback(job.handle, textureId);
     }
 
+    auto UploadCubemap(CubemapUploadJob& job) -> void {
+        ZoneScopedN("RenderThread: Upload Cubemap");
+        ZoneColor(tracy::Color::Violet);
+        auto backBufferIndex = swapchain->BackBufferIndex();
+
+        auto cubemap = device->CreateCubemap(job.cubemapData->Width, job.cubemapData->Height, job.cubemapData->facesRawData, frames[backBufferIndex]->Alloc());
+
+        uint32_t cubemapId = 0;
+        if (freeCubemapIds.size() > 0) {
+            cubemapId = freeCubemapIds.back();
+            cubemaps[cubemapId] = cubemap;
+            freeCubemapIds.pop_back();
+        }
+        else {
+            cubemaps.push_back(cubemap);
+            cubemapId = cubemaps.size() - 1;
+        }
+
+        auto uploadContext = frames[backBufferIndex]->UploadContext();
+        uploadContext->Upload(cubemap);
+
+        job.callback(job.handle, cubemapId);
+    }
+
     auto SubmitFrame(RenderFrame frame) -> void {
         if (!isRunning) {
             return;
@@ -573,5 +637,13 @@ namespace playground::rendering {
         }
 
         material->textures[slot] = textures[textureId]->ID();
+    }
+
+    void SetMaterialCubemap(uint32_t materialId, uint8_t slot, uint32_t cubemapId) {
+        auto material = materials[materialId];
+        if (material->cubemaps.size() <= slot) {
+            material->cubemaps.resize(material->cubemaps.size() + 1);
+        }
+        material->cubemaps[slot] = cubemaps[cubemapId]->ID();
     }
 }

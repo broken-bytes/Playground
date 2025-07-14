@@ -46,6 +46,7 @@ namespace playground::rendering::d3d12 {
         auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> override;
         auto UpdateIndexBuffer(std::shared_ptr<IndexBuffer> buffer, std::vector<uint32_t> indices) -> void override;
         auto CreateTexture(uint32_t width, uint32_t height, std::vector<std::vector<uint8_t>> mips, Allocator& allocator) -> std::shared_ptr<Texture> override;
+        auto CreateCubemap(uint32_t width, uint32_t height, std::vector<std::vector<std::vector<uint8_t>>> faces, Allocator& allocator) -> std::shared_ptr<Cubemap> override;
         auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> override;
         auto CreateShadowMap(uint32_t width, uint32_t height, std::string name) -> std::shared_ptr<ShadowMap> override;
 
