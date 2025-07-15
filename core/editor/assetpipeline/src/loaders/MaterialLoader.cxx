@@ -36,6 +36,7 @@ namespace playground::editor::assetpipeline::loaders::materialloader {
                 cereal::JSONInputArchive archive(iss);
                 archive(
                     cereal::make_nvp("shaderName", loadedMaterial.shaderName),
+                    cereal::make_nvp("type", loadedMaterial.type),
                     cereal::make_nvp("textures", loadedMaterial.textures),
                     cereal::make_nvp("cubemaps", loadedMaterial.cubemaps),
                     cereal::make_nvp("props", loadedMaterial.props)

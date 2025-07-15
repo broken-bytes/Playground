@@ -11,6 +11,8 @@
 #include <audio/AudioClip.hxx>
 #include <atomic>
 #include <cstdint>
+#include <functional>
+#include <optional>
 #include <map>
 #include <memory>
 #include <string>
@@ -46,12 +48,24 @@ namespace playground::assetmanager {
         uint32_t texture;
     };
 
+    struct CubemapHandle {
+        uint64_t hash;
+        std::atomic<ResourceState> state;
+        uint32_t refCount;
+        std::shared_ptr<assetloader::RawCubemapData> data;
+        std::vector<std::shared_ptr<assetloader::RawTextureData>> faces;
+        std::shared_ptr<jobsystem::JobHandle> signalUploadCompletionJob;
+        uint32_t cubemap;
+    };
+
     struct MaterialHandle {
         uint64_t hash;
         std::atomic<ResourceState> state;
         std::map<std::string, TextureHandle*> textures;
+        std::map<std::string, CubemapHandle*> cubemaps;
         uint32_t refCount;
         uint32_t material;
+        void (*onCompletion)(uint32_t);
     };
 
     struct ShaderHandle {
@@ -75,18 +89,8 @@ namespace playground::assetmanager {
         uint32_t material;
     };
 
-    struct CubemapHandle {
-        uint64_t hash;
-        std::atomic<ResourceState> state;
-        uint32_t refCount;
-        std::shared_ptr<assetloader::RawCubemapData> data;
-        std::vector<std::shared_ptr<assetloader::RawTextureData>> faces;
-        std::shared_ptr<jobsystem::JobHandle> signalUploadCompletionJob;
-        uint32_t cubemap;
-    };
-
     ModelHandle* LoadModel(const char* name);
-    MaterialHandle* LoadMaterial(const char* name);
+    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t) = nullptr);
     ShaderHandle* LoadShader(const char* name);
     TextureHandle* LoadTexture(const char* name, jobsystem::JobHandle* materialUploadJob);
     PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);

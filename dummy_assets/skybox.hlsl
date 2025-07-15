@@ -1,7 +1,17 @@
-cbuffer Globals: register(b0)
+cbuffer Screen: register(b0)
 {
     float2 inverseScreenRes;
 };
+
+cbuffer Globals : register(b1) {
+    float time;
+}
+
+cbuffer Material : register(b2) {
+    uint cubemapId;
+}
+
+SamplerState defaultSampler : register(s0);
 
 float4 VSMain(uint id : SV_VertexID) : SV_Position
 {

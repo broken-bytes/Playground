@@ -168,7 +168,9 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::rendering::RegisterShadowShader(shadowShader->vertexShader);
 
     // Skybox
-    auto skybox = playground::assetmanager::LoadCubemap("skybox.cube", nullptr);
+    auto skybox = playground::assetmanager::LoadMaterial("skybox.mat", [](uint32_t id) {
+        playground::rendering::SetSkyboxMaterial(id);
+    });
 
     gameThread = std::thread([config]() {
         playground::audio::Init();

@@ -13,8 +13,15 @@
 namespace playground::rendering {
     constexpr uint16_t MAX_MATERIAL_SIZE_BYTES = 512;
 
+    enum MaterialType {
+        Skybox = 0,
+        Standard = 1,
+        Shadow = 2
+    };
+
 	struct Material {
         uint32_t id = 0;
+        MaterialType type = MaterialType::Standard;
         std::vector<uint32_t> textures = {};
         std::vector<uint32_t> cubemaps = {};
         std::vector<float> floats = {};

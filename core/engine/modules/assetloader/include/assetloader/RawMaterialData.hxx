@@ -106,6 +106,7 @@ namespace playground::assetloader
 
     struct RawMaterialData {
         std::string shaderName;
+        std::string type;
         std::vector<TextureProp> textures;
         std::vector<CubemapProp> cubemaps;
         std::vector<MaterialProp> props;
@@ -115,6 +116,7 @@ namespace playground::assetloader
         {
             ar(
                 CEREAL_NVP(shaderName),
+                CEREAL_NVP(type),
                 CEREAL_NVP(textures),
                 CEREAL_NVP(cubemaps),
                 CEREAL_NVP(props)

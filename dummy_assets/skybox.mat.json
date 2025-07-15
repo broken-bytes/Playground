@@ -1,8 +1,9 @@
 {
   "shaderName": "skybox.shader",
+  "type": "skybox",
   "textures": [],
   "cubemaps": [
-    { "name": "skybox", "value": "skyebox.cube" }
+    { "name": "skybox", "value": "skybox.cube" }
   ],
   "props": [
   ]

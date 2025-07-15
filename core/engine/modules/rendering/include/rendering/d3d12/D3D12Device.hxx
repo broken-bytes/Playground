@@ -38,8 +38,12 @@ namespace playground::rendering::d3d12 {
             uint32_t height,
             std::string name
         ) -> std::shared_ptr<DepthBuffer> override;
-        auto CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material> override;
-        auto CreatePipelineState(const std::string& vertexShader, const std::string* pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
+        auto CreateMaterial(std::string vertexShader, std::string pixelShader, MaterialType type) -> std::shared_ptr<Material> override;
+        auto CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
+            -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
+        auto CreateShadowPipelineState(const std::string& vertexShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
+            -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
+        auto CreateSkyboxPipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
             -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
         auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> override;
         auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void override;
@@ -51,11 +55,11 @@ namespace playground::rendering::d3d12 {
         auto CreateShadowMap(uint32_t width, uint32_t height, std::string name) -> std::shared_ptr<ShadowMap> override;
 
         auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window)->std::shared_ptr<Swapchain> override;
-        auto CreateShadowMaterial(const std::string vertexShader) -> std::shared_ptr<Material> override;
         auto CreateConstantBuffer(const void* data, size_t size, size_t itemSize, ConstantBuffer::BindingMode mode, std::string name) -> std::shared_ptr<ConstantBuffer> override;
         auto CreateStructuredBuffer(void* data, size_t size, size_t itemSize, std::string name) -> std::shared_ptr<StructuredBuffer> override;
         auto CreateInstanceBuffer(uint64_t count, uint64_t stride) -> std::shared_ptr<InstanceBuffer> override;
 
+        auto CreateSkyboxRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto CreateShadowRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
@@ -85,6 +89,7 @@ namespace playground::rendering::d3d12 {
         std::unique_ptr<D3D12HeapManager> _dsvHeaps;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _rootSignature;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _shadowRootSignature;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> _skyboxRootSignature;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _graphicsQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _computeQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _copyQueue;

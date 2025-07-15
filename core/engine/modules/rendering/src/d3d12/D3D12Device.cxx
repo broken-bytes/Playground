@@ -117,6 +117,7 @@ namespace playground::rendering::d3d12 {
         // - Anisotropic Wrap
         _samplerHeaps = std::make_unique<D3D12HeapManager>(_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, (uint16_t)SamplerHeapResource::End);
 
+        _skyboxRootSignature = CreateSkyboxRootSignature();
         _rootSignature = CreateRootSignature();
         _shadowRootSignature = CreateShadowRootSignature();
 
@@ -165,6 +166,7 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12GraphicsContext>(
             name,
             shared_from_this(),
+            _skyboxRootSignature,
             _rootSignature,
             _shadowRootSignature,
             _graphicsQueue,
@@ -342,15 +344,30 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12DepthBuffer>(depthBuffer, nextHandle->GetCPUHandle());
     }
 
-    auto D3D12Device::CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material>
+    auto D3D12Device::CreateMaterial(std::string vertexShader, std::string pixelShader, MaterialType type) -> std::shared_ptr<Material>
     {
-        auto pso = CreatePipelineState(vertexShader, &pixelShader, _rootSignature);
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> sig = nullptr;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pso = nullptr;
+
+        if (type == MaterialType::Shadow) {
+            sig = _shadowRootSignature;
+            pso = CreateShadowPipelineState(vertexShader, sig);
+        } else if (type == MaterialType::Skybox) {
+            sig = _skyboxRootSignature;
+            pso = CreateSkyboxPipelineState(vertexShader, pixelShader, sig);
+        } else if (type == MaterialType::Standard) {
+            sig = _rootSignature;
+            pso = CreatePipelineState(vertexShader, pixelShader, sig);
+        } else {
+            throw std::runtime_error("Unsupported material type");
+        }
+
         auto material = std::make_shared<D3D12Material>(pso);
 
         return material;
     }
 
-    auto D3D12Device::CreatePipelineState(const std::string& vertexShader, const std::string* pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature) -> Microsoft::WRL::ComPtr<ID3D12PipelineState>
+    auto D3D12Device::CreatePipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature) -> Microsoft::WRL::ComPtr<ID3D12PipelineState>
     {
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -362,35 +379,26 @@ namespace playground::rendering::d3d12 {
         vertexShaderBytecode.BytecodeLength = vertexShader.size();
         psoDesc.VS = vertexShaderBytecode;
 
-        if (pixelShader != nullptr) {
-            D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
-            pixelShaderBytecode.pShaderBytecode = pixelShader->data();
-            pixelShaderBytecode.BytecodeLength = pixelShader->size();
+        D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
+        pixelShaderBytecode.pShaderBytecode = pixelShader.data();
+        pixelShaderBytecode.BytecodeLength = pixelShader.size();
 
-            // Load compiled shaders
-            psoDesc.PS = pixelShaderBytecode;
-        }
+        // Load compiled shaders
+        psoDesc.PS = pixelShaderBytecode;
 
         // Rasterizer state (Default)
         D3D12_RASTERIZER_DESC rasterizerDesc = {};
         rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
-        rasterizerDesc.CullMode = pixelShader == nullptr ? D3D12_CULL_MODE_FRONT : D3D12_CULL_MODE_BACK;
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
         rasterizerDesc.FrontCounterClockwise = FALSE;
         rasterizerDesc.DepthClipEnable = TRUE;
-
-        if (pixelShader == nullptr) {
-            rasterizerDesc.DepthBias = 0;
-            rasterizerDesc.DepthBiasClamp = 0;
-            rasterizerDesc.SlopeScaledDepthBias = -0.25f;
-        }
-
         psoDesc.RasterizerState = rasterizerDesc;
 
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
         depthStencilDesc.DepthEnable = TRUE;
         depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        depthStencilDesc.DepthFunc = pixelShader == nullptr ? D3D12_COMPARISON_FUNC_LESS_EQUAL : D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
         depthStencilDesc.StencilEnable = FALSE;
 
         // Attach depth-stencil state
@@ -398,10 +406,8 @@ namespace playground::rendering::d3d12 {
         psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = pixelShader == nullptr ? 0 : 1;
-        if (psoDesc.NumRenderTargets > 0) {
-            psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-        }
+        psoDesc.NumRenderTargets = 1;
+        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
         psoDesc.SampleDesc.Count = 1;
         psoDesc.SampleDesc.Quality = 0;
 
@@ -421,6 +427,129 @@ namespace playground::rendering::d3d12 {
         };
 
         psoDesc.InputLayout = { inputLayout, _countof(inputLayout) };
+
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+        // Create the PSO
+        HRESULT hr = _device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create PSO");
+        }
+
+        return pipelineState;
+    }
+
+    auto D3D12Device::CreateShadowPipelineState(const std::string& vertexShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
+        -> Microsoft::WRL::ComPtr<ID3D12PipelineState> {
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+        ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+
+        psoDesc.pRootSignature = rootSignature.Get();
+
+        D3D12_SHADER_BYTECODE vertexShaderBytecode = {};
+        vertexShaderBytecode.pShaderBytecode = vertexShader.data();
+        vertexShaderBytecode.BytecodeLength = vertexShader.size();
+        psoDesc.VS = vertexShaderBytecode;
+
+        // Rasterizer state (Default)
+        D3D12_RASTERIZER_DESC rasterizerDesc = {};
+        rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_FRONT;
+        rasterizerDesc.FrontCounterClockwise = FALSE;
+        rasterizerDesc.DepthClipEnable = TRUE;
+
+        rasterizerDesc.DepthBias = 0;
+        rasterizerDesc.DepthBiasClamp = 0;
+        rasterizerDesc.SlopeScaledDepthBias = -0.25f;
+        
+
+        psoDesc.RasterizerState = rasterizerDesc;
+
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        depthStencilDesc.DepthEnable = TRUE;
+        depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depthStencilDesc.StencilEnable = FALSE;
+
+        // Attach depth-stencil state
+        psoDesc.DepthStencilState = depthStencilDesc;
+        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.SampleMask = UINT_MAX;
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.NumRenderTargets = 0;
+        psoDesc.SampleDesc.Count = 1;
+        psoDesc.SampleDesc.Quality = 0;
+
+        D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "INSTANCE_TRANSFORM", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_TRANSFORM", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_TRANSFORM", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_TRANSFORM", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 80, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 96, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+            { "INSTANCE_NORMALS", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 112, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
+        };
+
+        psoDesc.InputLayout = { inputLayout, _countof(inputLayout) };
+
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+        // Create the PSO
+        HRESULT hr = _device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create PSO");
+        }
+
+        return pipelineState;
+    }
+
+    auto D3D12Device::CreateSkyboxPipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
+        -> Microsoft::WRL::ComPtr<ID3D12PipelineState> {
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+        ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+
+        psoDesc.pRootSignature = rootSignature.Get();
+
+        D3D12_SHADER_BYTECODE vertexShaderBytecode = {};
+        vertexShaderBytecode.pShaderBytecode = vertexShader.data();
+        vertexShaderBytecode.BytecodeLength = vertexShader.size();
+        psoDesc.VS = vertexShaderBytecode;
+
+        D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
+        pixelShaderBytecode.pShaderBytecode = pixelShader.data();
+        pixelShaderBytecode.BytecodeLength = pixelShader.size();
+
+        // Load compiled shaders
+        psoDesc.PS = pixelShaderBytecode;
+
+        // Rasterizer state (Default)
+        D3D12_RASTERIZER_DESC rasterizerDesc = {};
+        rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_FRONT;
+        rasterizerDesc.FrontCounterClockwise = FALSE;
+        rasterizerDesc.DepthClipEnable = TRUE;
+        psoDesc.RasterizerState = rasterizerDesc;
+
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        depthStencilDesc.DepthEnable = FALSE;
+        depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depthStencilDesc.StencilEnable = FALSE;
+
+        // Attach depth-stencil state
+        psoDesc.DepthStencilState = depthStencilDesc;
+        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.SampleMask = UINT_MAX;
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.NumRenderTargets = 1;
+        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+        psoDesc.SampleDesc.Count = 1;
+        psoDesc.SampleDesc.Quality = 0;
 
         Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
         // Create the PSO
@@ -478,13 +607,6 @@ namespace playground::rendering::d3d12 {
         return std::make_shared<D3D12SwapChain>(bufferCount, _graphicsQueue, width, height, (HWND)window);
     }
 
-    auto D3D12Device::CreateShadowMaterial(const std::string vertexShader) -> std::shared_ptr<Material> {
-        auto pso = CreatePipelineState(vertexShader, nullptr, _shadowRootSignature);
-        auto material = std::make_shared<D3D12Material>(pso);
-
-        return material;
-    }
-
     auto D3D12Device::GetSrvHeap() -> std::shared_ptr<Heap> {
         return _srvHeaps->Heap();
     }
@@ -526,6 +648,71 @@ namespace playground::rendering::d3d12 {
         auto buffer = std::make_shared<D3D12InstanceBuffer>(_device, count, stride);
 
         return buffer;
+    }
+
+    auto D3D12Device::CreateSkyboxRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
+        std::array<CD3DX12_ROOT_PARAMETER, 4> rootParameters = {};
+
+        uint16_t cubemapsCount = (uint16_t)SRVHeapResource::ShadowMap;
+        cubemapsCount -= (uint16_t)SRVHeapResource::TextureCube;
+        CD3DX12_DESCRIPTOR_RANGE cubemapRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, cubemapsCount, 0, 1, 0);
+        rootParameters[0].InitAsDescriptorTable(1, &cubemapRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[1].InitAsConstants(
+            2,
+            0,
+            0 
+        );
+
+        rootParameters[2].InitAsConstantBufferView(
+            1,
+            0
+        );
+
+        rootParameters[MATERIAL_BUFFER_BINDING].InitAsConstantBufferView(
+            2,
+            0
+        );
+
+        const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+            0,
+            D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            0.0f,
+            16,
+            D3D12_COMPARISON_FUNC_ALWAYS,
+            D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
+        );
+
+
+        // Define the root signature descriptor
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
+            rootParameters.size(),
+            rootParameters.data(),
+            1, &pointClamp,
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+        );
+
+        // Serialize and create the root signature
+        Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
+        Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
+        HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+
+        if (FAILED(hr)) {
+            if (errorBlob) {
+                OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+            }
+            throw std::runtime_error("Failed to serialize root signature");
+        }
+
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+        hr = _device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create root signature");
+        }
+
+        return rootSignature;
     }
 
     auto D3D12Device::CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {

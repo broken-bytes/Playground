@@ -1,5 +1,6 @@
 {
   "shaderName": "default.shader",
+  "type": "standard",
   "textures": [
     { "name": "diffuse", "value": "ground.tex" }
   ],

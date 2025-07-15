@@ -58,8 +58,10 @@ namespace playground::rendering {
     auto QueueUploadMaterial(
         std::string vertexShaderCode,
         std::string pixelShaderCode,
+        MaterialType type,
         uint32_t handle,
-        std::function<void(uint32_t, uint32_t)>
+        std::function<void(uint32_t, uint32_t)>,
+        void (*onCompletion)(uint32_t) = nullptr
     ) -> void;
     auto QueueUploadTexture(std::shared_ptr<assetloader::RawTextureData> texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void;
     auto QueueUploadCubemap(std::shared_ptr<assetloader::RawCubemapData> cubemap, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void;
@@ -67,13 +69,15 @@ namespace playground::rendering {
     auto UploadTexture(TextureUploadJob& job) -> void;
     auto UploadCubemap(CubemapUploadJob& job) -> void;
     auto CreateMaterial(MaterialUploadJob job) -> void;
-
     auto RegisterShadowShader(
-        const std::string& vertexShaderCode
+        std::string& vertexShaderCode
     ) -> void;
+
+    auto SetSkyboxMaterial(uint32_t materialId) -> void;
 
     // Material setup
     void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId);
+    void SetMaterialCubemap(uint32_t materialId, uint8_t slot, uint32_t cubemapId);
 
     auto SubmitFrame(RenderFrame frame) -> void;
 }

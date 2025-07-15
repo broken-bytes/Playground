@@ -65,6 +65,7 @@ namespace playground::rendering {
             uint32_t right,
             uint32_t bottom
         ) -> void = 0;
+        virtual auto SetResolution(uint32_t width, uint32_t height) -> void = 0;
         virtual auto MouseOverID() -> uint64_t = 0;
     };
 }

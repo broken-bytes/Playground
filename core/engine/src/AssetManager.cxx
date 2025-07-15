@@ -36,6 +36,16 @@ namespace playground::assetmanager {
                 rendering::SetMaterialTexture(materialId, index++, texture.second->texture);
                 std::cout << "Material Texture: " << texture.second->texture << std::endl;
             }
+
+            index = 0;
+            for(auto& cubemap: _materialHandles[handleId]->cubemaps) {
+                rendering::SetMaterialCubemap(materialId, index++, cubemap.second->cubemap);
+                std::cout << "Material Cubemap: " << cubemap.second->cubemap << std::endl;
+            }
+
+            if (_materialHandles[handleId]->onCompletion != nullptr) {
+                _materialHandles[handleId]->onCompletion(materialId);
+            }
         }
     }
 
@@ -106,7 +116,7 @@ namespace playground::assetmanager {
         return _modelHandles[handleId];
     }
 
-    MaterialHandle* LoadMaterial(const char* name) {
+    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t)) {
         auto hash = shared::Hash(name);
 
         std::optional<uint32_t> handleId;
@@ -138,6 +148,7 @@ namespace playground::assetmanager {
               .state = {ResourceState::Created},
               .refCount = 1,
               .material = 0,
+              .onCompletion = onCompletion,
             };
 
             _materialHandles.push_back(handle);
@@ -146,14 +157,28 @@ namespace playground::assetmanager {
         auto materialName = std::string(name);
         auto rawMaterialData = playground::assetloader::LoadMaterial(materialName);
 
-        auto materialLoadJob = jobsystem::JobHandle::Create(materialName + "_MATERIAL_UPLOAD_JOB", jobsystem::JobPriority::Low, [rawMaterialData, handleId]() {
+        auto materialLoadJob = jobsystem::JobHandle::Create(materialName + "_MATERIAL_UPLOAD_JOB", jobsystem::JobPriority::Low, [rawMaterialData, handleId, onCompletion]() {
             auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
+
+            playground::rendering::MaterialType type;
+            if (rawMaterialData.type == "skybox") {
+                type = playground::rendering::MaterialType::Skybox;
+            }
+            else if (rawMaterialData.type == "standard") {
+                type = playground::rendering::MaterialType::Standard;
+            } else if (rawMaterialData.type == "shadow") {
+                type = playground::rendering::MaterialType::Shadow;
+            } else {
+                throw std::runtime_error("Unknown material type: " + rawMaterialData.type);
+            }
 
             rendering::QueueUploadMaterial(
                 shader.vertexShader,
                 shader.pixelShader,
+                type,
                 handleId.value(),
-                MarkMaterialUploadFinished
+                MarkMaterialUploadFinished,
+                onCompletion
             );
         });
 
@@ -162,6 +187,11 @@ namespace playground::assetmanager {
         for (auto& texture : rawMaterialData.textures) {
             auto texHandle = LoadTexture(texture.value.c_str(), materialLoadJob.get());
             handle->textures.insert({ texture.name, texHandle });
+        }
+
+        for (auto& cubemap : rawMaterialData.cubemaps) {
+            auto cubemapHandle = LoadCubemap(cubemap.value.c_str(), materialLoadJob.get());
+            handle->cubemaps.insert({ cubemap.name, cubemapHandle });
         }
 
         for (auto& textureJob : textureJobs) {

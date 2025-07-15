@@ -24,6 +24,7 @@
 #include "rendering/DepthBuffer.hxx"
 #include "rendering/Sampler.hxx"
 #include "rendering/Cubemap.hxx"
+#include "rendering/Material.hxx"
 
 #include <shared/Arena.hxx>
 
@@ -64,7 +65,7 @@ namespace playground::rendering {
             uint32_t height,
             std::string name = ""
         ) -> std::shared_ptr<DepthBuffer> = 0;
-		virtual auto CreateMaterial(std::string& vertexShader, std::string& pixelShader) -> std::shared_ptr<Material> = 0;
+		virtual auto CreateMaterial(std::string vertexShader, std::string pixelShader, MaterialType type) -> std::shared_ptr<Material> = 0;
 		virtual auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> = 0;
 		virtual auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void = 0;
 		virtual auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> = 0;
@@ -77,7 +78,6 @@ namespace playground::rendering {
         virtual auto CreateSampler(TextureFiltering filtering, TextureWrapping wrapping) -> std::shared_ptr<Sampler> = 0;
         virtual auto CreateShadowMap(uint32_t width, uint32_t height, std::string name) -> std::shared_ptr<ShadowMap> = 0;
         virtual auto CreateSwapchain(uint8_t bufferCount, uint16_t width, uint16_t height, void* window) -> std::shared_ptr<Swapchain> = 0;
-        virtual auto CreateShadowMaterial(const std::string vertexShader) -> std::shared_ptr<Material> = 0;
 
         virtual auto GetSrvHeap() -> std::shared_ptr<Heap> = 0;
         virtual auto GetSamplerHeap() -> std::shared_ptr<Heap> = 0;

@@ -104,6 +104,8 @@ namespace playground::rendering {
     std::array<ShadowCaster, MAX_SHADOW_MAPS_PER_FRAME> lights = { };
 
     std::shared_ptr<Material> shadowMaterial = nullptr;
+    std::shared_ptr<Material> skyboxMaterial = nullptr;
+    uint32_t skyboxMaterialId = 0;
 
     bool didUpload = false;
 
@@ -314,6 +316,19 @@ namespace playground::rendering {
         graphicsContext->SetCameraData(cameras);
         graphicsContext->SetDirectionalLight(nextFrame.sun);
 
+        graphicsContext->BeginRenderPass(RenderPass::Skybox, frames[backBufferIndex]->RenderTarget(), nullptr);
+        graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
+        graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
+        graphicsContext->SetScissor(0, 0, config.Width, config.Height);
+
+        if (skyboxMaterial != nullptr) {
+            graphicsContext->SetMaterialData(skyboxMaterialId, skyboxMaterial);
+            graphicsContext->BindMaterial(skyboxMaterial);
+            graphicsContext->Draw(3, 0, 0, 1, 0);
+        }
+
+        graphicsContext->EndRenderPass();
+
         uint32_t instanceOffet = 0;
 
         if (shadowMaterial != nullptr) {
@@ -443,14 +458,18 @@ namespace playground::rendering {
     auto QueueUploadMaterial(
         std::string vertexShaderCode,
         std::string pixelShaderCode,
+        MaterialType type,
         uint32_t handle,
-        std::function<void(uint32_t, uint32_t)> callback
+        std::function<void(uint32_t, uint32_t)> callback,
+        void (*onCompletion)(uint32_t)
     ) -> void {
         auto job = MaterialUploadJob{
             .handle = handle,
+            .type = type,
             .vertexShaderBlob = vertexShaderCode,
             .pixelShaderBlob = pixelShaderCode,
-            .callback = callback
+            .callback = callback,
+            .onCompletion = onCompletion
         };
 
         frames[logicFrameIndex]->MaterialUploadQueue().push_back(job);
@@ -606,7 +625,7 @@ namespace playground::rendering {
     }
 
     auto CreateMaterial(MaterialUploadJob job) -> void {
-        auto material = device->CreateMaterial(job.vertexShaderBlob, job.pixelShaderBlob);
+        auto material = device->CreateMaterial(job.vertexShaderBlob, job.pixelShaderBlob, job.type);
 
         uint32_t materialId = 0;
         if (freeMaterialIds.size() > 0) {
@@ -624,9 +643,14 @@ namespace playground::rendering {
     }
 
     auto RegisterShadowShader(
-        const std::string& vertexShaderCode
+        std::string& vertexShaderCode
     ) -> void {
-        shadowMaterial = device->CreateShadowMaterial(vertexShaderCode);
+        shadowMaterial = device->CreateMaterial(vertexShaderCode, "", MaterialType::Shadow);
+    }
+
+    auto SetSkyboxMaterial(uint32_t materialId) -> void {
+        skyboxMaterial = materials[materialId];
+        skyboxMaterialId = materialId;
     }
 
     void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId) {

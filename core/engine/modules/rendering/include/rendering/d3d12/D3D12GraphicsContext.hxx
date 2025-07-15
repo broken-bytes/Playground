@@ -31,6 +31,7 @@ namespace playground::rendering::d3d12 {
         D3D12GraphicsContext(
             std::string name,
             std::shared_ptr<D3D12Device> device,
+            Microsoft::WRL::ComPtr<ID3D12RootSignature> skyboxRootSignature,
             Microsoft::WRL::ComPtr<ID3D12RootSignature> opaqueRootSignature,
             Microsoft::WRL::ComPtr<ID3D12RootSignature> shadowsRootSignature,
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
@@ -89,6 +90,8 @@ namespace playground::rendering::d3d12 {
             uint32_t right,
             uint32_t bottom
         ) -> void override;
+        auto SetResolution(uint32_t width, uint32_t height) -> void override;
+
         auto MouseOverID() -> uint64_t override;
 
     private:
@@ -108,6 +111,7 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _graphicsQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _transferQueue;
         Microsoft::WRL::ComPtr<ID3D12Fence> _fence;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> _skyboxRootSignature;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _opaqueRootSignature;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _shadowsRootSignature;
         std::shared_ptr<D3D12CommandAllocator> _commandAllocator;
@@ -126,18 +130,24 @@ namespace playground::rendering::d3d12 {
         UINT64 _fenceValue = 0;
         HANDLE _fenceEvent;
 
+        uint32_t _width;
+        uint32_t _height;
         bool _isOffscreen;
         std::unique_ptr<D3D12ReadbackBuffer> _mouseOverBuffer;
 #if ENABLE_PROFILER
         tracy::D3D12QueueCtx* _tracyCtx;
 #endif
 
-        void StartOpaqueRenderPass(
-            std::shared_ptr<RenderTarget> colour,
-            std::shared_ptr<DepthBuffer> depth
+        void StartSkyboxRenderPass(
+            std::shared_ptr<RenderTarget> colour
         );
 
         void StartShadowRenderPass(
+            std::shared_ptr<DepthBuffer> depth
+        );
+
+        void StartOpaqueRenderPass(
+            std::shared_ptr<RenderTarget> colour,
             std::shared_ptr<DepthBuffer> depth
         );
     };
