@@ -76,7 +76,7 @@ namespace playground::rendering::d3d12 {
         auto TransitionDepthBufferToPixelShader(std::shared_ptr<DepthBuffer> depth) -> void override;
         auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void override;
         auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void override;
-        auto SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void override;
+        auto SetMaterialData(std::shared_ptr<Material> material) -> void override;
         auto SetDirectionalLight(
             DirectionalLight& light
         ) -> void override;

@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <pix.h>
 #include <cassert>
+#include <iostream>
 #include <sstream>
 #include "rendering/Context.hxx"
 #include "rendering/ShadowCaster.hxx"
@@ -463,13 +464,11 @@ namespace playground::rendering::d3d12
         dst.insert(dst.end(), ptr, ptr + sizeof(T));
     }
 
-    auto D3D12GraphicsContext::SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void {
+    auto D3D12GraphicsContext::SetMaterialData(std::shared_ptr<Material> material) -> void {
         ZoneScopedN("RenderThread: Set Material Data");
         ZoneColor(tracy::Color::Orange3);
 
         std::vector<uint8_t> data;
-
-        data.resize((material->textures.size() + material->cubemaps.size()) * sizeof(uint32_t));
 
         // Push the textures
         for (const auto texture : material->textures) {
@@ -486,12 +485,12 @@ namespace playground::rendering::d3d12
         }
 
         // We need to create the material first
-        if (_materialBuffers.find(materialId) == _materialBuffers.end()) {
+        if (_materialBuffers.find(material->id) == _materialBuffers.end()) {
             std::stringstream ss;
-            ss << _name << "_MATERIAL_" << +materialId;
+            ss << _name << "_MATERIAL_" << +material->id;
             _materialBuffers.insert(
                 {
-                    materialId,
+                    material->id,
                     std::static_pointer_cast<D3D12ConstantBuffer>(
                         _device->CreateConstantBuffer(data.data(), 1, MAX_MATERIAL_SIZE_BYTES, ConstantBuffer::BindingMode::RootCBV, ss.str())
                     )
@@ -499,7 +498,7 @@ namespace playground::rendering::d3d12
             );
         }
 
-        _materialBuffers[materialId]->SetData(data.data(), 1, 0, data.size());
+        _materialBuffers[material->id]->SetData(data.data(), 1, 0, data.size());
     }
 
     auto D3D12GraphicsContext::SetDirectionalLight(

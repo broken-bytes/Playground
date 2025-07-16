@@ -50,7 +50,7 @@ namespace playground::rendering {
         virtual auto TransitionDepthBufferToPixelShader(std::shared_ptr<DepthBuffer> depth) -> void = 0;
         virtual auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void = 0;
         virtual auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void = 0;
-        virtual auto SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void = 0;
+        virtual auto SetMaterialData(std::shared_ptr<Material> material) -> void = 0;
         virtual auto SetDirectionalLight(
             DirectionalLight& light
         ) -> void = 0;

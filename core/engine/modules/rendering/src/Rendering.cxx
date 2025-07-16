@@ -340,7 +340,7 @@ namespace playground::rendering {
         graphicsContext->BindCamera(0);
 
         if (skyboxMaterial != nullptr) {
-            graphicsContext->SetMaterialData(skyboxMaterialId, skyboxMaterial);
+            graphicsContext->SetMaterialData(skyboxMaterial);
             graphicsContext->BindMaterial(skyboxMaterial);
             graphicsContext->Draw(36);
         }
@@ -392,7 +392,7 @@ namespace playground::rendering {
 
         for (auto& drawcall : nextFrame.drawCalls) {
             // TODO: Mark materials dirty and bulk update all dirty ones
-            graphicsContext->SetMaterialData(drawcall.material, materials[drawcall.material]);
+            graphicsContext->SetMaterialData(materials[drawcall.material]);
 
             graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
             graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
@@ -413,7 +413,7 @@ namespace playground::rendering {
             graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
             graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
             graphicsContext->SetScissor(0, 0, config.Width, config.Height);
-            graphicsContext->SetMaterialData(postProcessingEffect->id, postProcessingEffect);
+            graphicsContext->SetMaterialData(postProcessingEffect);
             graphicsContext->BindMaterial(postProcessingEffect);
             graphicsContext->BindCamera(0);
             graphicsContext->Draw(3);
