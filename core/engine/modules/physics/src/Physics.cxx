@@ -33,6 +33,7 @@
 #include <functional>
 #include <vector>
 #include <shared_mutex>
+#include <tracy/Tracy.hpp>
 
 namespace playground::physics {
     class PhysXAllocator : public physx::PxAllocatorCallback {
@@ -119,7 +120,7 @@ namespace playground::physics {
             auto index = _jobCounter.fetch_add(1);
             std::stringstream ss;
             ss << "PHYSICS_JOB" << +index;
-            auto job = jobsystem::JobHandle::Create(ss.str(), jobsystem::JobPriority::High, [&task, this]() {
+            auto job = jobsystem::JobHandle::Create(ss.str(), jobsystem::JobPriority::High, tracy::Color::Pink1, [&task, this]() {
                 task.run();
                 task.release();
                 _jobCounter.fetch_sub(1);

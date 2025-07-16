@@ -1,44 +1,58 @@
 #include "playground/ECS.hxx"
 #include "playground/Constants.hxx"
+#include <shared/JobSystem.hxx>
 #include <mutex>
 #include <shared_mutex>
 #include <map>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <flecs/os_api.h>
 
 namespace playground::ecs {
     flecs::world world;
     std::mutex writeLock;
     std::shared_mutex readLock;
 
+    std::atomic<uint64_t> taskId = { 0 };
+
+    std::map<uint64_t, std::shared_ptr<jobsystem::JobHandle>> jobs;
+
+    ecs_os_thread_t SpawnTask(ecs_os_thread_callback_t callback, void* param) {
+        auto taskIdValue = taskId.fetch_add(1);
+        auto job = jobsystem::JobHandle::Create("Flecs Task" + taskId, jobsystem::JobPriority::High, [callback]() { callback(nullptr); });
+        jobs.insert({ taskIdValue, job });
+
+        jobsystem::Submit(job);
+
+        return taskIdValue;
+    };
+
+    void* JoinTask(ecs_os_thread_t thread) {
+        auto job = jobs[thread];
+        while (!job->IsDone()) {
+            // Wait for the job to complete
+        }
+        return nullptr;
+    };
+
     void Init(int tickRate, bool debugServer) {
+        ecs_os_set_api_defaults();
+        auto api = ecs_os_get_api();
+        api.thread_new_ = SpawnTask;
+        api.thread_join_ = JoinTask;
+        api.thread_self_ = []() -> ecs_os_thread_id_t {
+            return std::this_thread::get_id()._Get_underlying_id();
+            };
+        ecs_os_set_api(&api);
+
         if (debugServer) {
             world.import<flecs::stats>();
             world.set<flecs::Rest>({ });
             // Get the number of threads on the system
         }
 
-        auto threads = std::thread::hardware_concurrency();
-
-        // We wanna use
-        // - 16 Threads if Cores >= 24 hardcap  
-        // - 75% of Cores as Threads if Cores >=6
-        // - 2 Threads if Cores <=4
-
-        if (threads >= 24) {
-            world.set_threads(MAX_ECS_WORKER_THREAD_COUNT);
-        }
-        else if (threads > 8) {
-            auto count = static_cast<int32_t>(std::ceil(threads * 0.75f));
-            world.set_threads(count);
-        }
-        else if (threads > 4) {
-            world.set_threads(4);
-        }
-        else {
-            world.set_threads(2);
-        }
+        world.set_threads(jobsystem::HighPerfWorkers());
 
         world.set_target_fps(tickRate);
 
@@ -68,6 +82,9 @@ namespace playground::ecs {
     }
 
     void Update(double deltaTime) {
+        jobs.clear();
+        taskId.store(0);
+
         world.progress(deltaTime);
     }
 

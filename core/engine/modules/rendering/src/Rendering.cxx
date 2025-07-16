@@ -26,6 +26,7 @@
 #include <future>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <thread>
 
@@ -83,6 +84,7 @@ namespace playground::rendering {
     std::atomic<uint32_t> nextFrameIndex = 0;
 
 	// Resource management
+    std::mutex uploadMutex;
     std::shared_ptr<Swapchain> swapchain;
 	std::vector<std::shared_ptr<VertexBuffer>> vertexBuffers = {};
     std::vector<uint32_t> freeVertexBufferIds = {};
@@ -223,14 +225,15 @@ namespace playground::rendering {
             CreateMaterial(materialUploadJob);
         }
 
-        auto& textureQueue = frames[backBufferIndex]->TextureUploadQueue();
-        while (textureQueue.size() > 0) {
-            auto job = std::move(textureQueue.back());
-            textureQueue.pop_back();
+        TextureUploadJob* textureUploadJob = frames[backBufferIndex]->PopTextureUploadJob();
+        while (textureUploadJob != nullptr) {
+            UploadTexture(textureUploadJob);
 
-            UploadTexture(job);
+            frames[backBufferIndex]->TexturesToTransition().push_back(textureUploadJob->handle);
 
-            frames[backBufferIndex]->TexturesToTransition().push_back(job.handle);
+            delete textureUploadJob;
+
+            textureUploadJob = frames[backBufferIndex]->PopTextureUploadJob();
         }
 
         auto& cubemapQueue = frames[backBufferIndex]->CubemapUploadQueue();
@@ -249,7 +252,6 @@ namespace playground::rendering {
 
         modelUploadQueue = {};
         materialUploadQueue = {};
-        textureQueue = {};
         cubemapQueue = {};
 	}
 
@@ -483,6 +485,7 @@ namespace playground::rendering {
 	}
 
     auto QueueUploadModel(std::vector<assetloader::RawMeshData>& meshes, uint32_t handle, std::function<void(uint32_t, std::vector<Mesh>)> callback) -> void {
+        std::scoped_lock lock(uploadMutex);
         auto job = ModelUploadJob {
             .handle = handle,
             .meshes = meshes,
@@ -500,6 +503,8 @@ namespace playground::rendering {
         std::function<void(uint32_t, uint32_t)> callback,
         void (*onCompletion)(uint32_t)
     ) -> void {
+        std::scoped_lock lock(uploadMutex);
+
         auto job = MaterialUploadJob{
             .handle = handle,
             .type = type,
@@ -512,21 +517,19 @@ namespace playground::rendering {
         frames[logicFrameIndex]->MaterialUploadQueue().push_back(job);
     }
 
-    auto QueueUploadTexture(std::shared_ptr<assetloader::RawTextureData> texture, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
-        auto job = TextureUploadJob {
-            .handle = handle,
-            .rawData = std::move(texture),
-            .callback = callback
-        };
-        frames[logicFrameIndex]->TextureUploadQueue().push_back(job);
+    auto QueueUploadTexture(assetloader::RawTextureData* texture, uint32_t handle, void (*callback)(uint32_t, uint32_t)) -> void {
+        auto job = new TextureUploadJob(
+            handle,
+            texture,
+            callback
+        );
+        frames[logicFrameIndex]->PushTextureUploadJob(job);
     }
 
     auto QueueUploadCubemap(std::shared_ptr<assetloader::RawCubemapData> cubemap, uint32_t handle, std::function<void(uint32_t, uint32_t)> callback) -> void {
-        ZoneScopedN("RenderThread: Queue Upload Cubemap");
-        std::cout << "Queueing cubemap upload for handle: " << handle << std::endl;
-        std::cout << "Cubemap size: " << cubemap->Width << "x" << cubemap->Height << std::endl;
-        std::cout << "Faces: " << cubemap->facesData.size() << std::endl;
+        std::scoped_lock lock(uploadMutex);
 
+        ZoneScopedN("RenderThread: Queue Upload Cubemap");
         std::vector<std::vector<std::vector<uint8_t>>> facesRawData;
         facesRawData.reserve(cubemap->facesData.size());
 
@@ -605,12 +608,12 @@ namespace playground::rendering {
         job.callback(job.handle, meshes);
     }
 
-    auto UploadTexture(TextureUploadJob& job) -> void {
+    auto UploadTexture(TextureUploadJob* job) -> void {
         ZoneScopedN("RenderThread: Upload Texture");
         ZoneColor(tracy::Color::Violet);
         auto backBufferIndex = swapchain->BackBufferIndex();
 
-        auto texture = device->CreateTexture(job.rawData->Width, job.rawData->Height, job.rawData->MipMaps, frames[backBufferIndex]->Alloc());
+        auto texture = device->CreateTexture(job->rawData->Width, job->rawData->Height, job->rawData->MipMaps, frames[backBufferIndex]->Alloc());
 
         uint32_t textureId = 0;
         if (freeTextureIds.size() > 0) {
@@ -626,7 +629,7 @@ namespace playground::rendering {
         auto uploadContext = frames[backBufferIndex]->UploadContext();
         uploadContext->Upload(texture);
 
-        job.callback(job.handle, textureId);
+        job->callback(job->handle, textureId);
     }
 
     auto UploadCubemap(CubemapUploadJob& job) -> void {

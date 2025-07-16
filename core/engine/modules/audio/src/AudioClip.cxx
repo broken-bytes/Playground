@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 #include <iostream>
-#include <phonon.h>
 
 namespace playground::audio {
     AudioClip::AudioClip() {
@@ -25,10 +24,7 @@ namespace playground::audio {
         _length(length),
         _stereo(stereo)
     {
-        IPLAudioBuffer inBuffer{};
-        inBuffer.numChannels = 1;
-        inBuffer.numSamples = numSamples;
-        inBuffer.data = reinterpret_cast<IPLfloat32**>(buffer.data());
+
     }
     
     AudioClip::~AudioClip() {

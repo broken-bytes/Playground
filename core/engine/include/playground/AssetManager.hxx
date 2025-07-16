@@ -43,7 +43,7 @@ namespace playground::assetmanager {
         uint64_t hash;
         std::atomic<ResourceState> state;
         uint32_t refCount;
-        std::shared_ptr<assetloader::RawTextureData> data;
+        assetloader::RawTextureData* data;
         std::shared_ptr<jobsystem::JobHandle> signalUploadCompletionJob;
         uint32_t texture;
     };

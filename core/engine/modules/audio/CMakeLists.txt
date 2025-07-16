@@ -19,11 +19,36 @@ else()
 	message(FATAL_ERROR "STEAMAUDIO_LIB_DIR not set")
 endif()
 
-target_link_libraries(Audio PRIVATE SDL3::SDL3 phonon Shared)
+if(DEFINED FMOD_CORE_INC_DIR)
+    target_include_directories(Audio PRIVATE ${FMOD_CORE_INC_DIR})
+else()
+    message(FATAL_ERROR "FMOD_CORE_INC_DIR not set")
+endif()
+
+if(DEFINED FMOD_CORE_LIB_DIR)
+    target_link_directories(Audio PRIVATE ${FMOD_CORE_LIB_DIR})
+else()
+    message(FATAL_ERROR "FMOD_CORE_LIB_DIR not set")
+endif()
+
+if(DEFINED FMOD_STUDIO_INC_DIR)
+    target_include_directories(Audio PRIVATE ${FMOD_STUDIO_INC_DIR})
+else()
+    message(FATAL_ERROR "FMOD_STUDIO_INC_DIR not set")
+endif()
+
+if(DEFINED FMOD_STUDIO_LIB_DIR)
+    target_link_directories(Audio PRIVATE ${FMOD_STUDIO_LIB_DIR})
+else()
+    message(FATAL_ERROR "FMOD_STUDIO_LIB_DIR not set")
+endif()
+
+target_link_libraries(Audio PRIVATE SDL3::SDL3 phonon_fmod fmodstudio_vc fmod_vc Shared)
 
 set_target_properties(Audio PROPERTIES OUTPUT_NAME "Playground.Audio")
 
 message(${RUNTIME_OUTPUT_DIRECTORY}/phonon.dll)
+message(${RUNTIME_OUTPUT_DIRECTORY}/fmodstudio.dll)
 
 add_custom_command(
     TARGET Audio POST_BUILD
@@ -31,4 +56,4 @@ add_custom_command(
         ${STEAMAUDIO_LIB_DIR}/phonon.dll
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/phonon.dll
     COMMENT "Copying phonon to out dir"
-)    
+)

@@ -679,7 +679,7 @@ namespace playground::rendering::d3d12 {
     }
 
     auto D3D12Device::CreateTexture(uint32_t width, uint32_t height, std::vector<std::vector<uint8_t>> mips, Allocator& allocator) -> std::shared_ptr<Texture> {
-        return std::make_shared<D3D12Texture>(_device, width, height, mips, _srvHeaps->NextHandle(SRVHeapResource::Texture2D), allocator);
+        return std::make_shared<D3D12Texture>(_device, width, height, std::move(mips), _srvHeaps->NextHandle(SRVHeapResource::Texture2D), allocator);
     }
 
     auto D3D12Device::CreateCubemap(uint32_t width, uint32_t height, std::vector<std::vector<std::vector<uint8_t>>> faces, Allocator& allocator) -> std::shared_ptr<Cubemap> {

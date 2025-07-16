@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <tracy/Tracy.hpp>
 
 namespace playground::jobsystem {
     enum JobPriority {
@@ -31,17 +32,32 @@ namespace playground::jobsystem {
 
         void AddDependency(std::shared_ptr<JobHandle> dependency);
 
-        static std::shared_ptr<JobHandle> Create(std::string name, JobPriority priority, std::function<void()> work) {
-            auto handle = std::shared_ptr<JobHandle>(new JobHandle(name, priority, std::move(work)));
+        static std::shared_ptr<JobHandle> Create(std::string name, JobPriority priority, uint32_t tracerColour, std::function<void()> work) {
+            auto handle = std::shared_ptr<JobHandle>(new JobHandle(name, priority, tracerColour, std::move(work)));
 
             return handle;
         }
 
+        static std::shared_ptr<JobHandle> Create(std::string name, JobPriority priority, std::function<void()> work) {
+            auto handle = std::shared_ptr<JobHandle>(new JobHandle(name, priority, tracy::Color::Black, std::move(work)));
+
+            return handle;
+        }
+
+        std::string Name() const {
+            return _name;
+        }
+
+        uint32_t TracerColour() const {
+            return _tracerColour;
+        }
+
     private:
-        JobHandle(std::string name, JobPriority priority, std::function<void()> work);
+        JobHandle(std::string name, JobPriority priority, uint32_t tracerColour, std::function<void()> work);
 
         std::string _name;
         JobPriority _priority;
+        uint32_t _tracerColour;
         std::shared_ptr<std::atomic<uint64_t>> _counter;
         std::vector<std::shared_ptr<JobHandle>> _dependencies;
         std::weak_ptr<JobHandle> _parent;

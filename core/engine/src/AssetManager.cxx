@@ -63,6 +63,7 @@ namespace playground::assetmanager {
             _textureHandles[handleId]->texture = texture;
             std::cout << "Texture: " << texture << std::endl;
             _textureHandles[handleId]->refCount--;
+            delete _textureHandles[handleId]->data;
 
             jobsystem::Submit(_textureHandles[handleId]->signalUploadCompletionJob);
             _textureHandles[handleId]->signalUploadCompletionJob = nullptr;
@@ -309,10 +310,15 @@ namespace playground::assetmanager {
 
         auto textureLoadJob = jobsystem::JobHandle::Create(textureName + "_TEXTURE_UPLOAD_JOB", jobsystem::JobPriority::Low, [handle, handleId, textureName]() {
             auto rawTextureData = playground::assetloader::LoadTexture(textureName);
-            auto data = std::make_shared<assetloader::RawTextureData>(rawTextureData);
+            auto data = new assetloader::RawTextureData();
+            data->MipMaps = rawTextureData.MipMaps;
+            data->Width = rawTextureData.Width;
+            data->Height = rawTextureData.Height;
+            data->Channels = rawTextureData.Channels;
+
             handle->data = data;
 
-            rendering::QueueUploadTexture(data, handleId.value(), MarkTextureUploadFinished);
+            rendering::QueueUploadTexture(handle->data, handleId.value(), &MarkTextureUploadFinished);
         });
 
         if (materialUploadJob != nullptr) {

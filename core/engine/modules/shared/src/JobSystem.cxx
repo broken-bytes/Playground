@@ -7,6 +7,7 @@
 #include <Windows.h>
 #endif
 #include <thread>
+#include <tracy/Tracy.hpp>
 #include "shared/Arena.hxx"
 #include <EASTL/fixed_vector.h>
 #include <sstream>
@@ -72,7 +73,7 @@ namespace playground::jobsystem {
             _isRunning = true;
             _idleSpins = 0;
             auto cores = GetCoresByEfficiency(isHighPerf);
-            
+
             _thread = std::thread([name, pullJob, cores, index, this]() {
 #ifdef _WIN32
                 std::wstring wStr;
@@ -92,6 +93,10 @@ namespace playground::jobsystem {
                 std::shared_ptr<JobHandle> nextJob;
                 while (_isRunning) {
                     while (pullJob(nextJob)) {
+                        ZoneScopedN("Job System");
+                        ZoneText(name.c_str(), name.size());
+                        ZoneText(nextJob->Name().c_str(), nextJob->Name().size());
+                        ZoneColor(nextJob->TracerColour());
                         nextJob->Add();
                         nextJob->Complete();
                         _idleSpins = 0;
@@ -167,14 +172,15 @@ namespace playground::jobsystem {
         dependency->_parent = shared_from_this();
     }
 
-    JobHandle::JobHandle(std::string name, JobPriority priority, std::function<void()> work) : _name(name) {
-        _priority = JobPriority::Low;
-        _work = std::move(work);
+    JobHandle::JobHandle(std::string name, JobPriority priority, uint32_t colour, std::function<void()> work) : _name(name) {
+        _priority = priority;
+        _work = work;
         _counter = std::make_shared<std::atomic<uint64_t>>(1);
+        _tracerColour = colour;
     }
 
     eastl::fixed_vector<std::shared_ptr<Worker>, 32, false, Allocator> workers(alloc);
-    eastl::fixed_vector<std::shared_ptr<JobHandle>, 512, false, Allocator> pendingJobs(alloc);
+    eastl::fixed_vector<std::shared_ptr<JobHandle>, 2048, false, Allocator> pendingJobs(alloc);
     std::mutex pendingMutex;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> highPerfQueue;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> lowPerfQueue;

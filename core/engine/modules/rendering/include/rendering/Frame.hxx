@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <concurrentqueue.h>
 #include "rendering/CommandAllocator.hxx"
 #include "rendering/Constants.hxx"
 #include "rendering/Device.hxx"
@@ -49,7 +50,6 @@ namespace playground::rendering
             _device(device),
             _modelUploadQueue(_tempAllocator),
             _materialUploadQueue(_tempAllocator),
-            _textureUploadQueue(_tempAllocator),
             _cubemapUploadQueue(_tempAllocator)
         {
             _renderTarget = renderTarget;
@@ -106,9 +106,21 @@ namespace playground::rendering
             return _materialUploadQueue;
         }
 
-        auto TextureUploadQueue() -> eastl::deque<TextureUploadJob, Allocator>&
+        void PushTextureUploadJob(TextureUploadJob* job)
         {
-            return _textureUploadQueue;
+            _textureUploadQueue.enqueue(job);
+        }
+
+        TextureUploadJob* PopTextureUploadJob()
+        {
+            TextureUploadJob* job = nullptr;
+            auto popped = _textureUploadQueue.try_dequeue(job);
+
+            if (popped) {
+                return job;
+            }
+
+            return nullptr;
         }
 
         auto CubemapUploadQueue() -> eastl::deque<CubemapUploadJob, Allocator>&
@@ -154,7 +166,7 @@ namespace playground::rendering
         std::shared_ptr<rendering::DepthBuffer> _depth;
         eastl::deque<ModelUploadJob, VirtualAllocator> _modelUploadQueue;
         eastl::deque<MaterialUploadJob, VirtualAllocator> _materialUploadQueue;
-        eastl::deque<TextureUploadJob, VirtualAllocator> _textureUploadQueue;
+        moodycamel::ConcurrentQueue<TextureUploadJob*> _textureUploadQueue;
         eastl::deque<CubemapUploadJob, VirtualAllocator> _cubemapUploadQueue;
         std::shared_ptr<rendering::GraphicsContext> _graphicsContext;
         std::shared_ptr<rendering::UploadContext> _uploadContext;
