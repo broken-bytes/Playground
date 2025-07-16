@@ -63,6 +63,7 @@ namespace playground::assetmanager {
         std::atomic<ResourceState> state;
         std::map<std::string, TextureHandle*> textures;
         std::map<std::string, CubemapHandle*> cubemaps;
+        std::map<std::string, float> floats;
         uint32_t refCount;
         uint32_t material;
         void (*onCompletion)(uint32_t);

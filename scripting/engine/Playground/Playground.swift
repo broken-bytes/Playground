@@ -46,7 +46,7 @@ func startUp() {
     entity.addComponent(&sun)
 
     let camEntity = Entity("Camera")
-    var cam = CameraComponent(order: 0, fov: 70, nearPlane: 0.01, farPlane: 1000)
+    var cam = CameraComponent(order: 0, fov: 70, nearPlane: 0.01, farPlane: 250)
     camEntity.addComponent(&cam)
     var transform = TranslationComponent(position: Vector3(x: 0, y: 0, z: 0))
     camEntity.addComponent(&transform)

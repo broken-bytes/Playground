@@ -73,11 +73,15 @@ namespace playground::rendering {
         std::string& vertexShaderCode
     ) -> void;
 
+    void RegisterPostProcessingMaterial(uint8_t slot, uint32_t materialId);
+    void UnregisterPostProcessingMaterial(uint8_t slot);
+
     auto SetSkyboxMaterial(uint32_t materialId) -> void;
 
     // Material setup
     void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId);
     void SetMaterialCubemap(uint32_t materialId, uint8_t slot, uint32_t cubemapId);
+    void SetMaterialFloat(uint32_t materialId, uint8_t slot, float value);
 
     auto SubmitFrame(RenderFrame frame) -> void;
 }

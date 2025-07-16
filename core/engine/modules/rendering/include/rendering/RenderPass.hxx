@@ -2,10 +2,14 @@
 
 namespace playground::rendering {
     enum class RenderPass {
+        Preparation,
         Skybox,
-        Opaque,
-        Transparent,
         Shadow,
-        UI
+        PostShadow,
+        Opaque,
+        PostOpaque,
+        PostProcessing,
+        UI,
+        Completion
     };
 }

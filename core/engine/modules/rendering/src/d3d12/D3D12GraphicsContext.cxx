@@ -34,6 +34,7 @@ namespace playground::rendering::d3d12
         Microsoft::WRL::ComPtr<ID3D12RootSignature> skyboxRootSignature,
         Microsoft::WRL::ComPtr<ID3D12RootSignature> opaqueRootSignature,
         Microsoft::WRL::ComPtr<ID3D12RootSignature> shadowsRootSignature,
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> postProcessingRootSignature,
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> transferQueue,
         void* window,
@@ -52,12 +53,16 @@ namespace playground::rendering::d3d12
         _transparentCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_TRANSPARENT_COMMAND_LIST"));
         _shadowCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_SHADOW_COMMAND_LIST"));
         _transferCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_TRANSFER_COMMAND_LIST"));
+        _postProcessingCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_POST_PROCESSING_COMMAND_LIST"));
+        _preperationCommandList = std::static_pointer_cast<D3D12CommandList>(device->CreateCommandList(CommandListType::Graphics, name + "_PREPARATION_COMMAND_LIST"));
 
         // Close command lists
         _opaqueCommandList->Close();
         _transparentCommandList->Close();
         _shadowCommandList->Close();
         _transferCommandList->Close();
+        _postProcessingCommandList->Close();
+        _preperationCommandList->Close();
 
         _device->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
         _fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -65,6 +70,7 @@ namespace playground::rendering::d3d12
         _skyboxRootSignature = skyboxRootSignature;
         _opaqueRootSignature = opaqueRootSignature;
         _shadowsRootSignature = shadowsRootSignature;
+        _postProcessingRootSignature = postProcessingRootSignature;
 
         _isOffscreen = isOffscreen;
 
@@ -89,6 +95,8 @@ namespace playground::rendering::d3d12
         _transparentCommandList->Close();
         _shadowCommandList->Close();
         _transferCommandList->Close();
+        _postProcessingCommandList->Close();
+        _preperationCommandList->Close();
     }
 
     auto D3D12GraphicsContext::Begin() -> void
@@ -106,11 +114,15 @@ namespace playground::rendering::d3d12
         _transparentCommandList->Reset();
         _shadowCommandList->Reset();
         _transferCommandList->Reset();
+        _postProcessingCommandList->Reset();
+        _preperationCommandList->Reset();
 
         _opaqueCommandList->Begin();
         _transparentCommandList->Begin();
         _shadowCommandList->Begin();
         _transferCommandList->Begin();
+        _postProcessingCommandList->Begin();
+        _preperationCommandList->Begin();
 
         _stackAllocator.arena->Reset();
     }
@@ -122,17 +134,29 @@ namespace playground::rendering::d3d12
         assert(_currentPassList == nullptr && "A render pass was already started. Did you forget to end it?");
 
         switch (pass) {
+        case RenderPass::Preparation:
+            StartPreperationRenderPass();
+            break;
         case RenderPass::Skybox:
             StartSkyboxRenderPass(colour);
+            break;
+        case RenderPass::Shadow:
+            StartShadowRenderPass(depth);
+            break;
+        case RenderPass::PostShadow:
+            StartPostShadowRenderPass();
             break;
         case RenderPass::Opaque:
             StartOpaqueRenderPass(colour, depth);
             break;
-        case RenderPass::Transparent:
-            _currentPassList = _transparentCommandList;
+        case RenderPass::PostOpaque:
+            StartPostOpaqueRenderPass();
             break;
-        case RenderPass::Shadow:
-            StartShadowRenderPass(depth);
+        case RenderPass::PostProcessing:
+            StartPostProcessingRenderPass(colour, depth);
+            break;
+        case RenderPass::Completion:
+            StartCompletionRenderPass();
             break;
         default:
             _currentPassList = _opaqueCommandList;
@@ -151,6 +175,10 @@ namespace playground::rendering::d3d12
 
     auto D3D12GraphicsContext::Draw(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void {
         _currentPassList->DrawIndexed(numIndices, startIndex, startVertex, numInstances, startInstance);
+    }
+
+    auto D3D12GraphicsContext::Draw(uint32_t numVertices) -> void {
+        _currentPassList->Native()->DrawInstanced(numVertices, 1, 0, 0);
     }
 
     auto D3D12GraphicsContext::BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
@@ -175,13 +203,13 @@ namespace playground::rendering::d3d12
     auto D3D12GraphicsContext::SetCameraData(std::array<CameraBuffer, MAX_CAMERA_COUNT>& cameras) -> void {
         ZoneScopedN("RenderThread: Set Camera Data");
         ZoneColor(tracy::Color::Orange3);
-        _cameraBuffer->SetData(reinterpret_cast<void*>(cameras.data()), MAX_CAMERA_COUNT, 0);
+        _cameraBuffer->SetData(reinterpret_cast<void*>(cameras.data()), MAX_CAMERA_COUNT, 0, sizeof(CameraBuffer) * cameras.size());
     }
 
     auto D3D12GraphicsContext::SetShadowCastersData(std::vector<ShadowCaster>& shadowCasters) -> void {
         ZoneScopedN("RenderThread: Set ShadowCasters Data");
         ZoneColor(tracy::Color::Orange3);
-        _shadowCastersBuffer->SetData(reinterpret_cast<void*>(shadowCasters.data()), shadowCasters.size(), 0);
+        _shadowCastersBuffer->SetData(reinterpret_cast<void*>(shadowCasters.data()), shadowCasters.size(), 0, sizeof(ShadowCaster) * shadowCasters.size());
         _shadowCastersCount = shadowCasters.size();
     }
 
@@ -223,13 +251,18 @@ namespace playground::rendering::d3d12
         _opaqueCommandList->Close();
         _transparentCommandList->Close();
         _shadowCommandList->Close();
+        _postProcessingCommandList->Close();
+        _preperationCommandList->Close();
         _transferCommandList->Close();
 
+
         eastl::vector<ID3D12CommandList*, StackAllocator> lists(_stackAllocator);
+        lists.push_back(_preperationCommandList->Native().Get());
         lists.push_back(_shadowCommandList->Native().Get());
-        lists.push_back(_transferCommandList->Native().Get());
         lists.push_back(_opaqueCommandList->Native().Get());
         lists.push_back(_transparentCommandList->Native().Get());
+        lists.push_back(_postProcessingCommandList->Native().Get());
+        lists.push_back(_transferCommandList->Native().Get());
 
         _graphicsQueue->ExecuteCommandLists(lists.size(), lists.data());
 
@@ -255,7 +288,7 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_INDEX_BUFFER
         );
 
-        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
     }
 
     auto D3D12GraphicsContext::TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void {
@@ -266,7 +299,7 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
         );
 
-        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
     }
 
     auto D3D12GraphicsContext::TransitionTexture(std::shared_ptr<Texture> texture) -> void
@@ -278,7 +311,7 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
         );
 
-        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
     }
 
     auto D3D12GraphicsContext::TransitionCubemap(std::shared_ptr<Cubemap> cubemap) -> void
@@ -290,29 +323,57 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
         );
 
-        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
     }
 
-    auto D3D12GraphicsContext::TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void {
+    auto D3D12GraphicsContext::TransitionShadowMapToDepthWrite(std::shared_ptr<ShadowMap> map) -> void {
+        auto d3d12Buffer = std::static_pointer_cast<D3D12DepthBuffer>(std::static_pointer_cast<D3D12ShadowMap>(map)->GetDepthBuffer());
+
         // Transition GPU buffer to texture state
         CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            std::static_pointer_cast<D3D12ShadowMap>(map)->Resource().Get(),
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        );
-
-        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
-    }
-
-    auto D3D12GraphicsContext::TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void {
-        // Transition GPU buffer to texture state
-        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            std::static_pointer_cast<D3D12ShadowMap>(map)->Resource().Get(),
+            d3d12Buffer->Resource().Get(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
             D3D12_RESOURCE_STATE_DEPTH_WRITE
         );
 
-        _transferCommandList->Native()->ResourceBarrier(1, &barrier);
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void {
+        auto d3d12Buffer = std::static_pointer_cast<D3D12ShadowMap>(map);
+
+        // Transition GPU buffer to texture state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            d3d12Buffer->Resource().Get(),
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionDepthBufferToDepthWrite(std::shared_ptr<DepthBuffer> buffer) -> void {
+        // Transition GPU buffer to texture state
+        auto d3d12Buffer = std::static_pointer_cast<D3D12DepthBuffer>(buffer);
+
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12DepthBuffer>(buffer)->Resource().Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE
+        );
+
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
+    }
+
+    auto D3D12GraphicsContext::TransitionDepthBufferToPixelShader(std::shared_ptr<DepthBuffer> buffer) -> void {
+        // Transition GPU buffer to texture state
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            std::static_pointer_cast<D3D12DepthBuffer>(buffer)->Resource().Get(),
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+
+        _currentPassList->Native()->ResourceBarrier(1, &barrier);
     }
 
     auto D3D12GraphicsContext::CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void {
@@ -420,6 +481,10 @@ namespace playground::rendering::d3d12
             Push(data, cubemap);
         }
 
+        for(const auto floatProp: material->floats) {
+            Push(data, floatProp);
+        }
+
         // We need to create the material first
         if (_materialBuffers.find(materialId) == _materialBuffers.end()) {
             std::stringstream ss;
@@ -434,7 +499,7 @@ namespace playground::rendering::d3d12
             );
         }
 
-        _materialBuffers[materialId]->SetData(data.data(), 1, 0);
+        _materialBuffers[materialId]->SetData(data.data(), 1, 0, data.size());
     }
 
     auto D3D12GraphicsContext::SetDirectionalLight(
@@ -443,7 +508,7 @@ namespace playground::rendering::d3d12
         ZoneScopedN("RenderThread: Set Directional Light");
         ZoneColor(tracy::Color::Orange3);
         assert(_directionalLightBuffer != nullptr && "Directional light buffer is not initialized. Did you forget to call SetDirectionalLightData?");
-        _directionalLightBuffer->SetData(reinterpret_cast<void*>(&light), 1, 0);
+        _directionalLightBuffer->SetData(reinterpret_cast<void*>(&light), 1, 0, sizeof(DirectionalLight));
     }
 
     auto D3D12GraphicsContext::SetViewport(
@@ -492,11 +557,23 @@ namespace playground::rendering::d3d12
         return *data;
     }
 
+    void D3D12GraphicsContext::StartPreperationRenderPass() {
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Preperation Render Pass");
+        ZoneScopedN("RenderThread: Start Preperation Render Pass");
+        ZoneColor(tracy::Color::Orange2);
+
+        _currentPassList = _preperationCommandList;
+
+        _currentPassList->Native()->BeginRenderPass(0, nullptr, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+
+        PIXEndEvent();
+    }
+
     void D3D12GraphicsContext::StartSkyboxRenderPass(
         std::shared_ptr<RenderTarget> colour
     ) {
-        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Opaque Render Pass");
-        ZoneScopedN("RenderThread: Start Opaque Render Pass");
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Skybox Render Pass");
+        ZoneScopedN("RenderThread: Start Skybox Render Pass");
         ZoneColor(tracy::Color::Orange2);
 
         D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
@@ -509,22 +586,20 @@ namespace playground::rendering::d3d12
         rtDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
 
         _currentPassList = _opaqueCommandList;
+
+        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
         _currentPassList->Native()->SetGraphicsRootSignature(_skyboxRootSignature.Get());
+
+        std::array<float, 2> inverseRes = { 1.0f / _width, 1.0f / _height };
+        _currentPassList->Native()->SetGraphicsRoot32BitConstants(1, 2, &inverseRes, 0);
         _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
-        // TODO: Add offsets to the descriptor tables
+
         _currentPassList->Native()->SetGraphicsRootDescriptorTable(
             0,
             std::static_pointer_cast<D3D12Heap>(_device->GetSrvHeap())->HandleFor((uint16_t)SRVHeapResource::TextureCube, 0)->GetGPUHandle()
         );
 
-        std::array<uint32_t, 2> resConstants = {
-            _width,
-            _height
-        };
-
-        _currentPassList->Native()->SetGraphicsRoot32BitConstants(1, 2, resConstants.data(), 0);
-
-        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+        PIXEndEvent();
     }
 
     void D3D12GraphicsContext::StartShadowRenderPass(
@@ -547,12 +622,24 @@ namespace playground::rendering::d3d12
         dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
         dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
         _currentPassList = _shadowCommandList;
+        _currentPassList->Native()->BeginRenderPass(0, nullptr, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
         _currentPassList->Native()->SetGraphicsRootSignature(_shadowsRootSignature.Get());
         _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
-        // FIXME: Move into renderer?
         _currentPassList->BindConstantBuffer(_directionalLightBuffer, 0, 0);
 
-        _currentPassList->Native()->BeginRenderPass(0, nullptr, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
+        PIXEndEvent();
+    }
+
+    void D3D12GraphicsContext::StartPostShadowRenderPass() {
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Post Shadow Render Pass");
+        ZoneScopedN("RenderThread: Start Post Shadow Render Pass");
+        ZoneColor(tracy::Color::Orange2);
+
+        _currentPassList = _shadowCommandList;
+
+        _currentPassList->Native()->BeginRenderPass(0, nullptr, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+
+        PIXEndEvent();
     }
 
     void D3D12GraphicsContext::StartOpaqueRenderPass(
@@ -577,14 +664,18 @@ namespace playground::rendering::d3d12
         dsDesc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
         dsDesc.DepthBeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
             .DepthStencil = D3D12_DEPTH_STENCIL_VALUE {
-                .Depth = 1,
+                .Depth = 1.0,
                 .Stencil = 0,
             },
         };
+        dsDesc.DepthBeginningAccess.Clear.ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
         dsDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
         dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
         dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+
         _currentPassList = _opaqueCommandList;
+
+        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
         _currentPassList->Native()->SetGraphicsRootSignature(_opaqueRootSignature.Get());
         _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_LIST);
         _currentPassList->BindConstantBuffer(_directionalLightBuffer, 1, 0);
@@ -611,6 +702,74 @@ namespace playground::rendering::d3d12
             0
         );
 
-        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
+        PIXEndEvent();
+    }
+
+    void D3D12GraphicsContext::StartPostOpaqueRenderPass() {
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Post Opaque Render Pass");
+        ZoneScopedN("RenderThread: Start Post Opaque Render Pass");
+        ZoneColor(tracy::Color::Orange2);
+
+        _currentPassList = _opaqueCommandList;
+
+        _currentPassList->Native()->BeginRenderPass(0, nullptr, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+
+        PIXEndEvent();
+    }
+
+    void D3D12GraphicsContext::StartPostProcessingRenderPass(
+        std::shared_ptr<RenderTarget> colour,
+        std::shared_ptr<DepthBuffer> depth
+    ) {
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start PostProcessinge Render Pass");
+        ZoneScopedN("RenderThread: Start PostProcessing Render Pass");
+        ZoneColor(tracy::Color::Orange2);
+
+        D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
+        rtDesc.cpuDescriptor = std::static_pointer_cast<D3D12RenderTarget>(colour)->Handle();
+        rtDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
+        rtDesc.BeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
+            .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+            .Color = { 0.2f, 0.6f, 0.3f, 1 },
+        };
+        rtDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
+        _currentPassList = _opaqueCommandList;
+
+        _currentPassList->Native()->BeginRenderPass(1, &rtDesc, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+        _currentPassList->Native()->SetGraphicsRootSignature(_postProcessingRootSignature.Get());
+        _currentPassList->SetPrimitiveTopology(PrimitiveTopology::TRIANGLE_STRIP);
+        _currentPassList->Native()->SetGraphicsRoot32BitConstants(
+            PP_INVERSE_SCREEN_RES_CONSTANTS_BINDING,
+            2,
+            std::array<float, 2>{ 1.0f / _width, 1.0f / _height }.data(),
+            0
+        );
+
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(PP_FRAME_COLOUR_BUFFER_BINDING, std::static_pointer_cast<D3D12RenderTarget>(colour)->SRVHandle()->GetGPUHandle());
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(PP_FRAME_DEPTH_BUFFER_BINDING, std::static_pointer_cast<D3D12DepthBuffer>(depth)->SRVHandle()->GetGPUHandle());
+
+        // TODO: Add offsets to the descriptor tables
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(
+            PP_BINDLESS_TEXTURES_SLOT,
+            std::static_pointer_cast<D3D12Heap>(_device->GetSrvHeap())->HandleFor((uint16_t)SRVHeapResource::Texture2D, 0)->GetGPUHandle()
+        );
+        _currentPassList->Native()->SetGraphicsRootDescriptorTable(
+            PP_BINDLESS_CUBEMAPS_SLOT,
+            std::static_pointer_cast<D3D12Heap>(_device->GetSrvHeap())->HandleFor((uint16_t)SRVHeapResource::TextureCube, 0)->GetGPUHandle()
+        );
+
+        PIXEndEvent();
+    }
+
+    void D3D12GraphicsContext::StartCompletionRenderPass() {
+
+        _currentPassList = _transferCommandList;
+
+        PIXBeginEvent(PIX_COLOR_INDEX(1), "Start Completion Render Pass");
+        ZoneScopedN("RenderThread: Start Completion Render Pass");
+        ZoneColor(tracy::Color::Orange2);
+
+        _currentPassList->Native()->BeginRenderPass(0, nullptr, nullptr, D3D12_RENDER_PASS_FLAG_NONE);
     }
 }

@@ -1,0 +1,14 @@
+{
+  "shaderName": "fog.shader",
+  "type": "PostProcessing",
+  "textures": [
+  ],
+  "cubemaps": [],
+  "props": [
+    {
+        "type": "float",
+        "name": "intensity",
+        "value": "0.05"
+    }
+  ]
+}

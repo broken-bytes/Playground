@@ -6,6 +6,7 @@
 #include <shared/Hasher.hxx>
 #include <shared/JobSystem.hxx>
 #include <cstdint>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -41,6 +42,12 @@ namespace playground::assetmanager {
             for(auto& cubemap: _materialHandles[handleId]->cubemaps) {
                 rendering::SetMaterialCubemap(materialId, index++, cubemap.second->cubemap);
                 std::cout << "Material Cubemap: " << cubemap.second->cubemap << std::endl;
+            }
+
+            index = 0;
+            for(auto floatProp: _materialHandles[handleId]->floats) {
+                rendering::SetMaterialFloat(materialId, index++, floatProp.second);
+                std::cout << "Material Float: " << floatProp.first << " = " << floatProp.second << std::endl;
             }
 
             if (_materialHandles[handleId]->onCompletion != nullptr) {
@@ -168,6 +175,8 @@ namespace playground::assetmanager {
                 type = playground::rendering::MaterialType::Standard;
             } else if (rawMaterialData.type == "shadow") {
                 type = playground::rendering::MaterialType::Shadow;
+            } else if (rawMaterialData.type == "PostProcessing") {
+                type = playground::rendering::MaterialType::PostProcessing;
             } else {
                 throw std::runtime_error("Unknown material type: " + rawMaterialData.type);
             }
@@ -192,6 +201,15 @@ namespace playground::assetmanager {
         for (auto& cubemap : rawMaterialData.cubemaps) {
             auto cubemapHandle = LoadCubemap(cubemap.value.c_str(), materialLoadJob.get());
             handle->cubemaps.insert({ cubemap.name, cubemapHandle });
+        }
+
+        // Get all float properties
+        auto floatProps = rawMaterialData.props | std::views::filter([](const auto& prop) {
+            return prop.type == "float";
+        });
+
+        for (auto& prop : floatProps) {
+            handle->floats.insert({ prop.name, std::stof(prop.value) });
         }
 
         for (auto& textureJob : textureJobs) {

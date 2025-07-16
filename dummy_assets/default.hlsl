@@ -39,6 +39,8 @@ cbuffer CameraBuffer : register(b2)
 {
     float4x4 viewMatrix;
     float4x4 projectionMatrix;
+    float4x4 invViewMatrix;
+    float4x4 invProjMatrix;
 };
 
 cbuffer MaterialData : register(b3)
@@ -115,7 +117,9 @@ VSOutput VSMain(VSInput vin)
     VSOutput vout;
 
     float4 worldPos = mul(float4(vin.position, 1.0f), vin.modelMatrix);
-    float4 viewPos  = mul(worldPos, viewMatrix);
+    float snapAmount = 0.05f; // adjust for more/less chunk
+    float4 snappedPos = floor(worldPos / snapAmount + 0.5f) * snapAmount;
+    float4 viewPos  = mul(snappedPos, viewMatrix);
     float4 clipPos  = mul(viewPos, projectionMatrix);
 
     float3 normalW = mul(vin.normal, (float3x3)vin.normalMatrix);

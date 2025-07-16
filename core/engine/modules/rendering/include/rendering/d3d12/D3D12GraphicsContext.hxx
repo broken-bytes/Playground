@@ -34,6 +34,7 @@ namespace playground::rendering::d3d12 {
             Microsoft::WRL::ComPtr<ID3D12RootSignature> skyboxRootSignature,
             Microsoft::WRL::ComPtr<ID3D12RootSignature> opaqueRootSignature,
             Microsoft::WRL::ComPtr<ID3D12RootSignature> shadowsRootSignature,
+            Microsoft::WRL::ComPtr<ID3D12RootSignature> postProcessingRootSignature,
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> graphicsQueue,
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> transferQueue,
             void* window,
@@ -53,6 +54,7 @@ namespace playground::rendering::d3d12 {
         auto Finish() -> void override;
         auto WaitFor(const Context& other) -> void override;
         auto Draw(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void override;
+        auto Draw(uint32_t numVertices) -> void override;
         auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void override;
         auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void override;
@@ -68,8 +70,10 @@ namespace playground::rendering::d3d12 {
         auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void override;
         auto TransitionTexture(std::shared_ptr<Texture> texture) -> void override;
         auto TransitionCubemap(std::shared_ptr<Cubemap> cubemap) -> void override;
-        auto TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void override;
+        auto TransitionShadowMapToDepthWrite(std::shared_ptr<ShadowMap> map) -> void override;
         auto TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void override;
+        auto TransitionDepthBufferToDepthWrite(std::shared_ptr<DepthBuffer> depth) -> void override;
+        auto TransitionDepthBufferToPixelShader(std::shared_ptr<DepthBuffer> depth) -> void override;
         auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void override;
         auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void override;
         auto SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void override;
@@ -114,10 +118,13 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _skyboxRootSignature;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _opaqueRootSignature;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _shadowsRootSignature;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> _postProcessingRootSignature;
         std::shared_ptr<D3D12CommandAllocator> _commandAllocator;
         std::shared_ptr<D3D12CommandList> _opaqueCommandList;
         std::shared_ptr<D3D12CommandList> _transparentCommandList;
         std::shared_ptr<D3D12CommandList> _shadowCommandList;
+        std::shared_ptr<D3D12CommandList> _postProcessingCommandList;
+        std::shared_ptr<D3D12CommandList> _preperationCommandList;
         std::shared_ptr<D3D12CommandList> _transferCommandList;
         std::shared_ptr<D3D12CommandList> _currentPassList;
         std::shared_ptr<D3D12ConstantBuffer> _cameraBuffer;
@@ -138,6 +145,8 @@ namespace playground::rendering::d3d12 {
         tracy::D3D12QueueCtx* _tracyCtx;
 #endif
 
+        void StartPreperationRenderPass();
+
         void StartSkyboxRenderPass(
             std::shared_ptr<RenderTarget> colour
         );
@@ -146,9 +155,20 @@ namespace playground::rendering::d3d12 {
             std::shared_ptr<DepthBuffer> depth
         );
 
+        void StartPostShadowRenderPass();
+
         void StartOpaqueRenderPass(
             std::shared_ptr<RenderTarget> colour,
             std::shared_ptr<DepthBuffer> depth
         );
+
+        void StartPostOpaqueRenderPass();
+
+        void StartPostProcessingRenderPass(
+            std::shared_ptr<RenderTarget> colour,
+            std::shared_ptr<DepthBuffer> depth
+        );
+
+        void StartCompletionRenderPass();
     };
 }

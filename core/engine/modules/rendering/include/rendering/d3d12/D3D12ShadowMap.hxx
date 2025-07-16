@@ -69,7 +69,7 @@ namespace playground::rendering::d3d12 {
         }
 
         std::shared_ptr<DepthBuffer> GetDepthBuffer() override {
-            return std::make_shared<D3D12DepthBuffer>(_shadowMap, _dsvHandle->GetCPUHandle());
+            return std::make_shared<D3D12DepthBuffer>(_shadowMap, _dsvHandle->GetCPUHandle(), _srvHandle);
         }
 
         uint32_t ID() const override {

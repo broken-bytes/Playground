@@ -276,4 +276,39 @@ namespace playground::math {
         simde_mm_storeu_ps((simde_float32*)out->Row(2), minor2);
         simde_mm_storeu_ps((simde_float32*)out->Row(3), minor3);
     }
+
+    void InverseAffine(const Matrix4x4& m, Matrix4x4* out) {
+        // Transpose the upper-left 3x3 part (rotation)
+        float r00 = m.elements[0][0], r01 = m.elements[1][0], r02 = m.elements[2][0];
+        float r10 = m.elements[0][1], r11 = m.elements[1][1], r12 = m.elements[2][1];
+        float r20 = m.elements[0][2], r21 = m.elements[1][2], r22 = m.elements[2][2];
+
+        float tx = m.elements[0][3];
+        float ty = m.elements[1][3];
+        float tz = m.elements[2][3];
+
+        // Transposed rotation matrix
+        out->elements[0][0] = r00;
+        out->elements[0][1] = r10;
+        out->elements[0][2] = r20;
+
+        out->elements[1][0] = r01;
+        out->elements[1][1] = r11;
+        out->elements[1][2] = r21;
+
+        out->elements[2][0] = r02;
+        out->elements[2][1] = r12;
+        out->elements[2][2] = r22;
+
+        // Compute new translation: -R^T * T
+        out->elements[0][3] = -(r00 * tx + r10 * ty + r20 * tz);
+        out->elements[1][3] = -(r01 * tx + r11 * ty + r21 * tz);
+        out->elements[2][3] = -(r02 * tx + r12 * ty + r22 * tz);
+
+        // Last row
+        out->elements[3][0] = 0.0f;
+        out->elements[3][1] = 0.0f;
+        out->elements[3][2] = 0.0f;
+        out->elements[3][3] = 1.0f;
+    }
 }

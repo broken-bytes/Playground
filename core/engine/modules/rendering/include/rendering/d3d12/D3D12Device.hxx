@@ -45,6 +45,8 @@ namespace playground::rendering::d3d12 {
             -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
         auto CreateSkyboxPipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
             -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
+        auto CreatePostprocessingPipelineState(const std::string& vertexShader, const std::string& pixelShader, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature)
+            -> Microsoft::WRL::ComPtr<ID3D12PipelineState>;
         auto CreateVertexBuffer(const void* data, uint64_t size, uint64_t stride, bool isStatic) -> std::shared_ptr<VertexBuffer> override;
         auto UpdateVertexBuffer(std::shared_ptr<VertexBuffer> buffer, const void* data, uint64_t size) -> void override;
         auto CreateIndexBuffer(const uint32_t* indices, size_t size) -> std::shared_ptr<IndexBuffer> override;
@@ -62,6 +64,7 @@ namespace playground::rendering::d3d12 {
         auto CreateSkyboxRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto CreateRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto CreateShadowRootSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
+        auto CreatePostprocessSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature>;
         auto DestroyShader(uint64_t shaderHandle) -> void override;
         auto WaitForIdleGPU() -> void override;
 
@@ -90,6 +93,7 @@ namespace playground::rendering::d3d12 {
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _rootSignature;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _shadowRootSignature;
         Microsoft::WRL::ComPtr<ID3D12RootSignature> _skyboxRootSignature;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> _postProcessingRootSignature;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _graphicsQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _computeQueue;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> _copyQueue;

@@ -107,6 +107,8 @@ namespace playground::rendering {
     std::shared_ptr<Material> skyboxMaterial = nullptr;
     uint32_t skyboxMaterialId = 0;
 
+    std::vector<std::shared_ptr<Material>> postprocessMaterials = {};
+
     bool didUpload = false;
 
     bool isRunning = false;
@@ -258,7 +260,12 @@ namespace playground::rendering {
         auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
         graphicsContext->Begin();
 
+        auto renderTarget = frames[backBufferIndex]->RenderTarget();
+        auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
+        auto shadowMap = frames[backBufferIndex]->DirectionalLightShadowMap();
+
         {
+            graphicsContext->BeginRenderPass(RenderPass::Preparation, nullptr, nullptr);
             ZoneScopedN("RenderThread: Transition Resources");
             auto& texTransitions = frames[backBufferIndex]->TexturesToTransition();
             for (auto textureId : texTransitions) {
@@ -273,6 +280,8 @@ namespace playground::rendering {
             }
 
             cubeTransitions = {};
+
+            graphicsContext->EndRenderPass();
         }
 
         RenderFrame nextFrame;
@@ -302,11 +311,19 @@ namespace playground::rendering {
             auto& cam = nextFrame.cameras[x];
             cam.SetAspectRatio((float)config.Width / config.Height);
 
+            auto viewMatrix = cam.GetViewMatrix();
+            auto projectionMatrix = cam.GetProjectionMatrix();
+            math::Matrix4x4 inverseViewMatrix;
+            math::Matrix4x4 inverseProjectionMatrix;
+
+            math::InverseAffine(viewMatrix, &inverseViewMatrix);
+            math::InverseAffine(projectionMatrix, &inverseProjectionMatrix);
+
             auto buff = CameraBuffer{
-                .ViewMatrix = cam.GetViewMatrix(),
-                .ProjectionMatrix = cam.GetProjectionMatrix()
-                //.ViewMatrix = nextFrame.sun.viewMatrix,
-                //.ProjectionMatrix = nextFrame.sun.projectionMatrix,
+                .ViewMatrix = viewMatrix,
+                .ProjectionMatrix = projectionMatrix,
+                .InverseViewMatrix = inverseViewMatrix,
+                .InverseProjectionMatrix = inverseProjectionMatrix
             };
             
             cameras[x] = buff;
@@ -320,30 +337,27 @@ namespace playground::rendering {
         graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
         graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
         graphicsContext->SetScissor(0, 0, config.Width, config.Height);
+        graphicsContext->BindCamera(0);
 
         if (skyboxMaterial != nullptr) {
             graphicsContext->SetMaterialData(skyboxMaterialId, skyboxMaterial);
             graphicsContext->BindMaterial(skyboxMaterial);
-            graphicsContext->Draw(3, 0, 0, 1, 0);
+            graphicsContext->Draw(36);
         }
 
         graphicsContext->EndRenderPass();
 
         uint32_t instanceOffet = 0;
 
+        graphicsContext->BeginRenderPass(RenderPass::Shadow, nullptr, shadowMap->GetDepthBuffer());
+
+        graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
+        graphicsContext->SetViewport(0, 0, shadowMap->Width(), shadowMap->Height(), 0, 1);
+        graphicsContext->SetScissor(0, 0, shadowMap->Width(), shadowMap->Height());
+        graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
+
         if (shadowMaterial != nullptr) {
-            auto shadowMap = frames[backBufferIndex]->DirectionalLightShadowMap();
-
-            graphicsContext->TransitionShadowMapToDepthBuffer(shadowMap);
-
-            graphicsContext->BeginRenderPass(RenderPass::Shadow, nullptr, shadowMap->GetDepthBuffer());
-            graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
-
-            graphicsContext->SetViewport(0, 0, shadowMap->Width(), shadowMap->Height(), 0, 1);
-            graphicsContext->SetScissor(0, 0, shadowMap->Width(), shadowMap->Height());
-            graphicsContext->BindInstanceBuffer(frames[backBufferIndex]->InstanceBuffer());
             graphicsContext->BindShadowMaterial(shadowMaterial);
-
             for (auto& drawcall : nextFrame.drawCalls) {
                 graphicsContext->BindVertexBuffer(vertexBuffers[drawcall.vertexBuffer]);
                 graphicsContext->BindIndexBuffer(indexBuffers[drawcall.indexBuffer]);
@@ -352,16 +366,14 @@ namespace playground::rendering {
 
                 instanceOffet = instanceOffet + drawcall.instanceData.size();
             }
-
-            graphicsContext->EndRenderPass();
-
-            graphicsContext->TransitionShadowMapToPixelShader(shadowMap);
         }
+        graphicsContext->EndRenderPass();
 
         instanceOffet = 0;
 
-        auto renderTarget = frames[backBufferIndex]->RenderTarget();
-        auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
+        graphicsContext->BeginRenderPass(RenderPass::PostShadow, nullptr, nullptr);
+        graphicsContext->TransitionShadowMapToPixelShader(shadowMap);
+        graphicsContext->EndRenderPass();
 
         graphicsContext->BeginRenderPass(RenderPass::Opaque, renderTarget, depthBuffer);
         graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
@@ -390,8 +402,23 @@ namespace playground::rendering {
 
             instanceOffet = instanceOffet + drawcall.instanceData.size();
         }
-
         graphicsContext->EndRenderPass();
+
+        graphicsContext->BeginRenderPass(RenderPass::PostOpaque, nullptr, nullptr);
+        graphicsContext->TransitionDepthBufferToPixelShader(depthBuffer);
+        graphicsContext->EndRenderPass();
+
+        for (auto& postProcessingEffect : postprocessMaterials) {
+            graphicsContext->BeginRenderPass(RenderPass::PostProcessing, renderTarget, depthBuffer);
+            graphicsContext->BindHeaps({ device->GetSrvHeap(), device->GetSamplerHeap() });
+            graphicsContext->SetViewport(0, 0, config.Width, config.Height, 0, 1);
+            graphicsContext->SetScissor(0, 0, config.Width, config.Height);
+            graphicsContext->SetMaterialData(postProcessingEffect->id, postProcessingEffect);
+            graphicsContext->BindMaterial(postProcessingEffect);
+            graphicsContext->BindCamera(0);
+            graphicsContext->Draw(3);
+            graphicsContext->EndRenderPass();
+        }
 	}
 
 	auto PostFrame() -> void {
@@ -399,7 +426,17 @@ namespace playground::rendering {
         ZoneColor(tracy::Color::Orange2);
         auto backBufferIndex = swapchain->BackBufferIndex();
         auto graphicsContext = frames[backBufferIndex]->GraphicsContext();
+
+        auto renderTarget = frames[backBufferIndex]->RenderTarget();
+        auto depthBuffer = frames[backBufferIndex]->DepthBuffer();
+        auto shadowMap = frames[backBufferIndex]->DirectionalLightShadowMap();
+
         graphicsContext->CopyToSwapchainBackBuffer(frames[backBufferIndex]->RenderTarget(), swapchain);
+
+        graphicsContext->BeginRenderPass(RenderPass::Completion, nullptr, nullptr);
+        graphicsContext->TransitionDepthBufferToDepthWrite(depthBuffer);
+        graphicsContext->TransitionShadowMapToDepthWrite(shadowMap);
+        graphicsContext->EndRenderPass();
 
         graphicsContext->WaitFor(*frames[backBufferIndex]->UploadContext().get());
 		graphicsContext->Finish();
@@ -648,6 +685,28 @@ namespace playground::rendering {
         shadowMaterial = device->CreateMaterial(vertexShaderCode, "", MaterialType::Shadow);
     }
 
+    void RegisterPostProcessingMaterial(uint8_t slot, uint32_t materialId) {
+        if (slot >= postprocessMaterials.size()) {
+            postprocessMaterials.resize(slot + 1);
+        }
+
+        if (materialId >= materials.size()) {
+            std::cerr << "Tried to register post processing material at slot " << (int)slot << ", but material ID " << materialId << " is out of bounds." << std::endl;
+            return;
+        }
+
+        postprocessMaterials[slot] = materials[materialId];
+    }
+
+    void UnregisterPostProcessingMaterial(uint8_t slot) {
+        if (slot < postprocessMaterials.size()) {
+            postprocessMaterials[slot] = nullptr;
+        }
+        else {
+            std::cerr << "Tried to unregister post processing material at slot " << (int)slot << ", but it is out of bounds." << std::endl;
+        }
+    }
+
     auto SetSkyboxMaterial(uint32_t materialId) -> void {
         skyboxMaterial = materials[materialId];
         skyboxMaterialId = materialId;
@@ -669,5 +728,13 @@ namespace playground::rendering {
             material->cubemaps.resize(material->cubemaps.size() + 1);
         }
         material->cubemaps[slot] = cubemaps[cubemapId]->ID();
+    }
+
+    void SetMaterialFloat(uint32_t materialId, uint8_t slot, float value) {
+        auto material = materials[materialId];
+        if (material->floats.size() <= slot) {
+            material->floats.resize(material->floats.size() + 1);
+        }
+        material->floats[slot] = value;
     }
 }

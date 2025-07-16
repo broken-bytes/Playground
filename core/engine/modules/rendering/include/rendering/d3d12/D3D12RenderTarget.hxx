@@ -13,11 +13,13 @@ namespace playground::rendering::d3d12
     public:
         D3D12RenderTarget(
             Microsoft::WRL::ComPtr<ID3D12Resource> resource,
-            D3D12_CPU_DESCRIPTOR_HANDLE handle
+            D3D12_CPU_DESCRIPTOR_HANDLE handle,
+            std::shared_ptr<D3D12ResourceHandle> srvHandle
         )
         {
             _resource = resource;
             _handle = handle;
+            _srvHandle = srvHandle;
         }
 
         ~D3D12RenderTarget() {
@@ -33,8 +35,14 @@ namespace playground::rendering::d3d12
             return _handle;
         }
 
+        std::shared_ptr<D3D12ResourceHandle> SRVHandle() const
+        {
+            return _srvHandle;
+        }
+
     private:
         Microsoft::WRL::ComPtr<ID3D12Resource> _resource;
         D3D12_CPU_DESCRIPTOR_HANDLE _handle;
+        std::shared_ptr<D3D12ResourceHandle> _srvHandle;
     };
 }

@@ -48,6 +48,14 @@
         {
             "location": "skybox.mat.json",
             "type": "Material"
+        },
+        {
+            "location": "fog.hlsl",
+            "type": "Shader"
+        },
+        {
+            "location": "fog.mat.json",
+            "type": "Material"
         }
     ]
 }

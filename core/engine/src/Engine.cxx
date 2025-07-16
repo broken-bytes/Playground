@@ -172,6 +172,10 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
         playground::rendering::SetSkyboxMaterial(id);
     });
 
+    auto fogPostProcessing = playground::assetmanager::LoadMaterial("fog.mat", [](uint32_t id) {
+        playground::rendering::RegisterPostProcessingMaterial(0, id);
+    });
+
     gameThread = std::thread([config]() {
         playground::audio::Init();
 #if ENABLE_INSPECTOR

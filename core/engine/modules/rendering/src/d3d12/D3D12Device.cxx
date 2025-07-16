@@ -120,6 +120,7 @@ namespace playground::rendering::d3d12 {
         _skyboxRootSignature = CreateSkyboxRootSignature();
         _rootSignature = CreateRootSignature();
         _shadowRootSignature = CreateShadowRootSignature();
+        _postProcessingRootSignature = CreatePostprocessSignature();
 
         _graphicsQueue = CreateCommandQueue(CommandListType::Graphics, "GraphicsQueue");
         _computeQueue = CreateCommandQueue(CommandListType::Compute, "ComputeQueue");
@@ -169,6 +170,7 @@ namespace playground::rendering::d3d12 {
             _skyboxRootSignature,
             _rootSignature,
             _shadowRootSignature,
+            _postProcessingRootSignature,
             _graphicsQueue,
             _uploadQueue,
             window,
@@ -290,8 +292,19 @@ namespace playground::rendering::d3d12 {
 
         rtv->SetName(std::wstring(name.begin(), name.end()).c_str());
 
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = DXGIFormatFrom(format);
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-        return std::make_shared<D3D12RenderTarget>(rtv, nextHandle->GetCPUHandle());
+        auto handleSrv = _srvHeaps->NextHandle(SRVHeapResource::FrameBuffer);
+        _device->CreateShaderResourceView(rtv.Get(), &srvDesc, handleSrv->GetCPUHandle());
+
+        return std::make_shared<D3D12RenderTarget>(rtv, nextHandle->GetCPUHandle(), handleSrv);
     }
 
     auto D3D12Device::CreateDepthBuffer(
@@ -309,7 +322,7 @@ namespace playground::rendering::d3d12 {
         rtDesc.Height = height;
         rtDesc.DepthOrArraySize = 1;
         rtDesc.MipLevels = 1;
-        rtDesc.Format = DXGI_FORMAT_D32_FLOAT;
+        rtDesc.Format = DXGI_FORMAT_R32_TYPELESS;
         rtDesc.SampleDesc.Count = 1;
         rtDesc.SampleDesc.Quality = 0;
         rtDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -339,9 +352,30 @@ namespace playground::rendering::d3d12 {
         dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDescReadonly = {};
+        dsvDescReadonly.Format = DXGI_FORMAT_D32_FLOAT;
+        dsvDescReadonly.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsvDescReadonly.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+
         _device->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc, nextHandle->GetCPUHandle());
 
-        return std::make_shared<D3D12DepthBuffer>(depthBuffer, nextHandle->GetCPUHandle());
+        auto readOnlyHandle = _dsvHeaps->NextHandle(DSVHeapResource::DepthStencilView);
+        _device->CreateDepthStencilView(depthBuffer.Get(), &dsvDescReadonly, readOnlyHandle->GetCPUHandle());
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+        auto handleSrv = _srvHeaps->NextHandle(SRVHeapResource::DepthBuffer);
+
+        _device->CreateShaderResourceView(depthBuffer.Get(), &srvDesc, handleSrv->GetCPUHandle());
+
+        return std::make_shared<D3D12DepthBuffer>(depthBuffer, nextHandle->GetCPUHandle(), readOnlyHandle->GetCPUHandle(), handleSrv);
     }
 
     auto D3D12Device::CreateMaterial(std::string vertexShader, std::string pixelShader, MaterialType type) -> std::shared_ptr<Material>
@@ -358,6 +392,9 @@ namespace playground::rendering::d3d12 {
         } else if (type == MaterialType::Standard) {
             sig = _rootSignature;
             pso = CreatePipelineState(vertexShader, pixelShader, sig);
+        } else if (type == MaterialType::PostProcessing) {
+            sig = _postProcessingRootSignature;
+            pso = CreatePostprocessingPipelineState(vertexShader, pixelShader, sig);
         } else {
             throw std::runtime_error("Unsupported material type");
         }
@@ -398,7 +435,7 @@ namespace playground::rendering::d3d12 {
         D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
         depthStencilDesc.DepthEnable = TRUE;
         depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
         depthStencilDesc.StencilEnable = FALSE;
 
         // Attach depth-stencil state
@@ -531,7 +568,64 @@ namespace playground::rendering::d3d12 {
         rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
         rasterizerDesc.CullMode = D3D12_CULL_MODE_FRONT;
         rasterizerDesc.FrontCounterClockwise = FALSE;
-        rasterizerDesc.DepthClipEnable = TRUE;
+        rasterizerDesc.DepthClipEnable = FALSE;
+        psoDesc.RasterizerState = rasterizerDesc;
+
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        depthStencilDesc.DepthEnable = FALSE;
+        depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depthStencilDesc.StencilEnable = FALSE;
+
+        // Attach depth-stencil state
+        psoDesc.DepthStencilState = depthStencilDesc;
+        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.SampleMask = UINT_MAX;
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.NumRenderTargets = 1;
+        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+        psoDesc.SampleDesc.Count = 1;
+        psoDesc.SampleDesc.Quality = 0;
+
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+        // Create the PSO
+        HRESULT hr = _device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create PSO");
+        }
+
+        return pipelineState;
+    }
+
+    auto D3D12Device::CreatePostprocessingPipelineState(
+        const std::string& vertexShader,
+        const std::string& pixelShader,
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature
+    ) -> Microsoft::WRL::ComPtr<ID3D12PipelineState> {
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+        ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+
+        psoDesc.pRootSignature = rootSignature.Get();
+
+        D3D12_SHADER_BYTECODE vertexShaderBytecode = {};
+        vertexShaderBytecode.pShaderBytecode = vertexShader.data();
+        vertexShaderBytecode.BytecodeLength = vertexShader.size();
+        psoDesc.VS = vertexShaderBytecode;
+
+        D3D12_SHADER_BYTECODE pixelShaderBytecode = {};
+        pixelShaderBytecode.pShaderBytecode = pixelShader.data();
+        pixelShaderBytecode.BytecodeLength = pixelShader.size();
+
+        // Load compiled shaders
+        psoDesc.PS = pixelShaderBytecode;
+
+        // Rasterizer state (Default)
+        D3D12_RASTERIZER_DESC rasterizerDesc = {};
+        rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+        rasterizerDesc.FrontCounterClockwise = TRUE;
+        rasterizerDesc.DepthClipEnable = FALSE;
         psoDesc.RasterizerState = rasterizerDesc;
 
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
@@ -655,7 +749,7 @@ namespace playground::rendering::d3d12 {
 
         uint16_t cubemapsCount = (uint16_t)SRVHeapResource::ShadowMap;
         cubemapsCount -= (uint16_t)SRVHeapResource::TextureCube;
-        CD3DX12_DESCRIPTOR_RANGE cubemapRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, cubemapsCount, 0, 1, 0);
+        CD3DX12_DESCRIPTOR_RANGE cubemapRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, cubemapsCount, 0, 0, 0);
         rootParameters[0].InitAsDescriptorTable(1, &cubemapRange, D3D12_SHADER_VISIBILITY_PIXEL);
         rootParameters[1].InitAsConstants(
             2,
@@ -719,11 +813,11 @@ namespace playground::rendering::d3d12 {
         std::array<CD3DX12_ROOT_PARAMETER, 9> rootParameters = {};
 
         // Per-frame CBV (Camera, Lighting, Material props, etc.)
-        rootParameters[0].InitAsConstantBufferView(GLOBALS_BUFFER_BINDING); // b0
-        rootParameters[1].InitAsConstantBufferView(DIRECTIONAL_LIGHT_BUFFER_BINDING); // b1
-        rootParameters[2].InitAsConstantBufferView(CAMERA_BUFFER_BINDING); // b2
-        rootParameters[3].InitAsConstantBufferView(MATERIAL_BUFFER_BINDING); // b3
-        rootParameters[4].InitAsConstants(1, SHADOW_CASTERS_COUNT_BINDING, 0); // b4
+        rootParameters[GLOBALS_BUFFER_BINDING].InitAsConstantBufferView(GLOBALS_BUFFER_BINDING); // b0
+        rootParameters[DIRECTIONAL_LIGHT_BUFFER_BINDING].InitAsConstantBufferView(DIRECTIONAL_LIGHT_BUFFER_BINDING); // b1
+        rootParameters[CAMERA_BUFFER_BINDING].InitAsConstantBufferView(CAMERA_BUFFER_BINDING); // b2
+        rootParameters[MATERIAL_BUFFER_BINDING].InitAsConstantBufferView(MATERIAL_BUFFER_BINDING); // b3
+        rootParameters[SHADOW_CASTERS_COUNT_BINDING].InitAsConstants(1, SHADOW_CASTERS_COUNT_BINDING, 0); // b4
 
         uint16_t texturesCount = (uint16_t)SRVHeapResource::TextureCube;
         texturesCount -= (uint16_t)SRVHeapResource::Texture2D;
@@ -818,6 +912,71 @@ namespace playground::rendering::d3d12 {
         HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
 
         if (FAILED(hr)) {
+            throw std::runtime_error("Failed to serialize root signature");
+        }
+
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+        hr = _device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+        if (FAILED(hr)) {
+            throw std::runtime_error("Failed to create root signature");
+        }
+
+        return rootSignature;
+    }
+
+    auto D3D12Device::CreatePostprocessSignature() -> Microsoft::WRL::ComPtr<ID3D12RootSignature> {
+        std::array<CD3DX12_ROOT_PARAMETER, 8> rootParameters = {};
+
+        // Per-frame CBV (Camera, Lighting, Material props, etc.)
+        rootParameters[GLOBALS_BUFFER_BINDING].InitAsConstantBufferView(GLOBALS_BUFFER_BINDING); // b0
+        rootParameters[PP_INVERSE_SCREEN_RES_CONSTANTS_BINDING].InitAsConstants(2, PP_INVERSE_SCREEN_RES_CONSTANTS_BINDING, 0); // b1
+        rootParameters[CAMERA_BUFFER_BINDING].InitAsConstantBufferView(CAMERA_BUFFER_BINDING); // b2
+        rootParameters[MATERIAL_BUFFER_BINDING].InitAsConstantBufferView(MATERIAL_BUFFER_BINDING); // b3
+
+        CD3DX12_DESCRIPTOR_RANGE colourRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+        rootParameters[PP_FRAME_COLOUR_BUFFER_BINDING].InitAsDescriptorTable(1, &colourRange, D3D12_SHADER_VISIBILITY_PIXEL); // t0
+        CD3DX12_DESCRIPTOR_RANGE depthRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1);
+        rootParameters[PP_FRAME_DEPTH_BUFFER_BINDING].InitAsDescriptorTable(1, &depthRange, D3D12_SHADER_VISIBILITY_PIXEL); // t1
+
+        uint16_t texturesCount = (uint16_t)SRVHeapResource::TextureCube;
+        texturesCount -= (uint16_t)SRVHeapResource::Texture2D;
+        CD3DX12_DESCRIPTOR_RANGE texRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, texturesCount, 0, 2);
+        rootParameters[PP_BINDLESS_TEXTURES_SLOT].InitAsDescriptorTable(1, &texRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        uint16_t cubemapsCount = (uint16_t)SRVHeapResource::ShadowMap;
+        cubemapsCount -= (uint16_t)SRVHeapResource::TextureCube;
+        CD3DX12_DESCRIPTOR_RANGE cubemapRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, cubemapsCount, 0, 3);
+        rootParameters[PP_BINDLESS_CUBEMAPS_SLOT].InitAsDescriptorTable(1, &cubemapRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+            0,
+            D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            0.0f,
+            16,
+            D3D12_COMPARISON_FUNC_ALWAYS,
+            D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
+        );
+
+        // Define the root signature descriptor
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
+            rootParameters.size(),
+            rootParameters.data(),
+            1, &pointClamp,
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+        );
+
+        // Serialize and create the root signature
+        Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
+        Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
+        HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+
+        if (FAILED(hr)) {
+            if (errorBlob) {
+                OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+            }
             throw std::runtime_error("Failed to serialize root signature");
         }
 

@@ -16,7 +16,8 @@ namespace playground::rendering {
     enum MaterialType {
         Skybox = 0,
         Standard = 1,
-        Shadow = 2
+        Shadow = 2,
+        PostProcessing = 3,
     };
 
 	struct Material {

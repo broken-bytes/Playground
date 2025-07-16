@@ -68,8 +68,8 @@ namespace playground::rendering::d3d12 {
             _buffer->Unmap(0, nullptr);
         }
 
-        inline void SetData(const void* data, size_t count, size_t offset) override {
-            std::memcpy(static_cast<uint8_t*>(_data) + offset * _alignedStride, data, count * _alignedStride);
+        inline void SetData(const void* data, size_t count, size_t offset, size_t actualSize) override {
+            std::memcpy(static_cast<uint8_t*>(_data) + offset * _alignedStride, data, actualSize);
         }
 
         [[nodiscard]]

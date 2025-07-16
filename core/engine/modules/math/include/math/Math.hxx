@@ -25,6 +25,7 @@ namespace playground::math {
 
     void Inverse(const Matrix3x3& m, Matrix3x3* out);
     void Inverse(const Matrix4x4& m, Matrix4x4* out);
+    void InverseAffine(const Matrix4x4& m, Matrix4x4* out);
 
 
     inline Matrix4x4 Translate(Matrix4x4& mat, const Vector3& translation) {

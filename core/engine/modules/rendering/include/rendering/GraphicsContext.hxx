@@ -28,6 +28,7 @@ namespace playground::rendering {
         virtual auto BeginRenderPass(RenderPass pass, std::shared_ptr<RenderTarget> colour, std::shared_ptr<DepthBuffer> depth) -> void = 0;
         virtual auto EndRenderPass() -> void = 0;
         virtual auto Draw(uint32_t numIndices, uint32_t startIndex, uint32_t startVertex, uint32_t numInstances, uint32_t startInstance) -> void = 0;
+        virtual auto Draw(uint32_t numVertices) -> void = 0;
         virtual auto BindVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto BindIndexBuffer(std::shared_ptr<IndexBuffer> buffer) -> void = 0;
         virtual auto BindInstanceBuffer(std::shared_ptr<InstanceBuffer> buffer) -> void = 0;
@@ -43,8 +44,10 @@ namespace playground::rendering {
         virtual auto TransitionVertexBuffer(std::shared_ptr<VertexBuffer> buffer) -> void = 0;
         virtual auto TransitionTexture(std::shared_ptr<Texture> texture) -> void = 0;
         virtual auto TransitionCubemap(std::shared_ptr<Cubemap> cubemap) -> void = 0;
-        virtual auto TransitionShadowMapToDepthBuffer(std::shared_ptr<ShadowMap> map) -> void = 0;
+        virtual auto TransitionShadowMapToDepthWrite(std::shared_ptr<ShadowMap> map) -> void = 0;
         virtual auto TransitionShadowMapToPixelShader(std::shared_ptr<ShadowMap> map) -> void = 0;
+        virtual auto TransitionDepthBufferToDepthWrite(std::shared_ptr<DepthBuffer> depth) -> void = 0;
+        virtual auto TransitionDepthBufferToPixelShader(std::shared_ptr<DepthBuffer> depth) -> void = 0;
         virtual auto CopyToSwapchainBackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<Swapchain> swapchain) -> void = 0;
         virtual auto CopyToReadbackBuffer(std::shared_ptr<RenderTarget> source, std::shared_ptr<ReadbackBuffer> target) -> void = 0;
         virtual auto SetMaterialData(uint32_t materialId, std::shared_ptr<Material> material) -> void = 0;
