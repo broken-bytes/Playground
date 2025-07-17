@@ -1,5 +1,5 @@
 func rigidbodyTransformSystem(iter: UnsafeMutableRawPointer) {
-    var rigidbodies = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: RigidbodyComponent.self)
+    var rigidbodies = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: RigidBodyComponent.self)
     var translations = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: WorldTranslationComponent.self)
     var rotations = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: WorldRotationComponent.self)
 

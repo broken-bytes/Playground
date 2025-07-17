@@ -239,9 +239,6 @@ namespace playground::physics {
     }
 
     void Update(double fixedDelta) {
-        if (!isRunning) {
-            return;
-        }
         scene->simulate(fixedDelta, nullptr);
         uint32_t error;
 
@@ -253,7 +250,6 @@ namespace playground::physics {
 
         scene->fetchResults(true, &error);
 
-
         if (error != 0) {
             std::cerr << "PhysX scene fetch results error: " << error << std::endl;
         }
@@ -261,8 +257,6 @@ namespace playground::physics {
 
     void Shutdown() {
         isRunning = false;
-        while (!dispatcher->IsFinished()) { }
-        scene->release();
     }
 
     physics::PhysicsMaterialHandle CreateMaterial(float staticFriction, float dynamicFriction, float restitution) {

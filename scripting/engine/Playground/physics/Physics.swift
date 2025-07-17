@@ -11,7 +11,7 @@ public enum Physics {
     internal typealias GetBodyPosition = @convention(c) (UInt64, UnsafeRawPointer) -> Void
     internal typealias GetBodyRotation = @convention(c) (UInt64, UnsafeRawPointer) -> Void
 
-    private static nonisolated(unsafe) var createRigidbodyPtr: CreateRigidBody!
+    private static nonisolated(unsafe) var createRigidBodyPtr: CreateRigidBody!
     private static nonisolated(unsafe) var createStaticbodyPtr: CreateStaticBody!
     private static nonisolated(unsafe) var createBoxColliderPtr: CreateBoxCollider!
 
@@ -24,7 +24,7 @@ public enum Physics {
     private static nonisolated(unsafe) var getBodyRotationPtr: GetBodyRotation!
 
     internal static nonisolated func setup() {
-        createRigidbodyPtr = NativeLookupTable.getFunctionPointer(by: "Physics_CreateRigidBody")
+        createRigidBodyPtr = NativeLookupTable.getFunctionPointer(by: "Physics_CreateRigidBody")
         createStaticbodyPtr = NativeLookupTable.getFunctionPointer(by: "Physics_CreateStaticBody")
         createBoxColliderPtr = NativeLookupTable.getFunctionPointer(by: "Physics_CreateBoxCollider")
 
@@ -38,7 +38,7 @@ public enum Physics {
     }
 
     internal static nonisolated func createRigidBody(mass: Float, damping: Float, pos: inout Vector3, rot: inout Quaternion) -> UInt64 {
-        createRigidbodyPtr(mass, damping, &pos, &rot)
+        createRigidBodyPtr(mass, damping, &pos, &rot)
     }
 
     internal static nonisolated func createStaticBody(pos: inout Vector3, rot: inout Quaternion) -> UInt64 {

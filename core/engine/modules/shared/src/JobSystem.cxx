@@ -97,7 +97,6 @@ namespace playground::jobsystem {
                         ZoneText(name.c_str(), name.size());
                         ZoneText(nextJob->Name().c_str(), nextJob->Name().size());
                         ZoneColor(nextJob->TracerColour());
-                        nextJob->Add();
                         nextJob->Complete();
                         _idleSpins = 0;
                     }
@@ -115,6 +114,9 @@ namespace playground::jobsystem {
 
         void Stop() {
             _isRunning = false;
+        }
+
+        void Join() {
             _thread.join();
         }
 
@@ -128,11 +130,11 @@ namespace playground::jobsystem {
     }
 
     void JobHandle::Add() {
-        _counter->fetch_add(1, std::memory_order_relaxed);
+        _counter->fetch_add(1, std::memory_order_release);
     }
 
     void JobHandle::Sub() {
-        _counter->fetch_sub(1, std::memory_order_relaxed);
+        _counter->fetch_sub(1, std::memory_order_release);
     }
 
     void JobHandle::Complete() {
@@ -266,6 +268,10 @@ namespace playground::jobsystem {
     void Shutdown() {
         for (auto& worker : workers) {
             worker->Stop();
+        }
+
+        for (auto& worker : workers) {
+            worker->Join();
         }
     }
 

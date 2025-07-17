@@ -74,25 +74,25 @@ func startUp() {
     var boxCollider = BoxColliderComponent(dimensions: Vector3(x: 100, y: 0.5, z: 100), offset: .zero, rotation: .identity, material: physicsMaterialHandle)
     floor.addComponent(&boxCollider)
 
-    for x in 0..<10 {
+    for x in 0..<500 {
         let entity = Entity("Entity\(x)")
         var material = MaterialComponent(handle: materialhandle)
         entity.addComponent(&material)
         var mesh = MeshComponent(handle: modelhandle, meshId: 0)
         entity.addComponent(&mesh)
 
-        var transform = TranslationComponent(position: Vector3(x: Float.random(in: -10...10), y: Float.random(in: 10...20), z: Float.random(in: 10...25)))
+        var transform = TranslationComponent(position: Vector3(x: Float.random(in: -100...100), y: Float.random(in: 10...20), z: Float.random(in: -100...100)))
         entity.addComponent(&transform)
         var rotation = RotationComponent(rotation: .identity)
         entity.addComponent(&rotation)
         var scale = ScaleComponent(scale: Vector3(x: 1, y: 1, z: 1))
         entity.addComponent(&scale)
 
-        var rigidbody = RigidbodyComponent(mass: 5, damping: 0.1)
-        entity.addComponent(&rigidbody)
+        //var rigidbody = RigidBodyComponent(mass: 5, damping: 0.1)
+        //entity.addComponent(&rigidbody)
 
-        var boxCollider = BoxColliderComponent(dimensions: .one, offset: .zero, rotation: .identity, material: physicsMaterialHandle)
-        entity.addComponent(&boxCollider)
+        //var boxCollider = BoxColliderComponent(dimensions: .one, offset: .zero, rotation: .identity, material: physicsMaterialHandle)
+        //entity.addComponent(&boxCollider)
     }
 }
 
@@ -107,7 +107,7 @@ func initComponents() {
     let meshId = ECSHandler.registerComponent(MeshComponent.self)
     let materialId = ECSHandler.registerComponent(MaterialComponent.self)
     let sunId = ECSHandler.registerComponent(SunComponent.self)
-    let rigidId = ECSHandler.registerComponent(RigidbodyComponent.self)
+    let rigidId = ECSHandler.registerComponent(RigidBodyComponent.self)
     let staticId = ECSHandler.registerComponent(StaticbodyComponent.self)
     let boxId = ECSHandler.registerComponent(BoxColliderComponent.self)
 
@@ -162,14 +162,11 @@ func initTags() {
 
 func initSystems() {
     ECSHandler.createSystem("CameraMoveSystem", filter: [TranslationComponent.self, RotationComponent.self, CameraComponent.self], multiThreaded: false, delegate: cameraMoveTest)
-    ECSHandler.createSystem("HierarchySystem", filter: [TranslationComponent.self, RotationComponent.self, ScaleComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self], multiThreaded: true, delegate: hierarchySystem)
-    ECSHandler.createSystem("RigidbodyUpdateSystem", filter: [RigidbodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: rigidBodyUpdateSystem)
+    ECSHandler.createSystem("RigidBodyUpdateSystem", filter: [RigidBodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: rigidBodyUpdateSystem)
     ECSHandler.createSystem("StaticbodyUpdateSystem", filter: [StaticbodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: staticBodyUpdateSystem)
     ECSHandler.createSystem("BoxColliderUpdateSystem", filter: [BoxColliderComponent.self], multiThreaded: true, delegate: boxColliderUpdateSystem)
-    ECSHandler.createSystem("RigidbodyTransformSystem", filter: [RigidbodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: rigidbodyTransformSystem)
+    ECSHandler.createSystem("RigidBodyTransformSystem", filter: [RigidBodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: rigidbodyTransformSystem)
     ECSHandler.createSystem("StaticbodyTransformSystem", filter: [StaticbodyComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: true, delegate: staticbodyTransformSystem)
-    ECSHandler.createSystem("RenderSystem", filter: [WorldTranslationComponent.self, WorldRotationComponent.self, WorldScaleComponent.self, MeshComponent.self, MaterialComponent.self], multiThreaded: true, delegate: renderSystem)
-    ECSHandler.createSystem("RenderResetSystem", filter: [], multiThreaded: false, delegate: renderResetSystem)
     ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: false, delegate: cameraSystem)
     ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
 

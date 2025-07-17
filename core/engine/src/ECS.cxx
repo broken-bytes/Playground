@@ -1,60 +1,94 @@
 #include "playground/ECS.hxx"
 #include "playground/Constants.hxx"
+#include "playground/systems/RenderSystem.hxx"
+#include "playground/systems/HierarchySystem.hxx"
+#include "playground/components/TranslationComponent.hxx"
+#include "playground/components/WorldTranslationComponent.hxx"
+#include "playground/components/RotationComponent.hxx"
+#include "playground/components/WorldRotationComponent.hxx"
+#include "playground/components/ScaleComponent.hxx"
+#include "playground/components/WorldScaleComponent.hxx"
+#include "playground/components/MeshComponent.hxx"
+#include "playground/components/MaterialComponent.hxx"
 #include <shared/JobSystem.hxx>
 #include <mutex>
 #include <shared_mutex>
 #include <map>
+#include <memory>
+#include <minmax.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <flecs/os_api.h>
 
 namespace playground::ecs {
-    flecs::world world;
+    std::unique_ptr<flecs::world> world;
     std::mutex writeLock;
     std::shared_mutex readLock;
 
     std::atomic<uint64_t> taskId = { 0 };
 
-    std::map<uint64_t, std::shared_ptr<jobsystem::JobHandle>> jobs;
+    std::vector<std::shared_ptr<jobsystem::JobHandle>> jobs;
+
+    uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate, ecs_entity_t dependsOn);
+    void RegisterComponents();
+    void RegisterSystems();
+
+    void RegisterComponents() {
+        playground::ecs::GetWorld().component<TranslationComponent>("::TranslationComponent");
+        playground::ecs::GetWorld().component<WorldTranslationComponent>("::WorldTranslationComponent");
+        playground::ecs::GetWorld().component<RotationComponent>("::RotationComponent");
+        playground::ecs::GetWorld().component<WorldRotationComponent>("::WorldRotationComponent");
+        playground::ecs::GetWorld().component<ScaleComponent>("::ScaleComponent");
+        playground::ecs::GetWorld().component<WorldScaleComponent>("::WorldScaleComponent");
+        playground::ecs::GetWorld().component<MeshComponent>("::MeshComponent");
+        playground::ecs::GetWorld().component<MaterialComponent>("::MaterialComponent");
+    }
+
+    void RegisterSystems() {
+        playground::ecs::hierarchysystem::Init(*world);
+        playground::ecs::rendersystem::Init(*world);
+    }
 
     ecs_os_thread_t SpawnTask(ecs_os_thread_callback_t callback, void* param) {
-        auto taskIdValue = taskId.fetch_add(1);
-        auto job = jobsystem::JobHandle::Create("Flecs Task" + taskId, jobsystem::JobPriority::High, [callback]() { callback(nullptr); });
-        jobs.insert({ taskIdValue, job });
+        std::scoped_lock lock{ writeLock };
+
+        auto job = jobsystem::JobHandle::Create("FLECS_WORKER_" + +1, jobsystem::JobPriority::High, [callback, param]() { callback(param); });
+
+        jobs.push_back(job);
 
         jobsystem::Submit(job);
 
-        return taskIdValue;
+        return jobs.size();
     };
 
     void* JoinTask(ecs_os_thread_t thread) {
-        auto job = jobs[thread];
-        while (!job->IsDone()) {
-            // Wait for the job to complete
-        }
+        auto job = jobs.at(thread - 1);
+        while(!job->IsDone()) { }
+
         return nullptr;
     };
 
     void Init(int tickRate, bool debugServer) {
         ecs_os_set_api_defaults();
         auto api = ecs_os_get_api();
-        api.thread_new_ = SpawnTask;
-        api.thread_join_ = JoinTask;
+        api.task_new_ = SpawnTask;
+        api.task_join_ = JoinTask;
         api.thread_self_ = []() -> ecs_os_thread_id_t {
             return std::this_thread::get_id()._Get_underlying_id();
             };
         ecs_os_set_api(&api);
 
+        world = std::make_unique<flecs::world>();
+
         if (debugServer) {
-            world.import<flecs::stats>();
-            world.set<flecs::Rest>({ });
+            world->import<flecs::stats>();
+            world->set<flecs::Rest>({ });
             // Get the number of threads on the system
         }
 
-        world.set_threads(jobsystem::HighPerfWorkers());
-
-        world.set_target_fps(tickRate);
+        world->set_task_threads(min(2, jobsystem::HighPerfWorkers() / 2));
+        world->set_target_fps(tickRate);
 
         if (!std::filesystem::exists("meta")) {
             std::filesystem::create_directory("meta");
@@ -77,46 +111,55 @@ namespace playground::ecs {
             buffer << fileStream.rdbuf(); // Read entire file into buffer
             std::string value = buffer.str();
 
-            world.script().code(value.c_str()).run();
+            world->script().code(value.c_str()).run();
         }
+
+        jobs = {};
+
+        RegisterComponents();
+        RegisterSystems();
     }
 
     void Update(double deltaTime) {
         jobs.clear();
-        taskId.store(0);
 
-        world.progress(deltaTime);
+        world->progress(deltaTime);
     }
 
     void Shutdown() {
-        world.quit();
+        world->quit();
 
-        while (world.progress(0)) {
-        }
+        world->progress(0);
 
-        ecs_fini(world);
+        ecs_fini(*world);
+
+        world.reset();
+    }
+
+    flecs::world& GetWorld() {
+        return *world;
     }
 
     uint64_t CreateEntity(const char* name) {
-        return world.entity(name);
+        return world->entity(name);
     }
 
     void DestroyEntity(uint64_t entityId) {
-        world.entity(entityId).destruct();
+        world->entity(entityId).destruct();
     }
 
     void SetParent(uint64_t childId, uint64_t parentId) {
-        world.entity(childId).remove(flecs::ChildOf);
+        world->entity(childId).remove(flecs::ChildOf);
         // Make entity a child of the new parent
-        world.entity(childId).add(flecs::ChildOf, parentId);
+        world->entity(childId).add(flecs::ChildOf, parentId);
     }
 
     uint64_t GetParent(uint64_t childId) {
-        return world.entity(childId).parent();
+        return world->entity(childId).parent();
     }
 
     uint64_t GetEntityByName(const char* name) {
-        auto entity = world.lookup(name);
+        auto entity = world->lookup(name);
         if (entity) {
             return entity.id();
         }
@@ -134,56 +177,43 @@ namespace playground::ecs {
         ecs_entity_desc_t entityDesc = {};
         entityDesc.name = name;
 
-        desc.entity = ecs_entity_init(world, &entityDesc);
+        desc.entity = ecs_entity_init(*world, &entityDesc);
 
-        auto id = ecs_component_init(world, &desc);
+        auto id = ecs_component_init(*world, &desc);
 
         return id;
     }
 
     void AddComponent(uint64_t entityId, uint64_t componentId) {
-        ecs_add_id(world, entityId, componentId);
+        ecs_add_id(*world, entityId, componentId);
     }
 
     void SetComponent(uint64_t entityId, uint64_t componentId, const void* data) {
-        world.entity(entityId).set_ptr(componentId, data);
+        world->entity(entityId).set_ptr(componentId, data);
     }
 
     const void* GetComponent(uint64_t entityId, uint64_t componentId) {
-        return world.entity(entityId).get(componentId);
+        return world->entity(entityId).get(componentId);
     }
 
     bool HasComponent(uint64_t entityId, uint64_t componentId) {
-        return world.entity(entityId).has(componentId);
+        return world->entity(entityId).has(componentId);
     }
 
     void DestroyComponent(uint64_t entityId, uint64_t componentId) {
-        ecs_remove_id(world, entityId, componentId);
+        ecs_remove_id(*world, entityId, componentId);
     }
 
-    uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
-        ecs_system_desc_t system = {};
+    uint64_t CreatePreUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
+        return CreateSystem(name, filter, filterCount, isParallel, delegate, EcsPreUpdate);
+    }
 
-        ecs_entity_desc_t entity = {};
-        entity.name = name;
-        auto depends = ecs_pair(EcsDependsOn, EcsOnUpdate);
-        std::vector<ecs_id_t> ids = { depends, 0 };
-        entity.add = ids.data();
+    uint64_t CreateUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
+        return CreateSystem(name, filter, filterCount, isParallel, delegate, EcsOnUpdate);
+    }
 
-        ecs_query_desc_t query = {};
-        for (int x = 0; x < filterCount; x++) {
-            query.terms[x] = ecs_term_t{ .id = filter[x], .inout = EcsInOut, .oper = EcsAnd };
-        }
-
-        memset(system.query.terms, 0, sizeof(system.query.terms));
-        auto entityId = ecs_entity_init(world, &entity);
-
-        system.query = query;
-        system.entity = entityId;
-        system.multi_threaded = isParallel;
-        system.callback = delegate;
-
-        return ecs_system_init(world, &system);
+    uint64_t CreatePostUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
+        return CreateSystem(name, filter, filterCount, isParallel, delegate, EcsPostUpdate);
     }
 
     void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize, size_t* numItems) {
@@ -217,21 +247,46 @@ namespace playground::ecs {
             hooks.on_remove = onRemove;
         }
 
-        ecs_set_hooks_id(world, componentId, &hooks);
+        ecs_set_hooks_id(*world, componentId, &hooks);
     }
 
     void DeleteAllEntitiesByTag(uint64_t tag) {
-        ecs_delete_with(world, tag);
+        ecs_delete_with(*world, tag);
     }
 
     uint64_t CreateTag(const char* name) {
-        auto entity = ecs_new(world);
-        ecs_set_name(world, entity, name);
+        auto entity = ecs_new(*world);
+        ecs_set_name(*world, entity, name);
 
         return entity;
     }
 
     void AddTag(uint64_t entityId, uint64_t tagId) {
-        ecs_add_id(world, entityId, tagId);
+        ecs_add_id(*world, entityId, tagId);
+    }
+
+    uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate, ecs_entity_t dependsOn) {
+        ecs_system_desc_t system = {};
+
+        ecs_entity_desc_t entity = {};
+        entity.name = name;
+        auto depends = ecs_pair(EcsDependsOn, dependsOn);
+        std::vector<ecs_id_t> ids = { depends, 0 };
+        entity.add = ids.data();
+
+        ecs_query_desc_t query = {};
+        for (int x = 0; x < filterCount; x++) {
+            query.terms[x] = ecs_term_t{ .id = filter[x], .inout = EcsInOut, .oper = EcsAnd };
+        }
+
+        memset(system.query.terms, 0, sizeof(system.query.terms));
+        auto entityId = ecs_entity_init(*world, &entity);
+
+        system.query = query;
+        system.entity = entityId;
+        system.multi_threaded = isParallel;
+        system.callback = delegate;
+
+        return ecs_system_init(*world, &system);
     }
 }

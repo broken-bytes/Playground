@@ -117,7 +117,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     config.Delegate("ECS_GetComponent\0", playground::ecs::GetComponent);
     config.Delegate("ECS_HasComponent\0", playground::ecs::HasComponent);
     config.Delegate("ECS_DestroyComponent\0", playground::ecs::DestroyComponent);
-    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateSystem);
+    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateUpdateSystem);
     config.Delegate("ECS_GetComponentBuffer\0", playground::ecs::GetComponentBuffer);
     config.Delegate("ECS_GetIteratorSize\0", playground::ecs::GetIteratorSize);
     config.Delegate("ECS_GetIteratorOffset\0", playground::ecs::GetIteratorOffset);
@@ -183,6 +183,8 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 #else
         playground::ecs::Init(128, false);
 #endif
+
+
         config.startupCallback();
 
         static const char* CPU_FRAME = "CPU:Update";
@@ -222,8 +224,6 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
             now = next;
             FrameMarkEnd(CPU_FRAME);
         }
-
-        playground::ecs::Shutdown();
     });
 
 
@@ -236,6 +236,8 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::input::Shutdown();
     playground::rendering::Shutdown();
     playground::physicsmanager::Shutdown();
+    playground::ecs::Shutdown();
+    playground::jobsystem::Shutdown();
     renderThread.join();
     gameThread.join();
 

@@ -23,6 +23,8 @@ namespace playground::ecs {
     void Update(double deltaTime);
     void Shutdown();
 
+    flecs::world& GetWorld();
+
     uint64_t CreateEntity(const char* name);
     void DestroyEntity(uint64_t entityId);
     void SetParent(uint64_t childId, uint64_t parentId);
@@ -36,7 +38,9 @@ namespace playground::ecs {
     bool HasComponent(uint64_t entityId, uint64_t componentId);
     void DestroyComponent(uint64_t entityId, uint64_t componentId);
 
-    uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
+    uint64_t CreatePreUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
+    uint64_t CreateUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
+    uint64_t CreatePostUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
     void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize, size_t* numItems);
     uint64_t GetIteratorSize(ecs_iter_t* iter);
     uint64_t GetIteratorOffset(ecs_iter_t* iter);

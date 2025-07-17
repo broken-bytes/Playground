@@ -6,6 +6,7 @@ namespace playground::rendering {
 
     constexpr uint16_t MAX_SRV_HEAP_SIZE = 8192;
     constexpr uint16_t MAX_BATCH_SIZE = 1024;
+    constexpr uint32_t MAX_DRAW_CALLS_PER_FRAME = 131072;
 
     // Root Signature Bindings Post Skybox Shaders
     constexpr uint8_t SB_BINDLESS_CUBEMAPS_SLOT = 6;

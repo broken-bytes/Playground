@@ -16,8 +16,8 @@ public func boxColliderUpdateSystem(iter: UnsafeMutableRawPointer) {
             var parentId: UInt64 = 0
             var foundBody = false
 
-            if (ECSHandler.hasComponent(entities[x], type: RigidbodyComponent.self)) {
-                let comp = ECSHandler.getComponent(entities[x], type: RigidbodyComponent.self)
+            if (ECSHandler.hasComponent(entities[x], type: RigidBodyComponent.self)) {
+                let comp = ECSHandler.getComponent(entities[x], type: RigidBodyComponent.self)
 
                 if (comp.pointee.handle == nil) {
                     continue
@@ -44,8 +44,8 @@ public func boxColliderUpdateSystem(iter: UnsafeMutableRawPointer) {
                 repeat {
                     parentId = ECSHandler.getParent(entities[x])
 
-                    if (ECSHandler.hasComponent(parentId, type: RigidbodyComponent.self)) {
-                        let comp = ECSHandler.getComponent(parentId, type: RigidbodyComponent.self)
+                    if (ECSHandler.hasComponent(parentId, type: RigidBodyComponent.self)) {
+                        let comp = ECSHandler.getComponent(parentId, type: RigidBodyComponent.self)
 
                         if (comp.pointee.handle == nil) {
                             continue
