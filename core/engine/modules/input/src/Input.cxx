@@ -38,6 +38,7 @@ namespace playground::input {
 
     constexpr float deadZone = 0.05f;
     constexpr uint16_t tickRate = 1000000;
+    constexpr float mouseSensitivity = 0.1f;
     uint64_t currentTick = 0;
 
     std::unique_ptr<IInputHandler> inputHandler;
@@ -73,6 +74,11 @@ namespace playground::input {
     auto Update() -> void {
         auto now = std::chrono::steady_clock::now();
         pollArena.Reset();
+
+        currentInputState.mouseX = 0.0f;
+        currentInputState.mouseY = 0.0f;
+        currentInputState.mouseXMoved = false;
+        currentInputState.mouseYMoved = false;
 
         //auto gamePadevents = inputHandler->PollEvents();
 #ifdef _WIN32
@@ -175,11 +181,11 @@ namespace playground::input {
         switch (event.type) {
         case InputEventType::AxisMoved:
             if (event.actionId == 0) {
-                currentInputState.mouseX += event.value;
+                currentInputState.mouseX += event.value * mouseSensitivity;
                 currentInputState.mouseXMoved = true;
             }
             else {
-                currentInputState.mouseY += event.value;
+                currentInputState.mouseY += event.value * mouseSensitivity;
                 currentInputState.mouseYMoved = true;
             }
             break;

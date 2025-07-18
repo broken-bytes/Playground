@@ -1,11 +1,6 @@
 #include "shared/JobSystem.hxx"
 #include "shared/Hardware.hxx"
 #include <concurrentqueue.h>
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
-#endif
 #include <thread>
 #include <tracy/Tracy.hpp>
 #include "shared/Arena.hxx"
@@ -19,60 +14,12 @@ namespace playground::jobsystem {
     ArenaType arena(128 * 1024 * 1024); // 128MB Physics Objects
     Allocator alloc(&arena, "Physics Allocator");
 
-    struct CpuCore {
-        uint32_t id;
-        uint8_t efficiencyClass;
-    };
-
-    std::vector<CpuCore> GetCoresByEfficiency(bool wantEfficient) {
-        DWORD len = 0;
-        GetSystemCpuSetInformation(nullptr, 0, &len, GetCurrentProcess(), 0);
-
-        std::vector<char> buffer(len);
-        auto info = reinterpret_cast<SYSTEM_CPU_SET_INFORMATION*>(buffer.data());
-
-        std::vector<CpuCore> cores;
-
-        if (GetSystemCpuSetInformation(info, len, &len, GetCurrentProcess(), 0)) {
-            char* ptr = buffer.data();
-            while (ptr < buffer.data() + len) {
-                auto* entry = reinterpret_cast<SYSTEM_CPU_SET_INFORMATION*>(ptr);
-
-                if (entry->Type == CpuSetInformation) {
-                    if (entry->CpuSet.Group == 0) {
-                        bool isEfficient = entry->CpuSet.EfficiencyClass > 0;
-                        if (isEfficient == wantEfficient) {
-                            cores.push_back({
-                                entry->CpuSet.LogicalProcessorIndex,
-                                entry->CpuSet.EfficiencyClass
-                                });
-                        }
-                    }
-                }
-
-                ptr += entry->Size;
-            }
-        }
-
-        return cores;
-    }
-
-    void PinCurrentThreadToCore(uint32_t coreIndex) {
-        GROUP_AFFINITY affinity = {};
-        affinity.Group = 0;
-        affinity.Mask = 1ull << coreIndex;
-
-        if (!SetThreadGroupAffinity(GetCurrentThread(), &affinity, nullptr)) {
-            exit(3);
-        }
-    }
-
     class Worker {
     public:
-        Worker(std::string name, uint8_t index, bool isHighPerf, std::function<bool(std::shared_ptr<JobHandle>&)> pullJob) {
+        Worker(std::string name, uint8_t index, hardware::CPUEfficiencyClass cpuEfficiency, std::function<bool(std::shared_ptr<JobHandle>&)> pullJob) {
             _isRunning = true;
             _idleSpins = 0;
-            auto cores = GetCoresByEfficiency(isHighPerf);
+            auto cores = hardware::GetCoresByEfficiency(cpuEfficiency);
 
             _thread = std::thread([name, pullJob, cores, index, this]() {
 #ifdef _WIN32
@@ -87,7 +34,7 @@ namespace playground::jobsystem {
 #endif
                 if (!cores.empty()) {
                     uint32_t coreId = cores[index].id;
-                    PinCurrentThreadToCore(coreId);
+                    hardware::PinCurrentThreadToCore(coreId);
                 }
 
                 std::shared_ptr<JobHandle> nextJob;
@@ -181,7 +128,7 @@ namespace playground::jobsystem {
         _tracerColour = colour;
     }
 
-    eastl::fixed_vector<std::shared_ptr<Worker>, 32, false, Allocator> workers(alloc);
+    eastl::vector<std::shared_ptr<Worker>, Allocator> workers(alloc);
     eastl::fixed_vector<std::shared_ptr<JobHandle>, 2048, false, Allocator> pendingJobs(alloc);
     std::mutex pendingMutex;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> highPerfQueue;
@@ -210,38 +157,60 @@ namespace playground::jobsystem {
         auto maxWorkers = hardware::CPUCount();
 
 #if WIN32
-        auto maxHighPerfWorkers = GetCoresByEfficiency(true).size();
-        auto maxLowPerfWorkers = GetCoresByEfficiency(false).size();
+        int maxHighPerfWorkers = hardware::GetCoresByEfficiency(hardware::CPUEfficiencyClass::Performance).size() - 2;
+        int maxLowPerfWorkers = hardware::GetCoresByEfficiency(hardware::CPUEfficiencyClass::Efficient).size();
 
         if (maxLowPerfWorkers == 0) {
             maxLowPerfWorkers = std::max(1, int(maxHighPerfWorkers * 0.25));
-            maxHighPerfWorkers = std::max(1, int(maxHighPerfWorkers * 0.75));
+            maxHighPerfWorkers = std::max(2, int(maxHighPerfWorkers * 0.75));
         }
 #endif
-
-        if (maxHighPerfWorkers > 16) {
-            maxHighPerfWorkers = 16;
-        }
-
-        if (maxLowPerfWorkers > 16) {
-            maxLowPerfWorkers = 16;
-        }
 
         highPerfWorkers = maxHighPerfWorkers;
         lowPerfWorkers = maxLowPerfWorkers;
 
+        std::vector<uint64_t> highPerfCoresAvailable;
+        // Reserve the first two cores for game and render thread
+        auto highCores = hardware::GetCoresByEfficiency(hardware::CPUEfficiencyClass::Performance);
+        for (int x = 2; x < highCores.size(); x++) {
+            highPerfCoresAvailable.push_back(highCores[x].id);
+        }
+
+        int coreCounter = 0;
         for (int x = 0; x < maxHighPerfWorkers; x++) {
             std::stringstream ss;
             ss << "H_WORKER_THREAD" << +x;
 
-            workers.push_back(std::make_shared<Worker>(ss.str(), x, true, [](auto& job) { return PullHighPerformanceTask(job); }));
+            // If we run out of high performance cores, we loop back to the start (this is a fallback for when there are not enough cores, eg. on a Quadcore)
+            if (coreCounter >= highPerfCoresAvailable.size()) {
+                coreCounter = 0;
+            }
+
+            workers.push_back(std::make_shared<Worker>(ss.str(), highPerfCoresAvailable[coreCounter++], hardware::CPUEfficiencyClass::Performance, [](auto& job) { return PullHighPerformanceTask(job); }));
         }
 
-        for (int x = 0; x < maxLowPerfWorkers; x++) {
-            std::stringstream ss;
-            ss << "E_WORKER_THREAD" << +x;
+        // If there are no low performance cores available, we use the high performance cores for low performance tasks as well
+        if (hardware::GetCoresByEfficiency(hardware::CPUEfficiencyClass::Efficient).size() == 0) {
+            int coreCounter = 0;
+            for (int x = 0; x < maxHighPerfWorkers; x++) {
+                std::stringstream ss;
+                ss << "E_WORKER_THREAD" << +x;
 
-            workers.push_back(std::make_shared<Worker>(ss.str(), x, false, [](auto& job) { return PullLowPerformanceTask(job); }));
+                // If we run out of high performance cores, we loop back to the start (this is a fallback for when there are not enough cores, eg. on a Quadcore)
+                if (coreCounter >= highPerfCoresAvailable.size()) {
+                    coreCounter = 0;
+                }
+
+                workers.push_back(std::make_shared<Worker>(ss.str(), highPerfCoresAvailable[coreCounter++], hardware::CPUEfficiencyClass::Performance, [](auto& job) { return PullHighPerformanceTask(job); }));
+            }
+        }
+        else {
+            for (int x = 0; x < maxLowPerfWorkers; x++) {
+                std::stringstream ss;
+                ss << "E_WORKER_THREAD" << +x;
+
+                workers.push_back(std::make_shared<Worker>(ss.str(), x, hardware::CPUEfficiencyClass::Efficient, [](auto& job) { return PullLowPerformanceTask(job); }));
+            }
         }
     }
 

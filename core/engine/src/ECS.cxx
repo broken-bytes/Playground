@@ -1,7 +1,11 @@
 #include "playground/ECS.hxx"
+#include "playground/PhysicsManager.hxx"
 #include "playground/Constants.hxx"
 #include "playground/systems/RenderSystem.hxx"
 #include "playground/systems/HierarchySystem.hxx"
+#include "playground/systems/BoxColliderUpdateSystem.hxx"
+#include "playground/systems/RigidBodyUpdateSystem.hxx"
+#include "playground/systems/StaticBodyUpdateSystem.hxx"
 #include "playground/components/TranslationComponent.hxx"
 #include "playground/components/WorldTranslationComponent.hxx"
 #include "playground/components/RotationComponent.hxx"
@@ -10,6 +14,9 @@
 #include "playground/components/WorldScaleComponent.hxx"
 #include "playground/components/MeshComponent.hxx"
 #include "playground/components/MaterialComponent.hxx"
+#include "playground/components/BoxColliderComponent.hxx"
+#include "playground/components/RigidBodyComponent.hxx"
+#include "playground/components/StaticBodyComponent.hxx"
 #include <shared/JobSystem.hxx>
 #include <mutex>
 #include <shared_mutex>
@@ -34,6 +41,32 @@ namespace playground::ecs {
     void RegisterComponents();
     void RegisterSystems();
 
+    void AttachChildrenCollidersRigid(flecs::entity e, RigidBodyComponent& body) {
+        e.children([&](flecs::entity child) {
+            if (child.has<BoxColliderComponent>()) {
+                auto boxCollider = child.get<BoxColliderComponent>();
+                if (boxCollider.handle != UINT64_MAX) {
+                    physicsmanager::AttachCollider(body.handle, boxCollider.handle);
+                }
+            }
+
+            AttachChildrenCollidersRigid(child, body);
+        });
+    }
+
+    void AttachChildrenCollidersStatic(flecs::entity e, StaticBodyComponent& body) {
+        e.children([&](flecs::entity child) {
+            if (child.has<BoxColliderComponent>()) {
+                auto boxCollider = child.get<BoxColliderComponent>();
+                if (boxCollider.handle != UINT64_MAX) {
+                    physicsmanager::AttachCollider(body.handle, boxCollider.handle);
+                }
+            }
+
+            AttachChildrenCollidersStatic(child, body);
+        });
+    }
+
     void RegisterComponents() {
         playground::ecs::GetWorld().component<TranslationComponent>("::TranslationComponent");
         playground::ecs::GetWorld().component<WorldTranslationComponent>("::WorldTranslationComponent");
@@ -43,17 +76,23 @@ namespace playground::ecs {
         playground::ecs::GetWorld().component<WorldScaleComponent>("::WorldScaleComponent");
         playground::ecs::GetWorld().component<MeshComponent>("::MeshComponent");
         playground::ecs::GetWorld().component<MaterialComponent>("::MaterialComponent");
+        playground::ecs::GetWorld().component<BoxColliderComponent>("::BoxColliderComponent");
+        playground::ecs::GetWorld().component<RigidBodyComponent>("::RigidBodyComponent");
+        playground::ecs::GetWorld().component<StaticBodyComponent>("::StaticBodyComponent");
     }
 
     void RegisterSystems() {
-        playground::ecs::hierarchysystem::Init(*world);
+        playground::ecs::hierarchysystem::Init(*world);  
+        playground::ecs::boxcolliderupdatesystem::Init(*world);
+        playground::ecs::rigidbodyupdatesystem::Init(*world);
+        playground::ecs::staticbodyupdatesystem::Init(*world);
         playground::ecs::rendersystem::Init(*world);
     }
 
     ecs_os_thread_t SpawnTask(ecs_os_thread_callback_t callback, void* param) {
         std::scoped_lock lock{ writeLock };
 
-        auto job = jobsystem::JobHandle::Create("FLECS_WORKER_" + +1, jobsystem::JobPriority::High, [callback, param]() { callback(param); });
+        auto job = jobsystem::JobHandle::Create("FLECS_WORKER", jobsystem::JobPriority::High, [callback, param]() { callback(param); });
 
         jobs.push_back(job);
 
@@ -69,7 +108,7 @@ namespace playground::ecs {
         return nullptr;
     };
 
-    void Init(int tickRate, bool debugServer) {
+    void Init(bool debugServer) {
         ecs_os_set_api_defaults();
         auto api = ecs_os_get_api();
         api.task_new_ = SpawnTask;
@@ -87,8 +126,7 @@ namespace playground::ecs {
             // Get the number of threads on the system
         }
 
-        world->set_task_threads(min(2, jobsystem::HighPerfWorkers() / 2));
-        world->set_target_fps(tickRate);
+        world->set_task_threads(jobsystem::HighPerfWorkers());
 
         if (!std::filesystem::exists("meta")) {
             std::filesystem::create_directory("meta");

@@ -11,6 +11,7 @@
 #include <atomic>
 #include <flecs.h>
 #include <EASTL/fixed_vector.h>
+#include <tracy/Tracy.hpp>
 #include <shared/Arena.hxx>
 #include <math/Math.hxx>
 #include <memory>
@@ -38,6 +39,7 @@ namespace playground::ecs::rendersystem {
 
         ecs::CreatePostUpdateSystem("RenderSystem", components.data(), components.size(), true,
             [](ecs_iter_t* iter) {
+                ZoneScopedNC("RenderSystem", tracy::Color::Green);
                 auto translation = ecs_field(iter, WorldTranslationComponent, 0);
                 auto rotation = ecs_field(iter, WorldRotationComponent, 1);
                 auto scale = ecs_field(iter, WorldScaleComponent, 2);

@@ -20,16 +20,16 @@ namespace playground::physicsmanager {
         physics::Shutdown();
     }
 
-    uint64_t CreateRigidBody(float mass, float damping, math::Vector3 position, math::Quaternion rotation) {
-        return physics::CreateRigidBody(mass, damping, position, rotation);
+    uint64_t CreateRigidBody(uint64_t entityId, float mass, float damping, math::Vector3 position, math::Quaternion rotation) {
+        return physics::CreateRigidBody(entityId, mass, damping, position, rotation);
     }
 
-    uint64_t CreateStaticBody(math::Vector3 position, math::Quaternion rotation) {
-        return physics::CreateStaticBody(position, rotation);
+    uint64_t CreateStaticBody(uint64_t entityId, math::Vector3 position, math::Quaternion rotation) {
+        return physics::CreateStaticBody(entityId, position, rotation);
     }
 
-    uint64_t CreateBoxCollider(assetmanager::PhysicsMaterialHandle* materialHandle, math::Quaternion rotation, math::Vector3 dimensions, math::Vector3 offset) {
-        return physics::CreateBoxCollider(materialHandle->material, rotation, dimensions, offset);
+    uint64_t CreateBoxCollider(assetmanager::PhysicsMaterialHandle* materialHandle, math::Quaternion rotation, math::Vector3 dimensions, math::Vector3 offset, bool isTrigger) {
+        return physics::CreateBoxCollider(materialHandle->material, rotation, dimensions, offset, isTrigger);
     }
 
     void AttachCollider(uint64_t body, uint64_t collider) {

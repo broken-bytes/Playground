@@ -32,7 +32,6 @@ typedef void(*ScriptingEventCallback)(playground::events::Event* event);
 
 bool isRunning = true;
 
-std::thread gameThread;
 std::thread renderThread;
 
 double timeSinceStart = 0.0;
@@ -78,6 +77,9 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     std::future<void> rendererReadyFuture = rendererReadyPromise.get_future();
 
     renderThread = std::thread([window, config, &rendererReadyPromise] {
+        auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
+
+        playground::hardware::PinCurrentThreadToCore(cores[1].id);
         playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen, rendererReadyPromise);
         });
 
@@ -176,61 +178,56 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
         playground::rendering::RegisterPostProcessingMaterial(0, id);
     });
 
-    gameThread = std::thread([config]() {
-        playground::audio::Init();
+    auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
+
+    playground::hardware::PinCurrentThreadToCore(cores[0].id);
+
+    playground::audio::Init();
 #if ENABLE_INSPECTOR
-        playground::ecs::Init(128, true);
+    playground::ecs::Init(true);
 #else
-        playground::ecs::Init(128, false);
+    playground::ecs::Init(false);
 #endif
 
 
-        config.startupCallback();
+    config.startupCallback();
 
-        static const char* CPU_FRAME = "CPU:Update";
+    static const char* CPU_FRAME = "CPU:Update";
 
-        tracy::SetThreadName("Game Thread");
+    tracy::SetThreadName("Game Thread");
 
-        auto now = std::chrono::high_resolution_clock::now();
-        while (isRunning) {
-            FrameMark;
-            FrameMarkStart(CPU_FRAME);
-
-            playground::inputmanager::Update();
-
-            {
-                ZoneScopedN("Scripts");
-                ZoneColor(tracy::Color::LightSeaGreen);
-            }
-            {
-                ZoneScopedN("ECS Tick");
-                ZoneColor(tracy::Color::LightSalmon);
-                playground::ecs::Update(deltaTime);
-            }
-            {
-                ZoneScopedN("Physics Tick");
-                ZoneColor(tracy::Color::Salmon);
-                playground::physicsmanager::Update(deltaTime);
-            }
-            {
-                ZoneScopedN("Batcher Submit");
-                ZoneColor(tracy::Color::DarkSalmon);
-                playground::drawcallbatcher::Submit();
-            }
-            auto next = std::chrono::high_resolution_clock::now();
-            const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
-            deltaTime = (double)int_ns.count() / 1000000000.0;
-            timeSinceStart += deltaTime;
-            now = next;
-            FrameMarkEnd(CPU_FRAME);
-        }
-    });
-
-
+    auto now = std::chrono::high_resolution_clock::now();
     while (isRunning) {
-        ZoneScopedN("Input");
-        ZoneColor(tracy::Color::AliceBlue);
-        playground::input::Update();
+        FrameMark;
+        FrameMarkStart(CPU_FRAME);
+
+        {
+            ZoneScopedN("Input");
+            ZoneColor(tracy::Color::AliceBlue);
+            playground::input::Update();
+            playground::inputmanager::Update();
+        }
+        {
+            ZoneScopedN("ECS Tick");
+            ZoneColor(tracy::Color::LightSalmon);
+            playground::ecs::Update(deltaTime);
+        }
+        {
+            ZoneScopedN("Physics Tick");
+            ZoneColor(tracy::Color::Salmon);
+            playground::physicsmanager::Update(deltaTime);
+        }
+        {
+            ZoneScopedN("Batcher Submit");
+            ZoneColor(tracy::Color::DarkSalmon);
+            playground::drawcallbatcher::Submit();
+        }
+        auto next = std::chrono::high_resolution_clock::now();
+        const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
+        deltaTime = (double)int_ns.count() / 1000000000.0;
+        timeSinceStart += deltaTime;
+        now = next;
+        FrameMarkEnd(CPU_FRAME);
     }
 
     playground::input::Shutdown();
@@ -239,7 +236,6 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     playground::ecs::Shutdown();
     playground::jobsystem::Shutdown();
     renderThread.join();
-    gameThread.join();
 
 #if ENABLE_PROFILER
     tracy::ShutdownProfiler();

@@ -2,6 +2,9 @@
 
 #if defined(_WIN32)
 #include <intrin.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
 #elif defined(__GNUC__) || defined(__clang__)
 #include <cpuid.h>
 #endif
@@ -62,5 +65,54 @@ namespace playground::hardware {
         }
 
         return result;
+    }
+
+    std::vector<CpuCore> GetCoresByEfficiency(CPUEfficiencyClass cpuClass) {
+        DWORD len = 0;
+        GetSystemCpuSetInformation(nullptr, 0, &len, GetCurrentProcess(), 0);
+
+        std::vector<char> buffer(len);
+        auto info = reinterpret_cast<SYSTEM_CPU_SET_INFORMATION*>(buffer.data());
+
+        std::vector<CpuCore> cores;
+
+        if (GetSystemCpuSetInformation(info, len, &len, GetCurrentProcess(), 0)) {
+            char* ptr = buffer.data();
+            while (ptr < buffer.data() + len) {
+                auto* entry = reinterpret_cast<SYSTEM_CPU_SET_INFORMATION*>(ptr);
+
+                if (entry->Type == CpuSetInformation) {
+                    if (entry->CpuSet.Group == 0) {
+                        bool isEfficient = entry->CpuSet.EfficiencyClass <= 0;
+
+                        if (cpuClass == CPUEfficiencyClass::Efficient && isEfficient) {
+                            cores.push_back({
+                               entry->CpuSet.LogicalProcessorIndex,
+                               entry->CpuSet.EfficiencyClass
+                            });
+                        } else if (cpuClass == CPUEfficiencyClass::Performance && !isEfficient) {
+                            cores.push_back({
+                               entry->CpuSet.LogicalProcessorIndex,
+                               entry->CpuSet.EfficiencyClass
+                            });
+                        }
+                    }
+                }
+
+                ptr += entry->Size;
+            }
+        }
+
+        return cores;
+    }
+
+    void PinCurrentThreadToCore(uint32_t coreIndex) {
+        GROUP_AFFINITY affinity = {};
+        affinity.Group = 0;
+        affinity.Mask = 1ull << coreIndex;
+
+        if (!SetThreadGroupAffinity(GetCurrentThread(), &affinity, nullptr)) {
+            exit(3);
+        }
     }
 }

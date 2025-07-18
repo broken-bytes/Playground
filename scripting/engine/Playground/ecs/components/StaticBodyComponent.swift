@@ -1,4 +1,3 @@
-public struct StaticbodyComponent {
-    internal var isDirty: Bool = true
-    internal var handle: UInt64? = nil
+public struct StaticBodyComponent {
+    internal var handle: UInt64 = UInt64.max
 }

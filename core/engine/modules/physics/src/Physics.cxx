@@ -17,6 +17,7 @@
 #include <foundation/PxPhysicsVersion.h>
 #include <foundation/PxFoundation.h>
 #include <foundation/PxErrorCallback.h>
+#include <PxSimulationEventCallback.h>
 #include <common/PxTolerancesScale.h>
 #include <shared/Arena.hxx>
 #include <EASTL/hash_map.h>
@@ -117,10 +118,9 @@ namespace playground::physics {
         }
 
         void submitTask(physx::PxBaseTask& task) override {
+            ZoneScopedNC("Physics: Submit Task", tracy::Color::Cyan2);
             auto index = _jobCounter.fetch_add(1);
-            std::stringstream ss;
-            ss << "PHYSICS_JOB" << +index;
-            auto job = jobsystem::JobHandle::Create(ss.str(), jobsystem::JobPriority::High, tracy::Color::Pink1, [&task, this]() {
+            auto job = jobsystem::JobHandle::Create("Physics Job", jobsystem::JobPriority::High, tracy::Color::Pink1, [&task, this]() {
                 task.run();
                 task.release();
                 _jobCounter.fetch_sub(1);
@@ -153,12 +153,39 @@ namespace playground::physics {
         // Let everything collide by default
         pairFlags = physx::PxPairFlag::eCONTACT_DEFAULT;
 
-        // Optionally, enable triggers
         if (physx::PxFilterObjectIsTrigger(attributes0) || physx::PxFilterObjectIsTrigger(attributes1))
             pairFlags = physx::PxPairFlag::eTRIGGER_DEFAULT;
 
         return physx::PxFilterFlag::eDEFAULT;
     }
+
+    class SimulationEventCallback : public physx::PxSimulationEventCallback {
+    public:
+        SimulationEventCallback() {
+
+        };
+        ~SimulationEventCallback() override = default;
+
+        void onConstraintBreak(physx::PxConstraintInfo*, physx::PxU32) override {
+            // Handle constraint break events
+        }
+        void onWake(physx::PxActor**, physx::PxU32) override {
+            // Handle wake events
+        }
+        void onSleep(physx::PxActor**, physx::PxU32) override {
+            // Handle sleep events
+        }
+        void onContact(const physx::PxContactPairHeader&, const physx::PxContactPair*, physx::PxU32) override {
+            // Handle contact events
+        }
+        void onTrigger(physx::PxTriggerPair*, physx::PxU32) override {
+            // Handle trigger events
+        }
+
+        void onAdvance(const physx::PxRigidBody* const*, const physx::PxTransform*, const physx::PxU32) override {
+            // Handle advance events
+        }
+    };
 
     PhysXAllocator allocator;
     PhysxErrorCallback errorCallback;
@@ -178,6 +205,8 @@ namespace playground::physics {
     moodycamel::ConcurrentQueue<uint32_t> freeMaterialIdsQueue;
 
     std::unique_ptr<PhysxCpuDispatcher> dispatcher;
+    std::unique_ptr<SimulationEventCallback> simulationEventCallback;
+
     std::shared_mutex physxMutex;
 
     bool isRunning = false;
@@ -217,12 +246,15 @@ namespace playground::physics {
         desc.gravity = physx::PxVec3{ 0 , -9, 0 };
 
         dispatcher = std::make_unique<PhysxCpuDispatcher>();
+        simulationEventCallback = std::make_unique<SimulationEventCallback>();
 
         desc.cpuDispatcher = dispatcher.get();
         desc.filterShader = DefaultFilter;
         desc.flags |= physx::PxSceneFlag::eENABLE_ACTIVE_ACTORS;
         desc.flags |= physx::PxSceneFlag::eENABLE_CCD;
         desc.flags |= physx::PxSceneFlag::eENABLE_ENHANCED_DETERMINISM;
+
+        desc.simulationEventCallback = simulationEventCallback.get();
 
         scene = physics->createScene(desc);
 
@@ -239,6 +271,7 @@ namespace playground::physics {
     }
 
     void Update(double fixedDelta) {
+        ZoneScopedNC("Physics: Update", tracy::Color::Cyan1);
         scene->simulate(fixedDelta, nullptr);
         uint32_t error;
 
@@ -272,13 +305,14 @@ namespace playground::physics {
         return materialId;
     }
 
-    uint64_t CreateRigidBody(float mass, float damping, math::Vector3 position, math::Quaternion rotation) {
+    uint64_t CreateRigidBody(uint64_t entityId, float mass, float damping, math::Vector3 position, math::Quaternion rotation) {
         std::unique_lock lock(physxMutex);
 
         auto transform = physx::PxTransform(position.X, position.Y, position.Z, physx::PxQuat(rotation.X, rotation.Y, rotation.Z, rotation.W));
         physx::PxRigidDynamic* rigidDynamic = physics->createRigidDynamic(transform);
         rigidDynamic->setMass(mass);
         rigidDynamic->setLinearDamping(damping);
+        rigidDynamic->userData = reinterpret_cast<void*>(entityId);
 
         scene->addActor(*rigidDynamic);
 
@@ -294,11 +328,13 @@ namespace playground::physics {
         return bodyId;
     }
 
-    uint64_t CreateStaticBody(math::Vector3 position, math::Quaternion rotation) {
+    uint64_t CreateStaticBody(uint64_t entityId, math::Vector3 position, math::Quaternion rotation) {
         std::unique_lock lock(physxMutex);
 
         auto transform = physx::PxTransform(position.X, position.Y, position.Z, physx::PxQuat(rotation.X, rotation.Y, rotation.Z, rotation.W));
         physx::PxRigidStatic* rigidStatic = physics->createRigidStatic(transform);
+
+        rigidStatic->userData = reinterpret_cast<void*>(entityId);
 
         scene->addActor(*rigidStatic);
 
@@ -314,7 +350,7 @@ namespace playground::physics {
         return bodyId;
     }
 
-    uint64_t CreateBoxCollider(uint32_t materialId, math::Quaternion rotation, math::Vector3 dimensions, math::Vector3 offset) {
+    uint64_t CreateBoxCollider(uint32_t materialId, math::Quaternion rotation, math::Vector3 dimensions, math::Vector3 offset, bool isTrigger) {
         std::unique_lock lock(physxMutex);
 
         physx::PxBoxGeometry boxGeom(dimensions.X, dimensions.Y, dimensions.Z);
@@ -323,6 +359,15 @@ namespace playground::physics {
         physx::PxQuat offsetRot(rotation.X, rotation.Y, rotation.Z, rotation.W);
         physx::PxVec3 offsetPos(offset.X, offset.Y, offset.Z);
         physx::PxTransform localPose(offsetPos, offsetRot);
+
+        if (isTrigger) {
+            shape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);
+            shape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
+        }
+        else {
+            shape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, false);
+            shape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, true);
+        }
 
         shape->setLocalPose(localPose);
 

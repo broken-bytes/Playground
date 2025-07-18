@@ -9,7 +9,8 @@
 namespace playground::assetloader {
 
     std::vector<uint8_t> TryLoadFile(std::string fileName) {
-        auto filelIst = io::GetFileList(std::filesystem::current_path());
+        auto currentPath = std::filesystem::current_path();
+        auto filelIst = io::GetFileList(currentPath);
         auto paks = std::vector<std::filesystem::path>();
         for (const auto& file : filelIst) {
             if (file.is_regular_file() && file.path().extension() == ".pak") {

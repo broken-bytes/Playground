@@ -14,17 +14,18 @@
 #include <atomic>
 #include <flecs.h>
 #include <EASTL/fixed_vector.h>
+#include <tracy/Tracy.hpp>
 #include <shared/Arena.hxx>
 #include <math/Math.hxx>
 #include <memory>
 #include <iostream>
 
 namespace playground::ecs::hierarchysystem {
-    void UpdateChildren(flecs::entity e, const WorldTranslationComponent t, const WorldRotationComponent r, const WorldScaleComponent s) {
+    void UpdateChildren(flecs::entity e, const WorldTranslationComponent& t, const WorldRotationComponent& r, const WorldScaleComponent& s) {
         // Update the world components based on the local components
         e.children([t, r, s](flecs::entity child) {
             child.set<WorldTranslationComponent>({ child.get<TranslationComponent>().position + t.position });
-            child.set<WorldRotationComponent>({ child.get<RotationComponent>().rotation + r.rotation });
+            child.set<WorldRotationComponent>({ child.get<RotationComponent>().rotation * r.rotation });
             child.set<WorldScaleComponent>({ child.get<ScaleComponent>().scale + s.scale });
 
             UpdateChildren(child, child.get<WorldTranslationComponent>(), child.get<WorldRotationComponent>(), child.get<WorldScaleComponent>());
@@ -52,6 +53,7 @@ namespace playground::ecs::hierarchysystem {
                 WorldRotationComponent& wr,
                 WorldScaleComponent& ws
             ) {
+                    ZoneScopedNC("HierarchySystem", tracy::Color::Green);
                     wt.position = t.position;
                     wr.rotation = r.rotation;
                     ws.scale = s.scale;

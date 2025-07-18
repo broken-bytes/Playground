@@ -19,7 +19,7 @@
 namespace playground::ecs {
     typedef void (*SystemTickDelegate)(ecs_iter_t*);
     typedef void (*ComponentLifetimeDelegate)(ecs_iter_t*);
-    void Init(int tickRate, bool debugServer);
+    void Init(bool debugServer);
     void Update(double deltaTime);
     void Shutdown();
 
