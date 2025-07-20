@@ -14,6 +14,14 @@ namespace playground::math {
         }
     }
 
+    Vector3 Quaternion::Forward() const {
+        return Vector3(
+            2.0f * (X * Z + W * Y),
+            2.0f * (Y * Z - W * X),
+            1.0f - 2.0f * (X * X + Y * Y)
+        );
+    }
+
     Quaternion Quaternion::LookRotation(const Vector3& forward, const Vector3& up) {
         Vector3 f = forward.Normalise();
         Vector3 u = up.Normalise();

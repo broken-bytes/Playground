@@ -33,7 +33,6 @@ func startUp() {
 
     initComponents()
     initTags()
-    initHooks()
     initSystems()
 
     let materialhandle = AssetHandler.loadMaterial(named: "default.mat")
@@ -74,6 +73,9 @@ func startUp() {
     var boxCollider = BoxColliderComponent(isTrigger: false, dimensions: Vector3(x: 100, y: 0.5, z: 100), offset: .zero, rotation: .identity, material: physicsMaterialHandle)
     floor.addComponent(&boxCollider)
 
+    var audioSource = AudioSourceComponent(with: "event:/Ambient/forest_loop_1")
+    entity.addComponent(&audioSource)
+
     for x in 0..<500 {
         let entity = Entity("Entity\(x)")
         var material = MaterialComponent(handle: materialhandle)
@@ -93,6 +95,11 @@ func startUp() {
 
         var boxCollider = BoxColliderComponent(isTrigger: false, dimensions: .one, offset: .zero, rotation: .identity, material: physicsMaterialHandle)
         entity.addComponent(&boxCollider)
+
+        if x % 10 == 0 {
+            var audioSource = AudioSourceComponent(with: "event:/Ambient/motor_loop_1")
+            entity.addComponent(&audioSource)
+        }
     }
 }
 
@@ -112,49 +119,6 @@ func initComponents() {
     let boxId = ECSHandler.registerComponent(BoxColliderComponent.self)
 
     Logger.info("Initialised ECS Components")
-}
-
-func initHooks() {
-    ECSHandler.addHook(
-        TranslationComponent.self,
-        onAdd: { iter in
-            let entity = ECSHandler.entitiesFor(iter: iter)
-            var worldComponent = WorldTranslationComponent(position: .zero)
-            ECSHandler.addComponent(entity[0], type: WorldTranslationComponent.self)
-            ECSHandler.setComponent(entity[0], data: &worldComponent)
-        },
-        onRemove: { _ in 
-
-        }
-    )
-
-    ECSHandler.addHook(
-        RotationComponent.self,
-        onAdd: { iter in
-            let entity = ECSHandler.entitiesFor(iter: iter)
-            var worldComponent = WorldRotationComponent(rotation: .identity)
-            ECSHandler.addComponent(entity[0], type: WorldRotationComponent.self)
-            ECSHandler.setComponent(entity[0], data: &worldComponent)
-        },
-        onRemove: { _ in 
-
-        }
-    )
-
-    ECSHandler.addHook(
-        ScaleComponent.self,
-        onAdd: { iter in
-            let entity = ECSHandler.entitiesFor(iter: iter)
-            var worldComponent = WorldScaleComponent(scale: .one)
-            ECSHandler.addComponent(entity[0], type: WorldScaleComponent.self)
-            ECSHandler.setComponent(entity[0], data: &worldComponent)
-        },
-        onRemove: { _ in 
-
-        }
-    )
-
-    Logger.info("Initialised ECS Hooks")
 }
 
 func initTags() {

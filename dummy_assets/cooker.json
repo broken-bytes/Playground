@@ -56,6 +56,30 @@
         {
             "location": "fog.mat.json",
             "type": "Material"
+        },
+        {
+            "location": "Master.bank",
+            "type": "Audio"
+        },
+        {
+            "location": "Master.strings.bank",
+            "type": "Audio"
+        },
+        {
+            "location": "Ambient.bank",
+            "type": "Audio"
+        },
+        {
+            "location": "Dialogue.bank",
+            "type": "Audio"
+        },
+                {
+            "location": "Music.bank",
+            "type": "Audio"
+        },
+        {
+            "location": "SFX.bank",
+            "type": "Audio"
         }
     ]
 }

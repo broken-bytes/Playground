@@ -5,7 +5,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <tracy/Tracy.hpp>
 
 namespace playground::jobsystem {
     enum JobPriority {
@@ -39,7 +38,7 @@ namespace playground::jobsystem {
         }
 
         static std::shared_ptr<JobHandle> Create(std::string name, JobPriority priority, std::function<void()> work) {
-            auto handle = std::shared_ptr<JobHandle>(new JobHandle(name, priority, tracy::Color::Black, std::move(work)));
+            auto handle = std::shared_ptr<JobHandle>(new JobHandle(name, priority, 0, std::move(work)));
 
             return handle;
         }

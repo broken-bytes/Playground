@@ -113,7 +113,7 @@ namespace playground::editor::assetpipeline {
         return 0;
     }
 
-    auto SaveBufferToArchive(const std::filesystem::path& path, const std::string name, std::vector<uint8_t>& buffer) -> int8_t {
+    auto SaveBufferToArchive(const std::filesystem::path& path, const std::string name, std::vector<uint8_t>& buffer, bool useCompression) -> int8_t {
         zip_t* archive;
         int err;
 
@@ -134,13 +134,20 @@ namespace playground::editor::assetpipeline {
             return -1;
         }
 
-        if (zip_file_add(archive, name.data(), s, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8) >= 0) {
+        zip_int64_t idx = zip_file_add(archive, name.data(), s, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
+        if (idx >= 0) {
+            // Set to uncompressed (ZIP_CM_STORE)
+            if (zip_set_file_compression(archive, idx, ZIP_CM_STORE, 0) < 0) {
+                std::cerr << "zip_set_file_compression failed for '" << name << "': "
+                    << zip_strerror(archive) << "\n";
+                zip_discard(archive);
+                return -1;
+            }
         }
         else {
             zip_source_free(s);
             std::cerr << "zip_file_add failed for '" << name << "': "
                 << zip_strerror(archive) << "\n";
-
             return -1;
         }
         
@@ -361,6 +368,19 @@ namespace playground::editor::assetpipeline {
         {
             cereal::BinaryOutputArchive oarchive(oss);
             oarchive(cubemapData);
+        }
+        // Convert the serialized output to a vector<uint8_t>
+        std::string outString = oss.str();
+        std::vector<uint8_t> buffer(outString.begin(), outString.end());
+
+        return buffer;
+    }
+
+    auto CookAudio(assetloader::RawAudioData audioData) -> std::vector<uint8_t> {
+        std::ostringstream oss;
+        {
+            cereal::BinaryOutputArchive oarchive(oss);
+            oarchive(audioData);
         }
         // Convert the serialized output to a vector<uint8_t>
         std::string outString = oss.str();

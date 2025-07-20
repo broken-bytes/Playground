@@ -8,6 +8,7 @@
 #include <assetloader/RawShaderData.hxx>
 #include <assetloader/RawPhysicsMaterialData.hxx>
 #include <assetloader/RawCubemapData.hxx>
+#include <assetloader/RawAudioData.hxx>
 
 namespace playground::assetloader {
     constexpr const char* ASSET_LOADER_VERSION = "01";
@@ -18,7 +19,8 @@ namespace playground::assetloader {
         MATERIAL = 0x4D41544C,
         SHADER = 0x53484144,
         PHYSICS_MATERIAL = 0x50584D41,
-        CUBEMAP = 0x43554245
+        CUBEMAP = 0x43554245,
+        AUDIO = 0x41554449,
     };
 
     inline const char* MagicNumberStringFor(MAGIC_NUMBERS number) {
@@ -36,6 +38,8 @@ namespace playground::assetloader {
             return "0x50584D41";
         case playground::assetloader::MAGIC_NUMBERS::CUBEMAP:
             return "0x43554245";
+        case playground::assetloader::MAGIC_NUMBERS::AUDIO:
+            return "0x41554449";
         default:
             break;
         }
@@ -43,10 +47,13 @@ namespace playground::assetloader {
         return nullptr;
     }
 
+    void Init();
+    std::string TryFindFile(std::string_view fileName);
     std::vector<RawMeshData> LoadMeshes(std::string_view name);
     RawTextureData LoadTexture(std::string_view name);
     RawMaterialData LoadMaterial(std::string_view name);
     RawShaderData LoadShader(std::string_view shaderName);
     RawPhysicsMaterialData LoadPhysicsMaterial(std::string_view name);
     RawCubemapData LoadCubemap(std::string_view name);
+    RawAudioData LoadAudio(std::string_view name);
 }

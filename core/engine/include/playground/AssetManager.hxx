@@ -23,6 +23,10 @@ namespace playground::jobsystem {
     class JobHandle;
 }
 
+namespace playground::io {
+    struct FileHandle;
+}
+
 namespace playground::assetmanager {
     enum ResourceState {
         Created,
@@ -78,9 +82,10 @@ namespace playground::assetmanager {
     };
 
     struct AudioHandle {
+        uint64_t hash;
         ResourceState state;
         uint32_t refCount;
-        playground::audio::AudioClip audio;
+        void* audioBank;
     };
 
     struct PhysicsMaterialHandle {
@@ -96,4 +101,5 @@ namespace playground::assetmanager {
     TextureHandle* LoadTexture(const char* name, jobsystem::JobHandle* materialUploadJob);
     PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);
     CubemapHandle* LoadCubemap(const char* name, jobsystem::JobHandle* materialUploadJob);
+    AudioHandle* LoadAudio(const char* name);
 }

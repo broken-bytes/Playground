@@ -7,6 +7,7 @@
 #include <assetpipeline/loaders/ShaderLoader.hxx>
 #include <assetpipeline/loaders/PhysicsMaterialLoader.hxx>
 #include <assetpipeline/loaders/CubemapLoader.hxx>
+#include <assetpipeline/loaders/AudioLoader.hxx>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/types/vector.hpp>
@@ -128,6 +129,12 @@ int main(int argc, char** argv) {
 
             ending = ".pmat";
         }
+        else if (std::strcmp(asset.type.c_str(), "Audio") == 0) {
+            auto audio = playground::editor::assetpipeline::loaders::audioloader::LoadFromFile(filePath);
+            buffer = audio;
+
+            ending = ".audio";
+        }
         else if (std::strcmp(asset.type.c_str(), "Cubemap") == 0) {
             auto cubemap = playground::editor::assetpipeline::loaders::cubemaploader::LoadFromFile(filePath);
 
@@ -170,18 +177,25 @@ int main(int argc, char** argv) {
 
         auto pakPath = std::filesystem::current_path() / pakName.str();
 
-        size_t pos = asset.location.find(".");
-        if (pos != std::string::npos) {
-            asset.location.erase(pos);
+        // Remove the extension from the asset location if it is not an audio file (audio files have .strings.bank which would break)
+        if (ending != ".audio") {
+            size_t pos = asset.location.find(".");
+            if (pos != std::string::npos) {
+                asset.location.erase(pos);
+            }
+        }
+        else {
+            // For audio files, we keep the full location as it may contain .strings.bank
+            asset.location = asset.location.substr(0, asset.location.find_last_of('.'));
         }
 
         if ((bytes + buffer.size()) <= config.maxSize * 1024 * 1024) {
-            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, asset.location + ending, buffer);
+            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, asset.location + ending, buffer, ending != ".audio");
             bytes += buffer.size();
         }
         else {
             currentPackIndex++;
-            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, asset.location + ending, buffer);
+            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, asset.location + ending, buffer, ending != ".audio");
             bytes = buffer.size();
         }
     }

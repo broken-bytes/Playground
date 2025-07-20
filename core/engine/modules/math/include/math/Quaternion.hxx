@@ -81,6 +81,8 @@ namespace playground::math {
 
         Quaternion Normalise();
 
+        Vector3 Forward() const;
+
         static Quaternion LookRotation(const Vector3& forward, const Vector3& up);
 
         Quaternion operator*(const Quaternion& other) const {

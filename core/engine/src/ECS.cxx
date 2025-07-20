@@ -6,6 +6,7 @@
 #include "playground/systems/BoxColliderUpdateSystem.hxx"
 #include "playground/systems/RigidBodyUpdateSystem.hxx"
 #include "playground/systems/StaticBodyUpdateSystem.hxx"
+#include "playground/systems/AudioSourceSystem.hxx"
 #include "playground/components/TranslationComponent.hxx"
 #include "playground/components/WorldTranslationComponent.hxx"
 #include "playground/components/RotationComponent.hxx"
@@ -17,6 +18,7 @@
 #include "playground/components/BoxColliderComponent.hxx"
 #include "playground/components/RigidBodyComponent.hxx"
 #include "playground/components/StaticBodyComponent.hxx"
+#include "playground/components/AudioSourceComponent.hxx"
 #include <shared/JobSystem.hxx>
 #include <mutex>
 #include <shared_mutex>
@@ -68,17 +70,28 @@ namespace playground::ecs {
     }
 
     void RegisterComponents() {
-        playground::ecs::GetWorld().component<TranslationComponent>("::TranslationComponent");
+        playground::ecs::GetWorld().component<TranslationComponent>("::TranslationComponent")
+            .on_add([](flecs::entity e, TranslationComponent) {
+                e.add<WorldTranslationComponent>();
+            });
         playground::ecs::GetWorld().component<WorldTranslationComponent>("::WorldTranslationComponent");
-        playground::ecs::GetWorld().component<RotationComponent>("::RotationComponent");
+        playground::ecs::GetWorld().component<RotationComponent>("::RotationComponent")
+            .on_add([](flecs::entity e, RotationComponent) {
+                e.add<WorldRotationComponent>();
+            });
         playground::ecs::GetWorld().component<WorldRotationComponent>("::WorldRotationComponent");
-        playground::ecs::GetWorld().component<ScaleComponent>("::ScaleComponent");
+        playground::ecs::GetWorld().component<ScaleComponent>("::ScaleComponent")
+            .on_add([](flecs::entity e, ScaleComponent) {
+                e.add<WorldScaleComponent>();
+            });
         playground::ecs::GetWorld().component<WorldScaleComponent>("::WorldScaleComponent");
         playground::ecs::GetWorld().component<MeshComponent>("::MeshComponent");
         playground::ecs::GetWorld().component<MaterialComponent>("::MaterialComponent");
         playground::ecs::GetWorld().component<BoxColliderComponent>("::BoxColliderComponent");
         playground::ecs::GetWorld().component<RigidBodyComponent>("::RigidBodyComponent");
         playground::ecs::GetWorld().component<StaticBodyComponent>("::StaticBodyComponent");
+        playground::ecs::GetWorld().component<AudioSourceComponent>("::AudioSourceComponent");
+
     }
 
     void RegisterSystems() {
@@ -86,6 +99,7 @@ namespace playground::ecs {
         playground::ecs::boxcolliderupdatesystem::Init(*world);
         playground::ecs::rigidbodyupdatesystem::Init(*world);
         playground::ecs::staticbodyupdatesystem::Init(*world);
+        playground::ecs::audiosourcesystem::Init(*world);
         playground::ecs::rendersystem::Init(*world);
     }
 
@@ -167,11 +181,7 @@ namespace playground::ecs {
     void Shutdown() {
         world->quit();
 
-        world->progress(0);
-
         ecs_fini(*world);
-
-        world.reset();
     }
 
     flecs::world& GetWorld() {

@@ -31,11 +31,59 @@
 typedef void(*ScriptingEventCallback)(playground::events::Event* event);
 
 bool isRunning = true;
-
+auto now = std::chrono::high_resolution_clock::now();
 std::thread renderThread;
 
 double timeSinceStart = 0.0;
 double deltaTime = 0.0;
+
+uint8_t Startup(const PlaygroundConfig& config);
+uint8_t SetupSubsystems(const PlaygroundConfig& config);
+void SetupPointerLookupTable(const PlaygroundConfig& config);
+void StartRenderThread(const PlaygroundConfig& config, void* window);
+void LoadCoreAssets();
+void SubscribeToEventsFromScripting(playground::events::EventType type, ScriptingEventCallback callback);
+void Update();
+double GetTimeSinceStart();
+double GetDeltaTime();
+void Shutdown();
+
+/// 0 - OK
+/// 1 - Error (Unknown error)
+/// 2 - Error (No AVX or AVX2 support)
+uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
+#if ENABLE_PROFILER
+    tracy::StartupProfiler();
+#endif
+    playground::logging::logger::Info("Starting Playground Core Engine...");
+    auto code = Startup(config);
+    if (code != 0) {
+        playground::logging::logger::Error("Failed to start Playground Core Engine");
+        return code;
+    }
+    playground::logging::logger::Info("Playground Core Engine started.");
+    playground::logging::logger::Info("Initializing Scripting Layer...");
+
+    // Register mandatory assets
+
+    LoadCoreAssets();
+
+    auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
+
+    playground::hardware::PinCurrentThreadToCore(cores[0].id);
+
+    config.startupCallback();
+
+    tracy::SetThreadName("Game Thread");
+
+    while (isRunning) {
+        Update();
+    }
+
+    Shutdown();
+
+    return 0;
+}
 
 double GetTimeSinceStart() {
     return timeSinceStart;
@@ -47,55 +95,53 @@ double GetDeltaTime() {
 
 void Shutdown() {
     isRunning = false;
+    playground::input::Shutdown();
+    playground::rendering::Shutdown();
+    playground::audio::Shutdown();
+    playground::physicsmanager::Shutdown();
+    playground::ecs::Shutdown();
+    playground::jobsystem::Shutdown();
+    renderThread.join();
+
+#if ENABLE_PROFILER
+    tracy::ShutdownProfiler();
+#endif
 }
 
-void SubscribeToEventsFromScripting(playground::events::EventType type, ScriptingEventCallback callback) {
-    Subscribe(type, [callback](playground::events::Event* event) {
-        callback(event);
-    });
-}
-
-/// 0 - OK
-/// 1 - Error (Unknown error)
-/// 2 - Error (No AVX or AVX2 support)
-uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
+uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     playground::hardware::Init();
 
     if (playground::hardware::SupportsAVX2()) {
         playground::logging::logger::Info("CPU supports AVX2.");
-    } else if (playground::hardware::SupportsAVX()){
+    }
+    else if (playground::hardware::SupportsAVX()) {
         playground::logging::logger::Warn("CPU supports AVX.");
     }
     else {
         playground::logging::logger::Error("CPU does not support AVX or AVX2. This application requires at least AVX support.");
+
         return 2;
     }
 
-    auto window = playground::system::Init(config.Window);
-
-    std::promise<void> rendererReadyPromise;
-    std::future<void> rendererReadyFuture = rendererReadyPromise.get_future();
-
-    renderThread = std::thread([window, config, &rendererReadyPromise] {
-        auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
-
-        playground::hardware::PinCurrentThreadToCore(cores[1].id);
-        playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen, rendererReadyPromise);
-        });
-
-    Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
-        if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
-            Shutdown();
-        }
-        });
-
     playground::logging::logger::AddLogger(std::make_shared<playground::logging::ConsoleLogger>());
     playground::logging::logger::SetLogLevel(LogLevel::Info);
+    playground::assetloader::Init();
+    playground::input::Init(config.Window);
+    playground::audio::Init(
+        playground::io::OpenFileFromArchive,
+        playground::io::ReadFileFromArchive,
+        playground::io::SeekFileInArchive,
+        playground::io::CloseFile
+    );
+    playground::jobsystem::Init();
+    playground::inputmanager::Init();
+    playground::physicsmanager::Init();
+    playground::ecs::Init(ENABLE_INSPECTOR);
 
-#if ENABLE_PROFILER
-    tracy::StartupProfiler();
-#endif
+    return 0;
+}
 
+void SetupPointerLookupTable(const PlaygroundConfig& config) {
     config.Delegate("Logger_Info", playground::logging::logger::Info);
     config.Delegate("Logger_Warn", playground::logging::logger::Info);
     config.Delegate("Logger_Error", playground::logging::logger::Info);
@@ -152,19 +198,29 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     config.Delegate("Math_Mat4FromPRS", playground::math::Mat4FromPRS);
     config.Delegate("Math_Mat4FromPRSBulk", playground::math::Mat4FromPRSBulk);
+}
 
-    playground::logging::logger::Info("Playground Core Engine started.");
-    playground::logging::logger::Info("Initializing Scripting Layer...");
+void StartRenderThread(const PlaygroundConfig& config, void* window) {
+    std::promise<void> rendererReadyPromise;
+    std::future<void> rendererReadyFuture = rendererReadyPromise.get_future();
+
+    renderThread = std::thread([window, config, &rendererReadyPromise] {
+        auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
+
+        playground::hardware::PinCurrentThreadToCore(cores[1].id);
+        playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen, rendererReadyPromise);
+        });
+
+    Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
+        if (reinterpret_cast<playground::events::SystemEvent*>(event)->SystemType == playground::events::SystemEventType::Quit) {
+            isRunning = false;
+        }
+        });
 
     rendererReadyFuture.wait();
+}
 
-    playground::input::Init(config.Window);
-    playground::jobsystem::Init();
-    playground::inputmanager::Init();
-    playground::physicsmanager::Init();
-
-    // Register mandatory assets
-
+void LoadCoreAssets() {
     // Shadow shader
     auto shadowShader = playground::assetmanager::LoadShader("shadows.shader");
     playground::rendering::RegisterShadowShader(shadowShader->vertexShader);
@@ -172,74 +228,74 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     // Skybox
     auto skybox = playground::assetmanager::LoadMaterial("skybox.mat", [](uint32_t id) {
         playground::rendering::SetSkyboxMaterial(id);
-    });
+        });
 
     auto fogPostProcessing = playground::assetmanager::LoadMaterial("fog.mat", [](uint32_t id) {
         playground::rendering::RegisterPostProcessingMaterial(0, id);
-    });
+        });
 
-    auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
+    playground::assetmanager::LoadAudio("Master.audio");
+    playground::assetmanager::LoadAudio("Master.strings.audio");
+    playground::assetmanager::LoadAudio("Ambient.audio");
+    playground::assetmanager::LoadAudio("Dialogue.audio");
+    playground::assetmanager::LoadAudio("SFX.audio");
+    playground::assetmanager::LoadAudio("Music.audio");
+    playground::audio::SetVolume(1);
+}
 
-    playground::hardware::PinCurrentThreadToCore(cores[0].id);
+uint8_t Startup(const PlaygroundConfig& config) {
+    auto code = SetupSubsystems(config);
+    SetupPointerLookupTable(config);
 
-    playground::audio::Init();
-#if ENABLE_INSPECTOR
-    playground::ecs::Init(true);
-#else
-    playground::ecs::Init(false);
-#endif
+    auto window = playground::system::Init(config.Window);
 
+    StartRenderThread(config, window);
 
-    config.startupCallback();
+    return code;
+}
 
+void Update() {
     static const char* CPU_FRAME = "CPU:Update";
 
-    tracy::SetThreadName("Game Thread");
+    FrameMark;
+    FrameMarkStart(CPU_FRAME);
 
-    auto now = std::chrono::high_resolution_clock::now();
-    while (isRunning) {
-        FrameMark;
-        FrameMarkStart(CPU_FRAME);
-
-        {
-            ZoneScopedN("Input");
-            ZoneColor(tracy::Color::AliceBlue);
-            playground::input::Update();
-            playground::inputmanager::Update();
-        }
-        {
-            ZoneScopedN("ECS Tick");
-            ZoneColor(tracy::Color::LightSalmon);
-            playground::ecs::Update(deltaTime);
-        }
-        {
-            ZoneScopedN("Physics Tick");
-            ZoneColor(tracy::Color::Salmon);
-            playground::physicsmanager::Update(deltaTime);
-        }
-        {
-            ZoneScopedN("Batcher Submit");
-            ZoneColor(tracy::Color::DarkSalmon);
-            playground::drawcallbatcher::Submit();
-        }
-        auto next = std::chrono::high_resolution_clock::now();
-        const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
-        deltaTime = (double)int_ns.count() / 1000000000.0;
-        timeSinceStart += deltaTime;
-        now = next;
-        FrameMarkEnd(CPU_FRAME);
+    {
+        ZoneScopedN("Input");
+        ZoneColor(tracy::Color::AliceBlue);
+        playground::input::Update();
+        playground::inputmanager::Update();
     }
-
-    playground::input::Shutdown();
-    playground::rendering::Shutdown();
-    playground::physicsmanager::Shutdown();
-    playground::ecs::Shutdown();
-    playground::jobsystem::Shutdown();
-    renderThread.join();
-
-#if ENABLE_PROFILER
-    tracy::ShutdownProfiler();
-#endif
-
-    return 0;
+    {
+        ZoneScopedN("ECS Tick");
+        ZoneColor(tracy::Color::LightSalmon);
+        playground::ecs::Update(deltaTime);
+    }
+    {
+        ZoneScopedN("Physics Tick");
+        ZoneColor(tracy::Color::Salmon);
+        playground::physicsmanager::Update(deltaTime);
+    }
+    {
+        ZoneScopedNC("Audio Update", tracy::Color::DarkSeaGreen1);
+        playground::audio::Update();
+    }
+    {
+        ZoneScopedN("Batcher Submit");
+        ZoneColor(tracy::Color::DarkSalmon);
+        playground::drawcallbatcher::Submit();
+    }
+    auto next = std::chrono::high_resolution_clock::now();
+    const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
+    deltaTime = (double)int_ns.count() / 1000000000.0;
+    timeSinceStart += deltaTime;
+    now = next;
+    FrameMarkEnd(CPU_FRAME);
 }
+
+void SubscribeToEventsFromScripting(playground::events::EventType type, ScriptingEventCallback callback) {
+    Subscribe(type, [callback](playground::events::Event* event) {
+        callback(event);
+    });
+}
+

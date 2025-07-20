@@ -7,17 +7,19 @@
 #include <cereal/types/string.hpp>
 
 namespace playground::assetloader {
+    auto paks = std::vector<std::filesystem::path>();
 
-    std::vector<uint8_t> TryLoadFile(std::string fileName) {
+    void Init() {
         auto currentPath = std::filesystem::current_path();
         auto filelIst = io::GetFileList(currentPath);
-        auto paks = std::vector<std::filesystem::path>();
         for (const auto& file : filelIst) {
             if (file.is_regular_file() && file.path().extension() == ".pak") {
                 paks.push_back(file.path());
             }
         }
+    }
 
+    std::vector<uint8_t> TryLoadFile(std::string fileName) {
         std::vector<uint8_t> data;
 
         for (const auto& pak : paks) {
@@ -29,6 +31,16 @@ namespace playground::assetloader {
         }
 
         return {};
+    }
+
+    std::string TryFindFile(std::string_view fileName) {
+        for (const auto& pak : paks) {
+            if (io::CheckIfFileExists(pak.string(), fileName.data())) {
+                return pak.string();
+            }
+        }
+
+        return "";
     }
 
     std::vector<RawMeshData> LoadMeshes(std::string_view modelName)
@@ -144,6 +156,22 @@ namespace playground::assetloader {
         std::istringstream iss(binaryStr, std::ios::binary);
 
         RawCubemapData loaded;
+        {
+            cereal::BinaryInputArchive iarchive(iss);
+            iarchive(loaded);
+        }
+
+        return loaded;
+    }
+
+    RawAudioData LoadAudio(std::string_view name) {
+        auto data = TryLoadFile(std::string(name));
+        if (data.empty()) {
+            throw std::runtime_error("Failed to load data for audio: " + std::string(name));
+        }
+        std::string binaryStr(data.begin(), data.end());
+        std::istringstream iss(binaryStr, std::ios::binary);
+        RawAudioData loaded;
         {
             cereal::BinaryInputArchive iarchive(iss);
             iarchive(loaded);

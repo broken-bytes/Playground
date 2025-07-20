@@ -2,9 +2,11 @@
 #include <assetloader/AssetLoader.hxx>
 #include <rendering/Mesh.hxx>
 #include <rendering/Rendering.hxx>
+#include <audio/Audio.hxx>
 #include <physics/Physics.hxx>
 #include <shared/Hasher.hxx>
 #include <shared/JobSystem.hxx>
+#include <io/IO.hxx>
 #include <cstdint>
 #include <ranges>
 #include <string>
@@ -17,6 +19,7 @@ namespace playground::assetmanager {
     std::vector<TextureHandle*> _textureHandles = {};
     std::vector<PhysicsMaterialHandle*> _physicsMaterialHandles = {};
     std::vector<CubemapHandle*> _cubemapHandles = {};
+    std::vector<AudioHandle*> _audioHandles = {};
 
     void MarkModelUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
         if (handleId < _modelHandles.size()) {
@@ -385,7 +388,6 @@ namespace playground::assetmanager {
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
-                    auto rawCubemapData = playground::assetloader::LoadCubemap(name);
                     handle->refCount = 1;
                     handle->state.store(ResourceState::Created);
                 }
@@ -432,5 +434,49 @@ namespace playground::assetmanager {
         jobsystem::Submit(cubemapUploadJob);
 
         return _cubemapHandles[handleId.value()];
+    }
+
+    AudioHandle* LoadAudio(const char* name) {
+        auto hash = shared::Hash(name);
+        AudioHandle* handle;
+        for (uint32_t i = 0; i < _audioHandles.size(); ++i) {
+            handle = _audioHandles[i];
+            if (handle->hash == hash) {
+                if (handle->state == ResourceState::Uploaded) {
+                    handle->refCount++;
+                    return handle;
+                }
+                else if (handle->state == ResourceState::Unloaded) {
+                    auto archive = assetloader::TryFindFile(name);
+                    if (archive.size() == 0) {
+                        throw std::runtime_error("Audio file not found: " + std::string(name));
+                    }
+                    handle->audioBank = audio::LoadBank(archive, name);
+                    handle->refCount = 1;
+                    handle->state = ResourceState::Uploaded;
+
+                    return handle;
+                }
+            }
+        }
+        handle = new AudioHandle{
+            .hash = hash,
+            .state = ResourceState::Created,
+            .refCount = 1,
+            .audioBank = nullptr
+        };
+
+        auto archive = assetloader::TryFindFile(name);
+        if (archive.size() > 0) {
+            handle->audioBank = audio::LoadBank(archive, name);
+        } else {
+            throw std::runtime_error("Audio file not found: " + std::string(name));
+        }
+
+        uint32_t handleId;
+        handleId = _audioHandles.size();
+        _audioHandles.push_back(handle);
+
+        return _audioHandles[handleId];
     }
 }
