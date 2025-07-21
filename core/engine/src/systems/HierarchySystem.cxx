@@ -33,13 +33,6 @@ namespace playground::ecs::hierarchysystem {
     }
 
     void Init(flecs::world world) {
-        auto translation = ecs::RegisterComponent("TranslationComponent", sizeof(TranslationComponent), alignof(TranslationComponent));
-        auto rotation = ecs::RegisterComponent("RotationComponent", sizeof(RotationComponent), alignof(RotationComponent));
-        auto scale = ecs::RegisterComponent("ScaleComponent", sizeof(ScaleComponent), alignof(ScaleComponent));
-        auto wTranslation = ecs::RegisterComponent("WorldTranslationComponent", sizeof(WorldTranslationComponent), alignof(WorldTranslationComponent));
-        auto wRotation = ecs::RegisterComponent("WorldRotationComponent", sizeof(WorldRotationComponent), alignof(WorldRotationComponent));
-        auto wScale = ecs::RegisterComponent("WorldScaleComponent", sizeof(WorldScaleComponent), alignof(WorldScaleComponent));
-
         world.system<TranslationComponent, RotationComponent, ScaleComponent, WorldTranslationComponent, WorldRotationComponent, WorldScaleComponent>("HierarchySystem")
             .kind(flecs::PostUpdate)
             .multi_threaded(true)

@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <cassert>
+#include <iostream>
 
 namespace playground::io {
 	void XOR_Encrypt(std::vector<uint8_t>& data, uint8_t key = 0xAB) {
@@ -109,14 +110,6 @@ namespace playground::io {
         if (!handle || !handle->file) {
             throw std::runtime_error("Invalid file handle");
         }
-        // Check if the file is seekable
-        if (zip_file_is_seekable((zip_file_t*)handle->file) != 1) {
-            throw std::runtime_error("File is not seekable");
-        }
-        // 1. Seek to the offset
-        if (zip_fseek((zip_file_t*)handle->file, handle->readOffset, SEEK_SET) != 0) {
-            throw std::runtime_error("zip_fseek failed");
-        }
 
         // 2. Read the data
         std::vector<uint8_t> data(length);
@@ -134,6 +127,16 @@ namespace playground::io {
         FileHandle* handle,
         size_t offset
     ) {
+        // Check if the file is seekable
+        if (zip_file_is_seekable((zip_file_t*)handle->file) != 1) {
+            throw std::runtime_error("File is not seekable");
+        }
+        // 1. Seek to the offset
+        if (zip_fseek((zip_file_t*)handle->file, offset, SEEK_SET) != 0) {
+            throw std::runtime_error("zip_fseek failed");
+        }
+
+        // 2. Update the read offset
         handle->readOffset = offset;
     }
 

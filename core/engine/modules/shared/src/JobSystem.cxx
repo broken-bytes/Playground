@@ -5,15 +5,12 @@
 #include <tracy/Tracy.hpp>
 #include "shared/Arena.hxx"
 #include <EASTL/fixed_vector.h>
+#include <EASTL/unordered_set.h>
 #include <sstream>
 #include <iostream>
+#include <vector>
 
 namespace playground::jobsystem {
-    using ArenaType = memory::VirtualArena;
-    using Allocator = memory::ArenaAllocator<ArenaType>;
-    ArenaType arena(128 * 1024 * 1024); // 128MB Physics Objects
-    Allocator alloc(&arena, "Physics Allocator");
-
     class Worker {
     public:
         Worker(std::string name, uint8_t index, hardware::CPUEfficiencyClass cpuEfficiency, std::function<bool(std::shared_ptr<JobHandle>&)> pullJob) {
@@ -128,8 +125,8 @@ namespace playground::jobsystem {
         _tracerColour = colour;
     }
 
-    eastl::vector<std::shared_ptr<Worker>, Allocator> workers(alloc);
-    eastl::fixed_vector<std::shared_ptr<JobHandle>, 2048, false, Allocator> pendingJobs(alloc);
+    std::vector<std::shared_ptr<Worker>> workers;
+    std::vector<std::shared_ptr<JobHandle>> pendingJobs;
     std::mutex pendingMutex;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> highPerfQueue;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> lowPerfQueue;
@@ -215,15 +212,21 @@ namespace playground::jobsystem {
     }
 
     void Submit(std::shared_ptr<JobHandle>& job) {
-        auto it = std::find(pendingJobs.begin(), pendingJobs.end(), job);
-        if (it != pendingJobs.end()) {
-            pendingJobs.erase(it);
-        }
-
-        if (!job->IsReady()) {
+        ZoneScopedN("Job System Submit");
+        {
             std::scoped_lock pendingLock{ pendingMutex };
-            pendingJobs.push_back(job);
-            return;
+            auto it = std::find(pendingJobs.begin(), pendingJobs.end(), job);
+            if (it != pendingJobs.end()) {
+                pendingJobs.erase(it);
+            }
+
+            if (!job->IsReady()) {
+                auto it = std::find(pendingJobs.begin(), pendingJobs.end(), job);
+                if (it == pendingJobs.end()) {
+                    pendingJobs.push_back(job);
+                }
+                return;
+            }
         }
 
         if (job->Priority() == JobPriority::High) {

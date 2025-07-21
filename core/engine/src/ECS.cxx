@@ -7,6 +7,7 @@
 #include "playground/systems/RigidBodyUpdateSystem.hxx"
 #include "playground/systems/StaticBodyUpdateSystem.hxx"
 #include "playground/systems/AudioSourceSystem.hxx"
+#include "playground/systems/AudioListenerSystem.hxx"
 #include "playground/components/TranslationComponent.hxx"
 #include "playground/components/WorldTranslationComponent.hxx"
 #include "playground/components/RotationComponent.hxx"
@@ -19,6 +20,7 @@
 #include "playground/components/RigidBodyComponent.hxx"
 #include "playground/components/StaticBodyComponent.hxx"
 #include "playground/components/AudioSourceComponent.hxx"
+#include "playground/components/AudioListenerComponent.hxx"
 #include <shared/JobSystem.hxx>
 #include <mutex>
 #include <shared_mutex>
@@ -39,7 +41,7 @@ namespace playground::ecs {
 
     std::vector<std::shared_ptr<jobsystem::JobHandle>> jobs;
 
-    uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate, ecs_entity_t dependsOn);
+    uint64_t CreateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate, ecs_entity_t dependsOn);
     void RegisterComponents();
     void RegisterSystems();
 
@@ -91,7 +93,7 @@ namespace playground::ecs {
         playground::ecs::GetWorld().component<RigidBodyComponent>("::RigidBodyComponent");
         playground::ecs::GetWorld().component<StaticBodyComponent>("::StaticBodyComponent");
         playground::ecs::GetWorld().component<AudioSourceComponent>("::AudioSourceComponent");
-
+        playground::ecs::GetWorld().component<AudioListenerComponent>("::AudioListenerComponent");
     }
 
     void RegisterSystems() {
@@ -100,6 +102,7 @@ namespace playground::ecs {
         playground::ecs::rigidbodyupdatesystem::Init(*world);
         playground::ecs::staticbodyupdatesystem::Init(*world);
         playground::ecs::audiosourcesystem::Init(*world);
+        playground::ecs::audiolistenersystem::Init(*world);
         playground::ecs::rendersystem::Init(*world);
     }
 
@@ -252,15 +255,15 @@ namespace playground::ecs {
         ecs_remove_id(*world, entityId, componentId);
     }
 
-    uint64_t CreatePreUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
+    uint64_t CreatePreUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
         return CreateSystem(name, filter, filterCount, isParallel, delegate, EcsPreUpdate);
     }
 
-    uint64_t CreateUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
+    uint64_t CreateUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
         return CreateSystem(name, filter, filterCount, isParallel, delegate, EcsOnUpdate);
     }
 
-    uint64_t CreatePostUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
+    uint64_t CreatePostUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate) {
         return CreateSystem(name, filter, filterCount, isParallel, delegate, EcsPostUpdate);
     }
 
@@ -313,7 +316,7 @@ namespace playground::ecs {
         ecs_add_id(*world, entityId, tagId);
     }
 
-    uint64_t CreateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate, ecs_entity_t dependsOn) {
+    uint64_t CreateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate, ecs_entity_t dependsOn) {
         ecs_system_desc_t system = {};
 
         ecs_entity_desc_t entity = {};
@@ -324,7 +327,7 @@ namespace playground::ecs {
 
         ecs_query_desc_t query = {};
         for (int x = 0; x < filterCount; x++) {
-            query.terms[x] = ecs_term_t{ .id = filter[x], .inout = EcsInOut, .oper = EcsAnd };
+            query.terms[x] = ecs_term_t{ .id = filter[x].filterComponentId, .inout = filter[x].filterUsage, .oper = filter[x].filterOperation};
         }
 
         memset(system.query.terms, 0, sizeof(system.query.terms));

@@ -17,6 +17,12 @@
 #include <flecs/addons/rest.h>
 
 namespace playground::ecs {
+    struct Filter {
+        uint64_t filterComponentId;
+        int16_t filterUsage; // 3 - Read, 4 - Write, 5 - ReadWrite
+        int16_t filterOperation; // 0 - And, 1 - Or, 2 - Not
+    };
+
     typedef void (*SystemTickDelegate)(ecs_iter_t*);
     typedef void (*ComponentLifetimeDelegate)(ecs_iter_t*);
     void Init(bool debugServer);
@@ -38,9 +44,9 @@ namespace playground::ecs {
     bool HasComponent(uint64_t entityId, uint64_t componentId);
     void DestroyComponent(uint64_t entityId, uint64_t componentId);
 
-    uint64_t CreatePreUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
-    uint64_t CreateUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
-    uint64_t CreatePostUpdateSystem(const char* name, uint64_t* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
+    uint64_t CreatePreUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
+    uint64_t CreateUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
+    uint64_t CreatePostUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
     void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize, size_t* numItems);
     uint64_t GetIteratorSize(ecs_iter_t* iter);
     uint64_t GetIteratorOffset(ecs_iter_t* iter);

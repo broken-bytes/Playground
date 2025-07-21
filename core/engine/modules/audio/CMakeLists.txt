@@ -14,6 +14,7 @@ target_include_directories(Audio PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public
 # Check that the paths are supplied and raise an eror if not
 if(DEFINED STEAMAUDIO_INCLUDE_DIR)
 	target_include_directories(Audio PRIVATE ${STEAMAUDIO_INCLUDE_DIR})
+	target_include_directories(Audio PRIVATE ${STEAMAUDIO_INCLUDE_DIR}/phonon)
 else()
 	message(FATAL_ERROR "STEAMAUDIO_INCLUDE_DIR not set")
 endif()

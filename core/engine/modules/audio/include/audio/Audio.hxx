@@ -21,6 +21,7 @@ namespace playground::audio {
         std::function <void(io::FileHandle* handle)> closeFileCallback
     ) -> void;
     void SetListenerPosition(
+        uint8_t index,
         float x,
         float y,
         float z,

@@ -29,12 +29,12 @@ namespace playground::ecs::rendersystem {
         auto mesh = ecs::RegisterComponent("MeshComponent", sizeof(MeshComponent), alignof(MeshComponent));
         auto material = ecs::RegisterComponent("MaterialComponent", sizeof(MaterialComponent), alignof(MaterialComponent));
 
-        std::array<uint64_t, 5> components = {
-            translation,
-            rotation,
-            scale,
-            mesh,
-            material
+        std::array<Filter, 5> components = {
+            Filter(translation, EcsIn, EcsAnd),
+            Filter(rotation, EcsIn, EcsAnd),
+            Filter(scale, EcsIn, EcsAnd),
+            Filter(mesh, EcsIn, EcsAnd),
+            Filter(material, EcsIn, EcsAnd)
         };
 
         ecs::CreatePostUpdateSystem("RenderSystem", components.data(), components.size(), true,
@@ -74,3 +74,37 @@ namespace playground::ecs::rendersystem {
             });
     }
 }
+/*
+world.system<const WorldTranslationComponent, const WorldRotationComponent, const WorldScaleComponent, const MeshComponent, const MaterialComponent>("RenderSystem")
+.kind(flecs::PostUpdate)
+.multi_threaded(true)
+.run([](flecs::iter& it) {
+    ZoneScopedNC("RenderSystem", tracy::Color::Green);
+    while (it.next()) {
+        auto translation = it.field<const WorldTranslationComponent>(0);
+        auto rotation = it.field<const WorldRotationComponent>(1);
+        auto scale = it.field<const WorldScaleComponent>(2);
+        auto mesh = it.field<const MeshComponent>(3);
+        auto material = it.field<const MaterialComponent>(4);
+
+        auto startIndex = offset.fetch_add(it.count(), std::memory_order_relaxed);
+
+        auto drawPtr = &drawCalls[startIndex];
+        for (int x = 0; x < it.count(); x++) {
+            math::Mat4FromPRS(
+                reinterpret_cast<math::Vector3*>(&translation),
+                reinterpret_cast<math::Quaternion*>(&rotation),
+                reinterpret_cast<math::Vector3*>(&scale),
+                &matrices[startIndex + x]
+            );
+            drawPtr[x] = drawcallbatcher::DrawCall{
+                .modelHandle = mesh[x].handle,
+                .meshId = mesh[x].meshId,
+                .materialHandle = material[x].handle,
+                .transform = (&matrices[startIndex])[x],
+            };
+        }
+        drawcallbatcher::Batch(drawPtr, it.count());
+    }
+    });
+*/

@@ -1,7 +1,6 @@
 public func cameraMoveTest(iter: UnsafeMutableRawPointer) {
     var translations = ECSHandler.getComponentBuffer(iter: iter, slot: 0, type: TranslationComponent.self)
     var rotations = ECSHandler.getComponentBuffer(iter: iter, slot: 1, type: RotationComponent.self)
-    var cameras = ECSHandler.getComponentBuffer(iter: iter, slot: 2, type: CameraComponent.self)
 
     for x in 0..<translations.count {
         let lookX = Input.getAxis("lookx")

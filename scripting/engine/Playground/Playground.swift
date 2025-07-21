@@ -53,6 +53,8 @@ func startUp() {
     camEntity.addComponent(&rotation)
     var scale = ScaleComponent(scale: Vector3(x: 1, y: 1, z: 1))
     camEntity.addComponent(&scale)
+    var listener = AudioListenerComponent(index: 0)
+    camEntity.addComponent(&listener)
 
     let floor = Entity("Floor")
     var floorMaterial = MaterialComponent(handle: groundMaterialhandle)
@@ -73,10 +75,7 @@ func startUp() {
     var boxCollider = BoxColliderComponent(isTrigger: false, dimensions: Vector3(x: 100, y: 0.5, z: 100), offset: .zero, rotation: .identity, material: physicsMaterialHandle)
     floor.addComponent(&boxCollider)
 
-    var audioSource = AudioSourceComponent(with: "event:/Ambient/forest_loop_1")
-    entity.addComponent(&audioSource)
-
-    for x in 0..<500 {
+    for x in 0..<10 {
         let entity = Entity("Entity\(x)")
         var material = MaterialComponent(handle: materialhandle)
         entity.addComponent(&material)
@@ -96,10 +95,8 @@ func startUp() {
         var boxCollider = BoxColliderComponent(isTrigger: false, dimensions: .one, offset: .zero, rotation: .identity, material: physicsMaterialHandle)
         entity.addComponent(&boxCollider)
 
-        if x % 10 == 0 {
-            var audioSource = AudioSourceComponent(with: "event:/Ambient/motor_loop_1")
-            entity.addComponent(&audioSource)
-        }
+        var audioSource = AudioSourceComponent(with: "event:/Ambient/motor_loop_1")
+        entity.addComponent(&audioSource)
     }
 }
 
@@ -125,9 +122,27 @@ func initTags() {
 }
 
 func initSystems() {
-    ECSHandler.createSystem("CameraMoveSystem", filter: [TranslationComponent.self, RotationComponent.self, CameraComponent.self], multiThreaded: false, delegate: cameraMoveTest)
-    ECSHandler.createSystem("CameraSystem", filter: [CameraComponent.self, WorldTranslationComponent.self, WorldRotationComponent.self], multiThreaded: false, delegate: cameraSystem)
-    ECSHandler.createSystem("SunSystem", filter: [SunComponent.self], multiThreaded: false, delegate: sunSystem)
+    ECSHandler.createSystem(
+        "CameraMoveSystem", 
+        filter: [
+            ECSFilter(component: TranslationComponent.self, usage: .write, operation: .and), 
+            ECSFilter(component: RotationComponent.self, usage: .write, operation: .and), 
+            ECSFilter(component: CameraComponent.self, usage: .write, operation: .and)
+        ],
+        multiThreaded: false, 
+        delegate: cameraMoveTest
+    )
+    ECSHandler.createSystem(
+        "CameraSystem", 
+        filter: [
+            ECSFilter(component: CameraComponent.self, usage: .write, operation: .and), 
+            ECSFilter(component: WorldTranslationComponent.self, usage: .write, operation: .and), 
+            ECSFilter(component: WorldRotationComponent.self, usage: .write, operation: .and)
+        ],
+            multiThreaded: false, 
+            delegate: cameraSystem
+        )
+    ECSHandler.createSystem("SunSystem", filter: [ECSFilter(component: SunComponent.self, usage: .write, operation: .and)], multiThreaded: false, delegate: sunSystem)
 
     Logger.info("Initialised ECS Systems")
 }

@@ -7,10 +7,10 @@
 
 namespace playground::ecs::audiosourcesystem {
     void Init(flecs::world world) {
-        world.system<AudioSourceComponent, WorldTranslationComponent, WorldRotationComponent>("AudioSourceSystem")
+        world.system<AudioSourceComponent, const WorldTranslationComponent, const WorldRotationComponent>("AudioSourceSystem")
             .kind(flecs::PostUpdate)
             .multi_threaded(true)
-            .each([](flecs::iter& it, size_t, AudioSourceComponent& audioSource, WorldTranslationComponent& trans, WorldRotationComponent& rot) {
+            .each([](flecs::iter& it, size_t, AudioSourceComponent& audioSource, const WorldTranslationComponent& trans, const WorldRotationComponent& rot) {
                 if (audioSource.handle == UINT64_MAX) {
                     audioSource.previousPosition = trans.position;
                     audioSource.forward = rot.rotation.Forward();

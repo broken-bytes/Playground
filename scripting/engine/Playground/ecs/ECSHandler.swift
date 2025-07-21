@@ -11,7 +11,7 @@ internal enum ECSHandler {
     internal typealias GetComponent = @convention(c) (UInt64, UInt64) -> UnsafeMutableRawPointer
     internal typealias HasComponent = @convention(c) (UInt64, UInt64) -> Bool
     internal typealias DestroyComponent = @convention(c) (UInt64, UInt64) -> Void
-    internal typealias CreateSystem = @convention(c) (UnsafePointer<CChar>, UnsafePointer<UInt64>, UInt64, Bool, IteratorDelegate) -> UInt64
+    internal typealias CreateSystem = @convention(c) (UnsafePointer<CChar>, UnsafeRawPointer, UInt64, Bool, IteratorDelegate) -> UInt64
     internal typealias GetComponentBuffer = @convention(c) (UnsafeMutableRawPointer, UInt32, UInt64, UnsafeMutablePointer<UInt64>) -> UnsafeMutableRawPointer
     internal typealias GetIteratorSize = @convention(c) (UnsafeMutableRawPointer) -> UInt64
     internal typealias GetIteratorOffset = @convention(c) (UnsafeMutableRawPointer) -> UInt64
@@ -116,9 +116,13 @@ internal enum ECSHandler {
     }
 
     internal static nonisolated func hasComponent<T>(_ id: UInt64, type: T.Type) -> Bool {
-        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        let componentId: UInt64 = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
 
         return hasComponentPtr(id, componentId)
+    }
+
+    internal static func id<T>(for type: T.Type) -> UInt64 {
+        return componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
     }
 
     internal static nonisolated func destroyComponent<T>(_ id: UInt64, type: T.Type) {
@@ -127,12 +131,8 @@ internal enum ECSHandler {
         destroyComponentPtr(id, componentId)
     }
 
-    internal static nonisolated func createSystem(_ name: String, filter: [Any.Type], multiThreaded: Bool, delegate: IteratorDelegate) -> UInt64 {
-        var ids: [UInt64] = []
-        for item in filter {
-            ids.append(componentMapping[ObjectIdentifier(item)] ?? 0)
-        }
-        return name.withCString { createSystemPtr($0, ids, UInt64(filter.count), multiThreaded, delegate)}
+    internal static nonisolated func createSystem(_ name: String, filter: [ECSFilter], multiThreaded: Bool, delegate: IteratorDelegate) -> UInt64 {
+        return name.withCString { createSystemPtr($0, filter, UInt64(filter.count), multiThreaded, delegate)}
     }
 
     @inline(__always)

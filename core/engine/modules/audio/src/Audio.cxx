@@ -5,7 +5,8 @@
 #include <fmod_studio.hpp>
 #include <fmod.hpp>
 #include <fmod_errors.h>
-#include <phonon.h>
+#include <phonon/phonon.h>
+#include <steamaudio_fmod.h>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -14,6 +15,9 @@
 #include <vector>
 #include <iostream>
 #include <tracy/Tracy.hpp>
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 
 namespace playground::audio {
     struct FMODInstance
@@ -32,27 +36,20 @@ namespace playground::audio {
         FMOD::DSP* mixerReturnDsp;
         FMOD::DSP* reverbDsp;
         std::shared_ptr<jobsystem::JobHandle> audioJob;
-        std::vector<std::shared_ptr<jobsystem::JobHandle>> updateAudioSourcesJobs;
-        std::vector<std::shared_ptr<AudioSource>> audioSources;
+        std::vector<AudioSource> audioSources;
         bool isDirty = false;
         std::mutex audioSourcesMutex;
     };
 
     struct UserData {
-        std::string archiveName;
-        std::string fileName;
+        char archiveName[260];
+        char fileName[260];
         uint8_t refCount = 0;
     };
 
-    extern "C" {
-        FMOD_DSP_DESCRIPTION* F_CALL FMOD_SteamAudio_Spatialize_GetDSPDescription();
-        FMOD_DSP_DESCRIPTION* F_CALL FMOD_SteamAudio_MixerReturn_GetDSPDescription();
-        FMOD_DSP_DESCRIPTION* F_CALL FMOD_SteamAudio_Reverb_GetDSPDescription();
-        void F_CALL iplFMODInitialize(IPLContext context);
-        void F_CALL iplFMODSetSimulationSettings(IPLSimulationSettings simulationSettings);
-    }
-
     FMODInstance* instance = nullptr;
+
+    void SetSourceOutput(FMOD::Studio::EventInstance* instance, IPLSimulationOutputs& outputs);
 
     FMOD_RESULT OpenFile(
         const char* name,
@@ -63,7 +60,7 @@ namespace playground::audio {
         UserData* userData = static_cast<UserData*>(userdata);
 
         try {
-            *handle = instance->openFileCallback(userData->archiveName.c_str(), userData->fileName.c_str());
+            *handle = instance->openFileCallback(userData->archiveName, userData->fileName);
             *filesize = static_cast<io::FileHandle*>(*handle)->fileSize;
 
             if (*handle == nullptr) {
@@ -113,9 +110,7 @@ namespace playground::audio {
     FMOD_RESULT CloseFile(
         void* handle,
         void* userdata
-    ) {
-        UserData* userData = static_cast<UserData*>(userdata);
-     
+    ) {     
         try {
             instance->closeFileCallback(static_cast<io::FileHandle*>(handle));
             return FMOD_OK;
@@ -131,56 +126,81 @@ namespace playground::audio {
         std::function<void(io::FileHandle* handle, size_t offset)> seekFileCallback,
         std::function<void(io::FileHandle* handle)> closeFileCallback
     ) -> void {
+        FMOD::Debug_Initialize(FMOD_DEBUG_LEVEL_LOG, FMOD_DEBUG_MODE_TTY, 0, 0);
+        void* extraDriverData = NULL;
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
         instance = new FMODInstance();
         FMOD::Studio::System::create(&instance->system);
         instance->system->getCoreSystem(&instance->coreSystem);
-        instance->coreSystem->setSoftwareFormat(48000, FMOD_SPEAKERMODE_STEREO, 0);
-        instance->coreSystem->setOutput(FMOD_OUTPUTTYPE_AUTODETECT);
-        instance->coreSystem->set3DSettings(1.0f, 1.0f, 1.0f);
+        instance->coreSystem->setSoftwareFormat(0, FMOD_SPEAKERMODE_5POINT1, 0);
+
+        FMOD_RESULT result = instance->system->initialize(1024, FMOD_STUDIO_INIT_NORMAL | FMOD_STUDIO_INIT_LIVEUPDATE, FMOD_INIT_NORMAL, extraDriverData);
+        if (result != FMOD_OK) {
+            throw std::runtime_error("Failed to initialize FMOD: " + std::string(FMOD_ErrorString(result)));
+        }
+
+        instance->system->setNumListeners(1);
+        instance->system->setListenerWeight(0, 1);
+        SetListenerPosition(
+            0,
+            0.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, -1.0f
+        );
+
         instance->openFileCallback = openFileCallback;
         instance->readFileCallback = readFileCallback;
         instance->seekFileCallback = seekFileCallback;
         instance->closeFileCallback = closeFileCallback;
+
+        IPLContextSettings contextSettings{};
+        contextSettings.version = STEAMAUDIO_VERSION;
+        contextSettings.flags = IPL_CONTEXTFLAGS_VALIDATION;
+        contextSettings.simdLevel = IPL_SIMDLEVEL_AVX;
+
+        IPLContext context = nullptr;
+        auto steamAudioResult = iplContextCreate(&contextSettings, &context);
+        if (steamAudioResult != IPL_STATUS_SUCCESS || context == nullptr) {
+            throw std::runtime_error("Failed to create Steam Audio context: " + std::to_string(result));
+        }
+
+        iplFMODInitialize(context);
+        instance->context = context;
 
         unsigned int handle = 0;
         instance->coreSystem->registerDSP(FMOD_SteamAudio_Spatialize_GetDSPDescription(), &handle);
         instance->coreSystem->registerDSP(FMOD_SteamAudio_MixerReturn_GetDSPDescription(), &handle);
         instance->coreSystem->registerDSP(FMOD_SteamAudio_Reverb_GetDSPDescription(), &handle);
 
-        IPLContextSettings contextSettings{};
-        contextSettings.version = STEAMAUDIO_VERSION;
-
-        IPLContext context = nullptr;
-        auto status = iplContextCreate(&contextSettings, &context);
-
-        if (context == nullptr) {
-            throw std::runtime_error("Failed to create Steam Audio context");
-        }
-
-        iplFMODInitialize(context);
-        instance->context = context;
-
         IPLHRTFSettings hrtfSettings{};
         hrtfSettings.type = IPL_HRTFTYPE_DEFAULT;
         hrtfSettings.volume = 1.0f;
 
         IPLAudioSettings audioSettings{};
-        audioSettings.samplingRate = 44100;
+        audioSettings.samplingRate = 48000;
         audioSettings.frameSize = 1024;
 
         IPLHRTF hrtf = nullptr;
-        iplHRTFCreate(context, &audioSettings, &hrtfSettings, &hrtf);
+        steamAudioResult = iplHRTFCreate(context, &audioSettings, &hrtfSettings, &hrtf);
+        if (steamAudioResult != IPL_STATUS_SUCCESS || hrtf == nullptr) {
+            throw std::runtime_error("Failed to create Steam Audio HRTF: " + std::to_string(result));
+        }
+        iplFMODSetHRTF(hrtf);
 
         IPLBinauralEffectSettings effectSettings{};
         effectSettings.hrtf = hrtf;
 
         IPLBinauralEffect effect = nullptr;
-        iplBinauralEffectCreate(context, &audioSettings, &effectSettings, &effect);
+        steamAudioResult = iplBinauralEffectCreate(context, &audioSettings, &effectSettings, &effect);
+        if (steamAudioResult != IPL_STATUS_SUCCESS || effect == nullptr) {
+            throw std::runtime_error("Failed to create Steam Audio binaural effect: " + std::to_string(steamAudioResult));
+        }
 
         IPLSimulationSettings simSettings = {};
         simSettings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS);
         simSettings.sceneType = IPL_SCENETYPE_DEFAULT;
-        simSettings.reflectionType = IPL_REFLECTIONEFFECTTYPE_PARAMETRIC;
+        simSettings.reflectionType = IPL_REFLECTIONEFFECTTYPE_HYBRID;
         simSettings.maxNumOcclusionSamples = 8;
         simSettings.maxNumRays = 128;
         simSettings.numDiffuseSamples = 8;
@@ -199,48 +219,29 @@ namespace playground::audio {
         iplFMODSetSimulationSettings(simSettings);
 
         IPLSimulator simulator = nullptr;
-        iplSimulatorCreate(context, &simSettings, &simulator);
-        instance->simulator = simulator;
-
-        FMOD_RESULT result = instance->system->initialize(512, FMOD_STUDIO_INIT_NORMAL, FMOD_INIT_NORMAL, nullptr);
-        if (result != FMOD_OK) {
-            throw std::runtime_error("Failed to initialize FMOD: " + std::string(FMOD_ErrorString(result)));
+        steamAudioResult = iplSimulatorCreate(context, &simSettings, &simulator);
+        if (steamAudioResult != IPL_STATUS_SUCCESS || simulator == nullptr) {
+            throw std::runtime_error("Failed to create Steam Audio simulator: " + std::to_string(steamAudioResult));
         }
+        instance->simulator = simulator;
 
         IPLSceneSettings sceneSettings = {};
         sceneSettings.type = IPL_SCENETYPE_DEFAULT;
-        iplSceneCreate(
+        steamAudioResult = iplSceneCreate(
             instance->context,
             &sceneSettings,
             &instance->scene
         );
-        if (instance->scene == nullptr) {
-            throw std::runtime_error("Failed to create Steam Audio scene");
+        if (steamAudioResult != IPL_STATUS_SUCCESS || instance->scene == nullptr) {
+            throw std::runtime_error("Failed to create Steam Audio scene: " + std::to_string(steamAudioResult));
         }
 
-        SetListenerPosition(
-            0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, -1.0f
-        );
+        iplSimulatorSetScene(instance->simulator, instance->scene);
 
-        instance->coreSystem->createDSP(
-            FMOD_SteamAudio_Spatialize_GetDSPDescription(),
-            &instance->spatialDsp
-        );
-
-        instance->coreSystem->createDSP(
-            FMOD_SteamAudio_MixerReturn_GetDSPDescription(),
-            &instance->mixerReturnDsp
-        );
-
-        instance->coreSystem->createDSP(
-            FMOD_SteamAudio_Reverb_GetDSPDescription(),
-            &instance->reverbDsp
-        );
     }
 
     void SetListenerPosition(
+        uint8_t index,
         float x,
         float y,
         float z,
@@ -257,7 +258,7 @@ namespace playground::audio {
         attributes.forward = { fx, fy, fz };
         attributes.up = { 0, 1, 0 };
 
-        FMOD_RESULT result = instance->system->setListenerAttributes(0, &attributes);
+        FMOD_RESULT result = instance->system->setListenerAttributes(index, &attributes);
         if (result != FMOD_OK) {
             printf("FMOD setListenerAttributes error: %s\n", FMOD_ErrorString(result));
         }
@@ -271,14 +272,18 @@ namespace playground::audio {
         bankInfo.readcallback = ReadFile;
         bankInfo.seekcallback = SeekFile;
 
-        auto userData = UserData{ std::string(archiveName), std::string(name), 0 };
-
-        bankInfo.userdata = &userData;
+        auto* userData = new UserData();
+        strcpy(userData->archiveName, std::string(archiveName).c_str());
+        strcpy(userData->fileName, std::string(name).c_str());
+        userData->refCount = 0;
+        bankInfo.userdata = userData;
         bankInfo.userdatalength = sizeof(UserData);
 
         FMOD::Studio::Bank* bank;
 
         FMOD_RESULT result = instance->system->loadBankCustom(&bankInfo, FMOD_STUDIO_LOAD_BANK_NORMAL, &bank);
+
+        delete userData;
 
         if (result != FMOD_OK) {
             throw std::runtime_error("Failed to load FMOD bank: " + std::string(FMOD_ErrorString(result)));
@@ -300,19 +305,24 @@ namespace playground::audio {
         float fz
     ) {
         IPLSourceSettings sourceSettings = {};
-        sourceSettings.flags = static_cast<IPLSimulationFlags>
-            (IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION |
-                IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION |
-                IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY |
-                IPL_DIRECTSIMULATIONFLAGS_OCCLUSION |
-                IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION
-                );
+        sourceSettings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING);
         IPLSource source = nullptr;
-        iplSourceCreate(
+        auto steamAudioResult = iplSourceCreate(
             instance->simulator,
             &sourceSettings,
             &source
         );
+        if (steamAudioResult != IPL_STATUS_SUCCESS || source == nullptr) {
+            throw std::runtime_error("Failed to create Steam Audio source: " + std::to_string(steamAudioResult));
+        }
+
+        iplSourceAdd(
+            source,
+            instance->simulator
+        );
+        iplSimulatorCommit(instance->simulator);
+
+        //iplFMODAddSource
 
         FMOD::Studio::EventDescription* description;
         auto result = instance->system->getEvent(eventName, &description);
@@ -340,19 +350,76 @@ namespace playground::audio {
         instance->isDirty = true;
 
         std::scoped_lock<std::mutex> lock{ instance->audioSourcesMutex };
-        uint64_t handle = instance->audioSources.size();
-        instance->audioSources.push_back(
-            std::make_shared<AudioSource>(
-                source,
-                instance->simulator,
-                eventInstance,
-                x, y, z, vx, vy, vz, fx, fy, fz
-            )
+        uint64_t handle = instance->audioSources.size();;
+
+        IPLVector3 iplPosition = IPLVector3{ x, y, z };
+        IPLVector3 iplForward = IPLVector3{ fx, fy, fz };
+
+        IPLSimulationInputs inputs = {};
+        inputs.source.origin = iplPosition;
+        inputs.source.ahead = iplForward;
+        inputs.source.up = { 0.0f, 1.0f, 0.0f };
+        inputs.numTransmissionRays = 8;
+        IPLAirAbsorptionModel airAbsorption = {};
+        airAbsorption.type = IPL_AIRABSORPTIONTYPE_DEFAULT;
+        inputs.airAbsorptionModel = airAbsorption;
+        inputs.directFlags = static_cast<IPLDirectSimulationFlags>
+            (IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION |
+                IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION |
+                IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY |
+                IPL_DIRECTSIMULATIONFLAGS_OCCLUSION |
+                IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION
+                );
+        IPLDirectivity directivity = {};
+        directivity.dipoleWeight = 0.0f;
+        directivity.dipolePower = 0;
+        directivity.callback = nullptr;
+        directivity.userData = nullptr;
+        inputs.directivity = directivity;
+        inputs.numOcclusionSamples = 8;
+        inputs.occlusionType = IPLOcclusionType::IPL_OCCLUSIONTYPE_VOLUMETRIC;
+
+        iplSourceSetInputs(
+            source,
+            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING),
+            &inputs
         );
 
-        if (instance->audioSources[handle] == nullptr) {
-            throw std::runtime_error("Failed to create AudioSource");
-        }
+        eventInstance->setVolume(1.0f);
+
+        eventInstance->setCallback(
+            [](FMOD_STUDIO_EVENT_CALLBACK_TYPE type, FMOD_STUDIO_EVENTINSTANCE* event, void* parameters) -> FMOD_RESULT {
+                switch (type) {
+                case FMOD_STUDIO_EVENT_CALLBACK_CREATED:
+                    return FMOD_OK;
+                case FMOD_STUDIO_EVENT_CALLBACK_DESTROYED:
+                    return FMOD_OK;
+                case FMOD_STUDIO_EVENT_CALLBACK_STARTING:
+                    return FMOD_OK;
+                case FMOD_STUDIO_EVENT_CALLBACK_STARTED:
+                    return FMOD_OK;
+                case FMOD_STUDIO_EVENT_CALLBACK_RESTARTED:
+                    return FMOD_OK;
+                case FMOD_STUDIO_EVENT_CALLBACK_STOPPED:
+                    return FMOD_OK;
+                case FMOD_STUDIO_EVENT_CALLBACK_START_FAILED:
+                    return FMOD_OK;
+                default:
+                    return FMOD_OK;
+                }
+                return FMOD_OK;
+            }
+        );
+
+        eventInstance->start();
+
+        AudioSource audioSource = {
+            .fmodEventInstance = eventInstance,
+            .iplSource = source,
+            .settings = inputs,
+        };
+
+        instance->audioSources.push_back(audioSource);
 
         return static_cast<uint32_t>(handle);
     }
@@ -363,13 +430,22 @@ namespace playground::audio {
         math::Vector3 velocity,
         math::Vector3 forward
     ) {
-        auto setSourceJob = jobsystem::JobHandle::Create("Set Audio Source Data", jobsystem::JobPriority::Low, 50, [handle, position, velocity, forward]() {
-            ZoneScopedNC("Set Audio Source Data", tracy::Color::Red);
-            instance->audioSources[handle]->SetSourceData(position, velocity, forward);
-        });
+        IPLVector3 iplPosition = reinterpret_cast<const IPLVector3&>(position);
+        IPLVector3 iplForward = reinterpret_cast<const IPLVector3&>(forward);
+        instance->audioSources[handle].settings.source.origin = iplPosition;
+        instance->audioSources[handle].settings.source.ahead = iplForward;
+        instance->audioSources[handle].settings.source.up = { 0.0f, 1.0f, 0.0f };
 
-        std::scoped_lock<std::mutex> lock{ instance->audioSourcesMutex };
-        instance->updateAudioSourcesJobs.push_back(setSourceJob);
+        FMOD_3D_ATTRIBUTES attributes = {};
+        attributes.position = reinterpret_cast<const FMOD_VECTOR&>(position);
+        attributes.velocity = reinterpret_cast<const FMOD_VECTOR&>(velocity);
+        attributes.forward = reinterpret_cast<const FMOD_VECTOR&>(forward);
+        attributes.up = { 0, 1, 0 };
+
+        FMOD_RESULT result = instance->audioSources[handle].fmodEventInstance->set3DAttributes(&attributes);
+        if (result != FMOD_OK) {
+            std::cerr << "FMOD set3DAttributes error: " << FMOD_ErrorString(result) << std::endl;
+        }
     }
 
     void SetVolume(float volume) {
@@ -394,39 +470,143 @@ namespace playground::audio {
 
     auto Update() -> void {
         ZoneScopedNC("Audio Update", tracy::Color::Blue);
+
         if (instance->isDirty) {
             iplSceneCommit(instance->scene);
             instance->isDirty = false;
         }
-        // If the audio job is running, wait for it to finish
-        if (instance->audioJob) {
-            while (!instance->audioJob->IsDone()) {}
-        }
 
-        auto result = instance->system->update();
-        if (result != FMOD_OK) {
-            std::cerr << "FMOD update error: " << FMOD_ErrorString(result) << std::endl;
-        }
-        for (auto& source : instance->audioSources) {
-            source->Simulate();
-        }
-        instance->updateAudioSourcesJobs.clear();
+        {
+            if (instance->audioJob != nullptr && !instance->audioJob->IsDone()) {
+                return;
+            }
 
-        instance->audioJob = jobsystem::JobHandle::Create("Steam Audio Task", jobsystem::JobPriority::Low, 49, []() {
-            iplSimulatorRunDirect(instance->simulator);
-        });
-        if (instance->updateAudioSourcesJobs.empty()) {
-            auto emptyMarkerJob = jobsystem::JobHandle::Create("No Audio Sources", jobsystem::JobPriority::Low, 0, []() {});
-            instance->audioJob->AddDependency(emptyMarkerJob);
-            jobsystem::Submit(emptyMarkerJob);
-        }
-        for (auto& job : instance->updateAudioSourcesJobs) {
-            instance->audioJob->AddDependency(job);
-            jobsystem::Submit(job);
+            auto directJob = jobsystem::JobHandle::Create("Audio Direct Job", jobsystem::JobPriority::High, []() {
+                ZoneScopedNC("Audio Direct Job", tracy::Color::Purple4);
+                for (auto& source : instance->audioSources) {
+                    ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
+                    iplSourceSetInputs(
+                        source.iplSource,
+                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT),
+                        &source.settings
+                    );
+                }
+                iplSimulatorRunDirect(instance->simulator);
+            });
+
+            auto reflectionsJob = jobsystem::JobHandle::Create("Audio Reflections Job", jobsystem::JobPriority::High, []() {
+                ZoneScopedNC("Audio Reflections Job", tracy::Color::Purple4);
+                for (auto& source : instance->audioSources) {
+                    ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
+                    iplSourceSetInputs(
+                        source.iplSource,
+                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_REFLECTIONS),
+                        &source.settings
+                    );
+                }
+                iplSimulatorRunReflections(instance->simulator);
+            });
+
+            auto pathingJob = jobsystem::JobHandle::Create("Audio Pathing Job", jobsystem::JobPriority::High, []() {
+                ZoneScopedNC("Audio Pathing Job", tracy::Color::Purple4);
+                for (auto& source : instance->audioSources) {
+                    ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
+                    iplSourceSetInputs(
+                        source.iplSource,
+                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_PATHING),
+                        &source.settings
+                    );
+                }
+                iplSimulatorRunPathing(instance->simulator);
+            });
+
+            instance->audioJob.reset();
+
+            instance->audioJob = jobsystem::JobHandle::Create("Audio Marker Job", jobsystem::JobPriority::High, []() {
+                for (auto& source : instance->audioSources) {
+                    ZoneScopedNC("Get Source Outputs", tracy::Color::Purple3);
+                    IPLSimulationOutputs outputs = {};
+                    iplSourceGetOutputs(
+                        source.iplSource,
+                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING),
+                        &outputs
+                    );
+
+                    SetSourceOutput(source.fmodEventInstance, outputs);
+                }
+
+                auto result = instance->system->update();
+                if (result != FMOD_OK) {
+                    std::cerr << "FMOD update error: " << FMOD_ErrorString(result) << std::endl;
+                }
+            });
+
+            instance->audioJob->AddDependency(directJob);
+            instance->audioJob->AddDependency(reflectionsJob);
+            instance->audioJob->AddDependency(pathingJob);
+
+            jobsystem::Submit(directJob);
+            jobsystem::Submit(reflectionsJob);
+            jobsystem::Submit(pathingJob);
+
+            jobsystem::Submit(instance->audioJob);
         }
     }
 
-    auto LoadClip(std::vector<float> buffer) -> std::shared_ptr<AudioClip> {
-        return nullptr;
+    void SetSourceOutput(FMOD::Studio::EventInstance* instance, IPLSimulationOutputs& outputs) {
+        FMOD::ChannelGroup* channelGroup = nullptr;
+        auto result = instance->getChannelGroup(&channelGroup);
+        if (result != FMOD_OK) {
+            return;
+        }
+
+        if (channelGroup) {
+            int dspCount = 0;
+            channelGroup->getNumDSPs(&dspCount);
+
+            float volume = 1.0f;
+            channelGroup->getVolume(&volume);
+
+            FMOD_STUDIO_PLAYBACK_STATE playbackState;
+            instance->getPlaybackState(&playbackState);
+
+            for (int i = 0; i < dspCount; ++i) {
+                FMOD::DSP* dsp = nullptr;
+                channelGroup->getDSP(i, &dsp);
+
+                char name[256] = {};
+                dsp->getInfo(name, nullptr, nullptr, nullptr, nullptr);
+
+                if (strstr(name, "Steam Audio Spatializer")) {
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_OCCLUSION, 2); // Occlusion enabled
+                    dsp->setParameterFloat(IPL_SPATIALIZE_OCCLUSION, outputs.direct.occlusion);
+
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_TRANSMISSION, 2); // Transmission enabled
+                    dsp->setParameterFloat(IPL_SPATIALIZE_TRANSMISSION_LOW, outputs.direct.transmission[0]);
+                    dsp->setParameterFloat(IPL_SPATIALIZE_TRANSMISSION_MID, outputs.direct.transmission[1]);
+                    dsp->setParameterFloat(IPL_SPATIALIZE_TRANSMISSION_HIGH, outputs.direct.transmission[2]);
+                    dsp->setParameterInt(IPL_SPATIALIZE_TRANSMISSION_TYPE, 1); // Transmission type set to 3-band EQ
+
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DISTANCEATTENUATION, 2); // Distance attenuation enabled
+                    dsp->setParameterFloat(IPL_SPATIALIZE_DISTANCEATTENUATION_MINDISTANCE, 0.5f); // Minimum distance
+                    dsp->setParameterFloat(IPL_SPATIALIZE_DISTANCEATTENUATION_MAXDISTANCE, 100.0f); // Maximum distance
+
+
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_AIRABSORPTION, 2); // Air absorption enabled
+
+                    dsp->setParameterFloat(IPL_SPATIALIZE_AIRABSORPTION_LOW, outputs.direct.airAbsorption[0]);
+                    dsp->setParameterFloat(IPL_SPATIALIZE_AIRABSORPTION_MID, outputs.direct.airAbsorption[1]);
+                    dsp->setParameterFloat(IPL_SPATIALIZE_AIRABSORPTION_HIGH, outputs.direct.airAbsorption[2]);
+
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DIRECTIVITY, 2); // Directivity enabled
+                    dsp->setParameterFloat(IPL_SPATIALIZE_DIRECTIVITY, outputs.direct.directivity);
+
+                    dsp->setParameterFloat(IPL_SPATIALIZE_DIRECT_MIXLEVEL, 1);
+                    dsp->setParameterBool(IPL_SPATIALIZE_REFLECTIONS_BINAURAL, true); // Binaural reflections enabled
+                    // Commit the changes to the DSP
+                    dsp->setActive(true);
+                }
+            }
+        }
     }
 }
