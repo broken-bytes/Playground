@@ -30,6 +30,10 @@
             "type": "Texture"
         },
         {
+            "location": "bricks.png",
+            "type": "Texture"
+        },
+        {
             "location": "default.pmat.json",
             "type": "PhysicsMaterial"
         },

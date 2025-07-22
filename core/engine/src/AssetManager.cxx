@@ -5,12 +5,15 @@
 #include <audio/Audio.hxx>
 #include <physics/Physics.hxx>
 #include <shared/Hasher.hxx>
+#include <shared/Job.hxx>
+#include <shared/JobHandle.hxx>
 #include <shared/JobSystem.hxx>
 #include <io/IO.hxx>
 #include <cstdint>
 #include <ranges>
 #include <string>
 #include <vector>
+#include <tracy/Tracy.hpp>
 
 namespace playground::assetmanager {
     std::vector<ModelHandle*> _modelHandles = {};
@@ -30,36 +33,61 @@ namespace playground::assetmanager {
     }
 
     void MarkMaterialUploadFinished(uint32_t handleId, uint32_t materialId) {
-        if (handleId < _materialHandles.size()) {
-            _materialHandles[handleId]->state.store(ResourceState::Uploaded);
-            _materialHandles[handleId]->material = materialId;
-            _materialHandles[handleId]->refCount--;
+        std::cout << "Marking material upload finished for handleId: " << handleId << ", materialId: " << materialId << std::endl;
 
-            int index = 0;
-            for (auto& texture: _materialHandles[handleId]->textures) {
-                rendering::SetMaterialTexture(materialId, index++, texture.second->texture);
-                std::cout << "Material Texture: " << texture.second->texture << std::endl;
-            }
+        auto materialSetupJob = jobsystem::Job{
+            .Name = std::string("MATERIAL_SETUP_JOB_") + std::to_string(handleId),
+            .Priority = jobsystem::JobPriority::Low,
+            .Color = tracy::Color::Green,
+            .Dependencies = {},
+            .Task = [handleId, materialId]() {
+                std::cout << "Setting up material with ID: " << materialId << " for handle ID: " << handleId << std::endl;
+                if (handleId < _materialHandles.size()) {
+                    _materialHandles[handleId]->state.store(ResourceState::Uploaded);
+                    _materialHandles[handleId]->material = materialId;
+                    _materialHandles[handleId]->refCount--;
 
-            index = 0;
-            for(auto& cubemap: _materialHandles[handleId]->cubemaps) {
-                rendering::SetMaterialCubemap(materialId, index++, cubemap.second->cubemap);
-                std::cout << "Material Cubemap: " << cubemap.second->cubemap << std::endl;
-            }
+                    int index = 0;
+                    for (auto& texture : _materialHandles[handleId]->textures) {
+                        std::cout << "Waiting for texture upload: " << texture.second->uploadJob->Name() << std::endl;
+                        while (texture.second->completionMarkerJob == nullptr) {
+                            std::this_thread::yield();
+                        }
+                        texture.second->completionMarkerJob->Wait();
+                        rendering::SetMaterialTexture(materialId, index++, texture.second->texture);
+                        std::cout << "Material Texture: " << texture.second->texture << std::endl;
+                    }
 
-            index = 0;
-            for(auto floatProp: _materialHandles[handleId]->floats) {
-                rendering::SetMaterialFloat(materialId, index++, floatProp.second);
-                std::cout << "Material Float: " << floatProp.first << " = " << floatProp.second << std::endl;
-            }
+                    index = 0;
+                    for (auto& cubemap : _materialHandles[handleId]->cubemaps) {
+                        std::cout << "Waiting for cubemap upload: " << cubemap.second->uploadJob->Name() << std::endl;
+                        while (cubemap.second->completionMarkerJob == nullptr) {
+                            std::this_thread::yield();
+                        }
+                        cubemap.second->completionMarkerJob->Wait();
+                        rendering::SetMaterialCubemap(materialId, index++, cubemap.second->cubemap);
+                        std::cout << "Material Cubemap: " << cubemap.second->cubemap << std::endl;
+                    }
 
-            if (_materialHandles[handleId]->onCompletion != nullptr) {
-                _materialHandles[handleId]->onCompletion(materialId);
+                    index = 0;
+                    for (auto floatProp : _materialHandles[handleId]->floats) {
+                        rendering::SetMaterialFloat(materialId, index++, floatProp.second);
+                        std::cout << "Material Float: " << floatProp.first << " = " << floatProp.second << std::endl;
+                    }
+
+                    if (_materialHandles[handleId]->onCompletion != nullptr) {
+                        _materialHandles[handleId]->onCompletion(materialId);
+                    }
+                }
             }
-        }
+        };
+
+        std::cout << "Submitting material setup job for handleId: " << handleId << std::endl;
+        jobsystem::Submit(materialSetupJob);
     }
 
     void MarkTextureUploadFinished(uint32_t handleId, uint32_t texture) {
+        std::cout << "Marking texture upload finished for handleId: " << handleId << ", texture: " << texture << std::endl;
         if (handleId < _textureHandles.size()) {
             _textureHandles[handleId]->state = ResourceState::Uploaded;
             _textureHandles[handleId]->data = nullptr;
@@ -68,12 +96,23 @@ namespace playground::assetmanager {
             _textureHandles[handleId]->refCount--;
             delete _textureHandles[handleId]->data;
 
-            jobsystem::Submit(_textureHandles[handleId]->signalUploadCompletionJob);
-            _textureHandles[handleId]->signalUploadCompletionJob = nullptr;
+            auto completion = jobsystem::Job{
+                .Name = std::string("TEXTURE_UPLOAD_COMPLETION_") + std::to_string(handleId),
+                .Priority = jobsystem::JobPriority::Low,
+                .Color = tracy::Color::Violet,
+                .Dependencies = {},
+                .Task = [handleId]() {
+                    std::cout << "Texture upload completed for handleId: " << handleId << std::endl;
+                    // Additional completion logic can be added here if needed
+                }
+            };
+
+            _textureHandles[handleId]->completionMarkerJob = jobsystem::Submit(completion);
         }
     }
 
     void MarkCubemapUploadFinished(uint32_t handleId, uint32_t cubemap) {
+        std::cout << "Marking cubemap upload finished for handleId: " << handleId << ", cubemap: " << cubemap << std::endl;
         if (handleId < _cubemapHandles.size()) {
             _cubemapHandles[handleId]->state = ResourceState::Uploaded;
             _cubemapHandles[handleId]->data = nullptr;
@@ -81,12 +120,25 @@ namespace playground::assetmanager {
             _cubemapHandles[handleId]->cubemap = cubemap;
             _cubemapHandles[handleId]->refCount--;
 
-            jobsystem::Submit(_cubemapHandles[handleId]->signalUploadCompletionJob);
-            _cubemapHandles[handleId]->signalUploadCompletionJob = nullptr;
+            auto completion = jobsystem::Job{
+                .Name = std::string("CUBEMAP_UPLOAD_COMPLETION_") + std::to_string(handleId),
+                .Priority = jobsystem::JobPriority::Low,
+                .Color = tracy::Color::Violet,
+                .Dependencies = {},
+                .Task = [handleId]() {
+                    std::cout << "Cubemap upload completed for handleId: " << handleId << std::endl;
+                }
+            };
+
+            _cubemapHandles[handleId]->completionMarkerJob = jobsystem::Submit(completion);
         }
     }
 
-    ModelHandle* LoadModel(const char* name) {
+    ModelHandle* LoadModel_C(const char* name) {
+        return LoadModel(std::string(name));
+    }
+
+    ModelHandle* LoadModel(std::string name) {
         auto hash = shared::Hash(name);
 
         ModelHandle* handle;
@@ -111,7 +163,7 @@ namespace playground::assetmanager {
 
         auto rawMeshData = playground::assetloader::LoadMeshes(name);
 
-        auto newHandle = new ModelHandle {
+        auto newHandle = new ModelHandle{
             .hash = hash,
             .state = {ResourceState::Created},
             .refCount = 1,
@@ -127,7 +179,11 @@ namespace playground::assetmanager {
         return _modelHandles[handleId];
     }
 
-    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t)) {
+    MaterialHandle* LoadMaterial_C(const char* name, void (*onCompletion)(uint32_t)) {
+        return LoadMaterial(std::string(name), onCompletion);
+    }
+
+    MaterialHandle* LoadMaterial(std::string name, void (*onCompletion)(uint32_t)) {
         auto hash = shared::Hash(name);
 
         std::optional<uint32_t> handleId;
@@ -168,61 +224,60 @@ namespace playground::assetmanager {
         auto materialName = std::string(name);
         auto rawMaterialData = playground::assetloader::LoadMaterial(materialName);
 
-        auto materialLoadJob = jobsystem::JobHandle::Create(materialName + "_MATERIAL_UPLOAD_JOB", jobsystem::JobPriority::Low, [rawMaterialData, handleId, onCompletion]() {
-            auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
-
-            playground::rendering::MaterialType type;
-            if (rawMaterialData.type == "skybox") {
-                type = playground::rendering::MaterialType::Skybox;
-            }
-            else if (rawMaterialData.type == "standard") {
-                type = playground::rendering::MaterialType::Standard;
-            } else if (rawMaterialData.type == "shadow") {
-                type = playground::rendering::MaterialType::Shadow;
-            } else if (rawMaterialData.type == "PostProcessing") {
-                type = playground::rendering::MaterialType::PostProcessing;
-            } else {
-                throw std::runtime_error("Unknown material type: " + rawMaterialData.type);
-            }
-
-            rendering::QueueUploadMaterial(
-                shader.vertexShader,
-                shader.pixelShader,
-                type,
-                handleId.value(),
-                MarkMaterialUploadFinished,
-                onCompletion
-            );
-        });
-
-        std::vector<std::shared_ptr<jobsystem::JobHandle>> textureJobs;
-
         for (auto& texture : rawMaterialData.textures) {
-            auto texHandle = LoadTexture(texture.value.c_str(), materialLoadJob.get());
+            auto texHandle = LoadTexture(texture.value);
             handle->textures.insert({ texture.name, texHandle });
         }
 
         for (auto& cubemap : rawMaterialData.cubemaps) {
-            auto cubemapHandle = LoadCubemap(cubemap.value.c_str(), materialLoadJob.get());
+            auto cubemapHandle = LoadCubemap(cubemap.value);
             handle->cubemaps.insert({ cubemap.name, cubemapHandle });
         }
 
         // Get all float properties
         auto floatProps = rawMaterialData.props | std::views::filter([](const auto& prop) {
             return prop.type == "float";
-        });
+            });
 
         for (auto& prop : floatProps) {
             handle->floats.insert({ prop.name, std::stof(prop.value) });
         }
 
-        for (auto& textureJob : textureJobs) {
-            materialLoadJob->AddDependency(textureJob);
-        }
+        auto materialLoadJob = jobsystem::Job{
+            .Name = std::string(name) + "_MATERIAL_UPLOAD_JOB",
+            .Priority = jobsystem::JobPriority::Low,
+            .Color = tracy::Color::Green,
+            .Dependencies = {},
+            .Task = [rawMaterialData, handleId, onCompletion]() {
+                auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
 
-        for (auto& textureJob : textureJobs) {
-            jobsystem::Submit(textureJob);
-        }
+                playground::rendering::MaterialType type;
+                if (rawMaterialData.type == "skybox") {
+                    type = playground::rendering::MaterialType::Skybox;
+                }
+                else if (rawMaterialData.type == "standard") {
+                    type = playground::rendering::MaterialType::Standard;
+                }
+                else if (rawMaterialData.type == "shadow") {
+                    type = playground::rendering::MaterialType::Shadow;
+                }
+                else if (rawMaterialData.type == "PostProcessing") {
+                    type = playground::rendering::MaterialType::PostProcessing;
+                }
+                else {
+                    throw std::runtime_error("Unknown material type: " + rawMaterialData.type);
+                }
+
+                rendering::QueueUploadMaterial(
+                    shader.vertexShader,
+                    shader.pixelShader,
+                    type,
+                    handleId.value(),
+                    MarkMaterialUploadFinished,
+                    onCompletion
+                );
+            }
+        };
 
         jobsystem::Submit(materialLoadJob);
 
@@ -269,7 +324,7 @@ namespace playground::assetmanager {
         return _shaderHandles[handleId];
     }
 
-    TextureHandle* LoadTexture(const char* name, jobsystem::JobHandle* materialUploadJob) {
+    TextureHandle* LoadTexture(std::string name) {
         auto hash = shared::Hash(name);
 
         std::optional<uint32_t> handleId;
@@ -297,39 +352,33 @@ namespace playground::assetmanager {
                 .hash = hash,
                 .state = {ResourceState::Created},
                 .refCount = 1,
-                .data = {}
+                .data = {},
+                .texture = 0,
+                .uploadJob = nullptr,
+                .completionMarkerJob = nullptr
             };
 
             _textureHandles.push_back(handle);
         }
 
-        std::string textureName = std::string(name);
+        auto uploadJob = jobsystem::Job{
+            .Name = std::string(name) + "_TEXTURE_UPLOAD_JOB",
+            .Priority = jobsystem::JobPriority::Low,
+            .Color = tracy::Color::Green,
+            .Dependencies = {},
+            .Task = [handle, handleId, name]() {
+                auto rawTextureData = playground::assetloader::LoadTexture(name);
+                auto data = new assetloader::RawTextureData();
+                data->MipMaps = rawTextureData.MipMaps;
+                data->Width = rawTextureData.Width;
+                data->Height = rawTextureData.Height;
+                data->Channels = rawTextureData.Channels;
+                handle->data = data;
+                rendering::QueueUploadTexture(handle->data, handleId.value(), MarkTextureUploadFinished);
+            }
+        };
 
-        handle->signalUploadCompletionJob = jobsystem::JobHandle::Create(
-            textureName + "_TEXTURE_UPLOAD_JOB_COMPLETION",
-            jobsystem::JobPriority::Low, [handle, handleId, textureName]() {
-                // Dummy job, only signals texture readyness after GPU upload
-        });
-
-        auto textureLoadJob = jobsystem::JobHandle::Create(textureName + "_TEXTURE_UPLOAD_JOB", jobsystem::JobPriority::Low, [handle, handleId, textureName]() {
-            auto rawTextureData = playground::assetloader::LoadTexture(textureName);
-            auto data = new assetloader::RawTextureData();
-            data->MipMaps = rawTextureData.MipMaps;
-            data->Width = rawTextureData.Width;
-            data->Height = rawTextureData.Height;
-            data->Channels = rawTextureData.Channels;
-
-            handle->data = data;
-
-            rendering::QueueUploadTexture(handle->data, handleId.value(), &MarkTextureUploadFinished);
-        });
-
-        if (materialUploadJob != nullptr) {
-            materialUploadJob->AddDependency(textureLoadJob);
-            materialUploadJob->AddDependency(handle->signalUploadCompletionJob);
-        }
-
-        jobsystem::Submit(textureLoadJob);
+        handle->uploadJob = jobsystem::Submit(uploadJob);
 
         return _textureHandles[handleId.value()];
     }
@@ -374,7 +423,7 @@ namespace playground::assetmanager {
         return _physicsMaterialHandles[handleId];
     }
 
-    CubemapHandle* LoadCubemap(const char* name, jobsystem::JobHandle* materialUploadJob) {
+    CubemapHandle* LoadCubemap(std::string name) {
         auto hash = shared::Hash(name);
 
         std::optional<uint32_t> handleId;
@@ -403,35 +452,28 @@ namespace playground::assetmanager {
                 .refCount = 1,
                 .data = {},
                 .faces = {},
-                .signalUploadCompletionJob = nullptr,
-                .cubemap = 0
+                .cubemap = 0,
+                .uploadJob = nullptr,
+                .completionMarkerJob = nullptr
             };
 
             _cubemapHandles.push_back(handle);
         }
 
-        std::string cubemapName = std::string(name);
+        auto uploadJob = jobsystem::Job{
+            .Name = std::string(name) + "_CUBEMAP_UPLOAD_JOB",
+            .Priority = jobsystem::JobPriority::Low,
+            .Color = tracy::Color::Blue,
+            .Dependencies = {},
+            .Task = [handle, handleId, name]() {
+                auto rawCubemapData = playground::assetloader::LoadCubemap(name);
+                auto data = std::make_shared<assetloader::RawCubemapData>(rawCubemapData);
+                handle->data = data;
+                rendering::QueueUploadCubemap(handle->data, handleId.value(), MarkCubemapUploadFinished);
+            }
+        };
 
-        handle->signalUploadCompletionJob = jobsystem::JobHandle::Create(
-            cubemapName + "_CUBEMAP_UPLOAD_JOB_COMPLETION",
-            jobsystem::JobPriority::Low, [handle, handleId, cubemapName]() {
-                // Dummy job, only signals cubemap readyness after GPU upload
-        });
-
-        auto cubemapUploadJob = jobsystem::JobHandle::Create(cubemapName + "_CUBEMAP_UPLOAD_JOB", jobsystem::JobPriority::Low, [handle, handleId, cubemapName]() {
-            auto rawCubemapData = playground::assetloader::LoadCubemap(cubemapName);
-            auto data = std::make_shared<assetloader::RawCubemapData>(rawCubemapData);
-            handle->data = data;
-
-            rendering::QueueUploadCubemap(handle->data, handleId.value(), MarkCubemapUploadFinished);
-        });
-
-        if (materialUploadJob != nullptr) {
-            materialUploadJob->AddDependency(cubemapUploadJob);
-            materialUploadJob->AddDependency(handle->signalUploadCompletionJob);
-        }
-
-        jobsystem::Submit(cubemapUploadJob);
+         handle->uploadJob = jobsystem::Submit(uploadJob);
 
         return _cubemapHandles[handleId.value()];
     }
@@ -469,7 +511,8 @@ namespace playground::assetmanager {
         auto archive = assetloader::TryFindFile(name);
         if (archive.size() > 0) {
             handle->audioBank = audio::LoadBank(archive, name);
-        } else {
+        }
+        else {
             throw std::runtime_error("Audio file not found: " + std::string(name));
         }
 

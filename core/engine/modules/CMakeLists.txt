@@ -1,4 +1,3 @@
-add_subdirectory(logger)
 add_subdirectory(events)
 add_subdirectory(shared)
 add_subdirectory(io)

@@ -10,6 +10,8 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <shared/Job.hxx>
+#include <shared/JobHandle.hxx>
 #include <shared/JobSystem.hxx>
 #include <string>
 #include <vector>
@@ -238,6 +240,18 @@ namespace playground::audio {
 
         iplSimulatorSetScene(instance->simulator, instance->scene);
 
+        auto fillerJob = jobsystem::Job{
+            .Name = "Audio Filler Job",
+            .Priority = jobsystem::JobPriority::Low,
+            .Color = tracy::Color::DarkSeaGreen1,
+            .Dependencies = {},
+            .Task = []() {
+                // This job is just a filler to not have the audio system start with no job to wait for.
+                std::this_thread::yield();
+            }
+        };
+
+        instance->audioJob = jobsystem::Submit(fillerJob);
     }
 
     void SetListenerPosition(
@@ -477,79 +491,90 @@ namespace playground::audio {
         }
 
         {
-            if (instance->audioJob != nullptr && !instance->audioJob->IsDone()) {
-                return;
-            }
+            instance->audioJob->Wait();
 
-            auto directJob = jobsystem::JobHandle::Create("Audio Direct Job", jobsystem::JobPriority::High, []() {
-                ZoneScopedNC("Audio Direct Job", tracy::Color::Purple4);
-                for (auto& source : instance->audioSources) {
-                    ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
-                    iplSourceSetInputs(
-                        source.iplSource,
-                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT),
-                        &source.settings
-                    );
+            auto directJob = jobsystem::Job{
+                .Name = "AUDIO_DIRECT_JOB",
+                .Priority = jobsystem::JobPriority::High,
+                .Color = tracy::Color::Purple4,
+                .Dependencies = {},
+                .Task = []() {
+                        ZoneScopedNC("Audio Direct Job", tracy::Color::Purple4);
+                    for (auto& source : instance->audioSources) {
+                        ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
+                        iplSourceSetInputs(
+                            source.iplSource,
+                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT),
+                            &source.settings
+                        );
+                    }
+                    iplSimulatorRunDirect(instance->simulator);
                 }
-                iplSimulatorRunDirect(instance->simulator);
-            });
+            };
 
-            auto reflectionsJob = jobsystem::JobHandle::Create("Audio Reflections Job", jobsystem::JobPriority::High, []() {
-                ZoneScopedNC("Audio Reflections Job", tracy::Color::Purple4);
-                for (auto& source : instance->audioSources) {
-                    ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
-                    iplSourceSetInputs(
-                        source.iplSource,
-                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_REFLECTIONS),
-                        &source.settings
-                    );
+            auto reflectionsJob = jobsystem::Job{
+                .Name = "AUDIO_REFLECTIONS_JOB",
+                .Priority = jobsystem::JobPriority::High,
+                .Color = tracy::Color::Purple4,
+                .Dependencies = {},
+                .Task = []() {
+                    ZoneScopedNC("Audio Reflections Job", tracy::Color::Purple4);
+                    for (auto& source : instance->audioSources) {
+                        ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
+                        iplSourceSetInputs(
+                            source.iplSource,
+                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_REFLECTIONS),
+                            &source.settings
+                        );
+                    }
+                    iplSimulatorRunReflections(instance->simulator);
                 }
-                iplSimulatorRunReflections(instance->simulator);
-            });
+            };
 
-            auto pathingJob = jobsystem::JobHandle::Create("Audio Pathing Job", jobsystem::JobPriority::High, []() {
-                ZoneScopedNC("Audio Pathing Job", tracy::Color::Purple4);
-                for (auto& source : instance->audioSources) {
-                    ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
-                    iplSourceSetInputs(
-                        source.iplSource,
-                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_PATHING),
-                        &source.settings
-                    );
+            auto pathingJob = jobsystem::Job{
+                .Name = "AUDIO_PATHING_JOB",
+                .Priority = jobsystem::JobPriority::High,
+                .Color = tracy::Color::Purple4,
+                .Dependencies = {},
+                .Task = []() {
+                    ZoneScopedNC("Audio Pathing Job", tracy::Color::Purple4);
+                    for (auto& source : instance->audioSources) {
+                        ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
+                        iplSourceSetInputs(
+                            source.iplSource,
+                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_PATHING),
+                            &source.settings
+                        );
+                    }
+                    iplSimulatorRunPathing(instance->simulator);
                 }
-                iplSimulatorRunPathing(instance->simulator);
-            });
+            };
 
-            instance->audioJob.reset();
-
-            instance->audioJob = jobsystem::JobHandle::Create("Audio Marker Job", jobsystem::JobPriority::High, []() {
-                for (auto& source : instance->audioSources) {
-                    ZoneScopedNC("Get Source Outputs", tracy::Color::Purple3);
-                    IPLSimulationOutputs outputs = {};
-                    iplSourceGetOutputs(
-                        source.iplSource,
-                        static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING),
-                        &outputs
-                    );
-
-                    SetSourceOutput(source.fmodEventInstance, outputs);
+            auto completionJob = jobsystem::Job{
+                .Name = "AUDIO_COMPLETION_JOB",
+                .Priority = jobsystem::JobPriority::High,
+                .Color = tracy::Color::Purple4,
+                .Dependencies = { directJob, reflectionsJob, pathingJob },
+                .Task = []() {
+                    ZoneScopedNC("Audio Completion Job", tracy::Color::Purple4);
+                    for (auto& source : instance->audioSources) {
+                        ZoneScopedNC("Set Source Outputs", tracy::Color::Purple1);
+                        IPLSimulationOutputs outputs = {};
+                        iplSourceGetOutputs(
+                            source.iplSource,
+                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING),
+                            &outputs
+                        );
+                        SetSourceOutput(source.fmodEventInstance, outputs);
+                    }
+                    auto result = instance->system->update();
+                    if (result != FMOD_OK) {
+                        std::cerr << "FMOD update error: " << FMOD_ErrorString(result) << std::endl;
+                    }
                 }
+            };
 
-                auto result = instance->system->update();
-                if (result != FMOD_OK) {
-                    std::cerr << "FMOD update error: " << FMOD_ErrorString(result) << std::endl;
-                }
-            });
-
-            instance->audioJob->AddDependency(directJob);
-            instance->audioJob->AddDependency(reflectionsJob);
-            instance->audioJob->AddDependency(pathingJob);
-
-            jobsystem::Submit(directJob);
-            jobsystem::Submit(reflectionsJob);
-            jobsystem::Submit(pathingJob);
-
-            jobsystem::Submit(instance->audioJob);
+            instance->audioJob = jobsystem::Submit(completionJob);
         }
     }
 

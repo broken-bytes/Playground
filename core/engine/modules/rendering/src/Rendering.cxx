@@ -15,6 +15,7 @@
 #include <math/Matrix4x4.hxx>
 #include <assetloader/AssetLoader.hxx>
 #include <shared/RingBuffer.hxx>
+#include <shared/Logger.hxx>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
@@ -116,6 +117,8 @@ namespace playground::rendering {
     bool isRunning = false;
     std::thread renderThread;
 
+    void SetupBuiltinAssets();
+
 	auto Init(
         void* window,
         uint32_t width,
@@ -123,6 +126,7 @@ namespace playground::rendering {
         bool offscreen,
         std::promise<void>& rendererReadyPromise
     ) -> void {
+        logging::logger::SetupSubsystem("rendering");
         // Create a device
         device = DeviceFactory::CreateDevice(RenderBackendType::D3D12, FRAME_COUNT);
 
@@ -167,6 +171,8 @@ namespace playground::rendering {
         rendererReadyPromise.set_value();
 
         static const char* GPU_FRAME = "GPU: Update";
+
+        SetupBuiltinAssets();
 
         while (isRunning) {
             FrameMarkStart(GPU_FRAME);
@@ -716,6 +722,11 @@ namespace playground::rendering {
     }
 
     void SetMaterialTexture(uint32_t materialId, uint8_t slot, uint32_t textureId) {
+        if (textureId >= textures.size()) {
+            std::cerr << "Tried to set texture for material " << materialId << ", but texture ID " << textureId << " is out of bounds." << std::endl;
+            return;
+        }
+
         auto material = materials[materialId];
 
         if (material->textures.size() <= slot) {
@@ -726,6 +737,10 @@ namespace playground::rendering {
     }
 
     void SetMaterialCubemap(uint32_t materialId, uint8_t slot, uint32_t cubemapId) {
+        if (cubemapId >= cubemaps.size()) {
+            std::cerr << "Tried to set cubemap for material " << materialId << ", but cubemap ID " << cubemapId << " is out of bounds." << std::endl;
+            return;
+        }
         auto material = materials[materialId];
         if (material->cubemaps.size() <= slot) {
             material->cubemaps.resize(material->cubemaps.size() + 1);
@@ -739,5 +754,30 @@ namespace playground::rendering {
             material->floats.resize(material->floats.size() + 1);
         }
         material->floats[slot] = value;
+    }
+
+    void SetupBuiltinAssets() {
+        uint8_t checkerboard[8 * 8 * 4];
+        for (int y = 0; y < 8; ++y) {
+            for (int x = 0; x < 8; ++x) {
+                int i = (y * 8 + x) * 4;
+                bool red = ((x + y) & 1) == 0;
+                checkerboard[i + 0] = red ? 255 : 0;
+                checkerboard[i + 1] = 0;
+                checkerboard[i + 2] = red ? 0 : 255;
+                checkerboard[i + 3] = 255;
+            }
+        }
+
+        assetloader::RawTextureData checkerboardTextureData{
+            .MipMaps = {
+                std::vector<uint8_t>(checkerboard, checkerboard + sizeof(checkerboard))
+            },
+            .Width = 8,
+            .Height = 8,
+            .Channels = 4,
+        };
+
+        //QueueUploadTexture(&checkerboardTextureData, 0, [](uint32_t, uint32_t) {});
     }
 }

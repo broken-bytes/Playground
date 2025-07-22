@@ -9,6 +9,7 @@
 #include <thread>
 #include <shared/Hardware.hxx>
 #include <shared/JobSystem.hxx>
+#include <shared/Logger.hxx>
 #include <audio/Audio.hxx>
 #include <input/Input.hxx>
 #include <rendering/Rendering.hxx>
@@ -19,8 +20,7 @@
 #include <events/SystemEvent.hxx>
 #include <assetloader/AssetLoader.hxx>
 #include <io/IO.hxx>
-#include <logger/ConsoleLogger.hxx>
-#include <logger/Logger.hxx>
+#include <shared/Logger.hxx>
 #include <profiler/Profiler.hxx>
 #include <math/Math.hxx>
 #include <SDL3/SDL.h>
@@ -55,14 +55,19 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 #if ENABLE_PROFILER
     tracy::StartupProfiler();
 #endif
-    playground::logging::logger::Info("Starting Playground Core Engine...");
+
+    playground::logging::logger::Init();
+    playground::logging::logger::SetLogLevel(playground::logging::logger::LogLevel::Verbose);
+    playground::logging::logger::SetupSubsystem("core");
+
+    playground::logging::logger::Info("Starting Playground Core Engine...", "core");
     auto code = Startup(config);
     if (code != 0) {
-        playground::logging::logger::Error("Failed to start Playground Core Engine");
+        playground::logging::logger::Error("Failed to start Playground Core Engine", "core");
         return code;
     }
-    playground::logging::logger::Info("Playground Core Engine started.");
-    playground::logging::logger::Info("Initializing Scripting Layer...");
+    playground::logging::logger::Info("Playground Core Engine started.", "core");
+    playground::logging::logger::Info("Initializing Scripting Layer...", "core");
 
     // Register mandatory assets
 
@@ -71,6 +76,8 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
 
     playground::hardware::PinCurrentThreadToCore(cores[0].id);
+
+    playground::logging::logger::SetupSubsystem("scripting");
 
     config.startupCallback();
 
@@ -110,21 +117,20 @@ void Shutdown() {
 
 uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     playground::hardware::Init();
+    playground::jobsystem::Init();
 
     if (playground::hardware::SupportsAVX2()) {
-        playground::logging::logger::Info("CPU supports AVX2.");
+        playground::logging::logger::Info("CPU supports AVX2.", "core");
     }
     else if (playground::hardware::SupportsAVX()) {
-        playground::logging::logger::Warn("CPU supports AVX.");
+        playground::logging::logger::Warn("CPU supports AVX.", "core");
     }
     else {
-        playground::logging::logger::Error("CPU does not support AVX or AVX2. This application requires at least AVX support.");
+        playground::logging::logger::Error("CPU does not support AVX or AVX2. This application requires at least AVX support.", "core");
 
         return 2;
     }
 
-    playground::logging::logger::AddLogger(std::make_shared<playground::logging::ConsoleLogger>());
-    playground::logging::logger::SetLogLevel(LogLevel::Info);
     playground::assetloader::Init();
     playground::input::Init(config.Window);
     playground::audio::Init(
@@ -133,7 +139,6 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
         playground::io::SeekFileInArchive,
         playground::io::CloseFile
     );
-    playground::jobsystem::Init();
     playground::inputmanager::Init();
     playground::physicsmanager::Init();
     playground::ecs::Init(ENABLE_INSPECTOR);
@@ -142,12 +147,12 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
 }
 
 void SetupPointerLookupTable(const PlaygroundConfig& config) {
-    config.Delegate("Logger_Info", playground::logging::logger::Info);
-    config.Delegate("Logger_Warn", playground::logging::logger::Info);
-    config.Delegate("Logger_Error", playground::logging::logger::Info);
+    config.Delegate("Logger_Info", playground::logging::logger::Info_C);
+    config.Delegate("Logger_Warn", playground::logging::logger::Info_C);
+    config.Delegate("Logger_Error", playground::logging::logger::Info_C);
 
-    config.Delegate("AssetManager_LoadModel\0", playground::assetmanager::LoadModel);
-    config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial);
+    config.Delegate("AssetManager_LoadModel\0", playground::assetmanager::LoadModel_C);
+    config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial_C);
     config.Delegate("AssetManager_LoadPhysicsMaterial\0", playground::assetmanager::LoadPhysicsMaterial);
 
     config.Delegate("Batcher_Batch\0", playground::drawcallbatcher::Batch);

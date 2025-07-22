@@ -2,7 +2,7 @@
   "shaderName": "default.shader",
   "type": "standard",
   "textures": [
-    { "name": "diffuse", "value": "default.tex" }
+    { "name": "diffuse", "value": "bricks.tex" }
   ],
   "cubemaps": [],
   "props": [

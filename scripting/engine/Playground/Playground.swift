@@ -75,7 +75,7 @@ func startUp() {
     var boxCollider = BoxColliderComponent(isTrigger: false, dimensions: Vector3(x: 100, y: 0.5, z: 100), offset: .zero, rotation: .identity, material: physicsMaterialHandle)
     floor.addComponent(&boxCollider)
 
-    for x in 0..<10 {
+    for x in 0..<1 {
         let entity = Entity("Entity\(x)")
         var material = MaterialComponent(handle: materialhandle)
         entity.addComponent(&material)

@@ -1,6 +1,9 @@
 #include "physics/Physics.hxx"
 #include <shared/Hardware.hxx>
+#include <shared/Job.hxx>
+#include <shared/JobHandle.hxx>
 #include <shared/JobSystem.hxx>
+#include <shared/Logger.hxx>
 #include <PxPhysics.h>
 #include <PxConfig.h>
 #include <PxActor.h>
@@ -120,11 +123,17 @@ namespace playground::physics {
         void submitTask(physx::PxBaseTask& task) override {
             ZoneScopedNC("Physics: Submit Task", tracy::Color::Cyan2);
             auto index = _jobCounter.fetch_add(1);
-            auto job = jobsystem::JobHandle::Create("Physics Job", jobsystem::JobPriority::High, tracy::Color::Pink1, [&task, this]() {
-                task.run();
-                task.release();
-                _jobCounter.fetch_sub(1);
-            });
+            auto job = jobsystem::Job{
+                .Name = "Physics Job",
+                .Priority = jobsystem::JobPriority::High,
+                .Color = tracy::Color::Pink1,
+                .Dependencies = {},
+                .Task = [&task, this]() {
+                    task.run();
+                    task.release();
+                    _jobCounter.fetch_sub(1);
+                }
+            };
 
             jobsystem::Submit(job);
         }
@@ -212,6 +221,7 @@ namespace playground::physics {
     bool isRunning = false;
 
     void Init() {
+        logging::logger::SetupSubsystem("physics");
         isRunning = true;
         foundation = PxCreateFoundation(
             PX_PHYSICS_VERSION,

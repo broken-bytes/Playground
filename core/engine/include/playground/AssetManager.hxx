@@ -9,6 +9,9 @@
 #include <rendering/Shader.hxx>
 #include <rendering/Texture.hxx>
 #include <audio/AudioClip.hxx>
+#include <shared/Job.hxx>
+#include <shared/JobHandle.hxx>
+#include <shared/JobSystem.hxx>
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -19,9 +22,6 @@
 #include <string_view>
 #include <vector>
 
-namespace playground::jobsystem {
-    class JobHandle;
-}
 
 namespace playground::io {
     struct FileHandle;
@@ -48,8 +48,9 @@ namespace playground::assetmanager {
         std::atomic<ResourceState> state;
         uint32_t refCount;
         assetloader::RawTextureData* data;
-        std::shared_ptr<jobsystem::JobHandle> signalUploadCompletionJob;
         uint32_t texture;
+        std::shared_ptr<jobsystem::JobHandle> uploadJob;
+        std::shared_ptr<jobsystem::JobHandle> completionMarkerJob;
     };
 
     struct CubemapHandle {
@@ -58,8 +59,9 @@ namespace playground::assetmanager {
         uint32_t refCount;
         std::shared_ptr<assetloader::RawCubemapData> data;
         std::vector<std::shared_ptr<assetloader::RawTextureData>> faces;
-        std::shared_ptr<jobsystem::JobHandle> signalUploadCompletionJob;
         uint32_t cubemap;
+        std::shared_ptr<jobsystem::JobHandle> uploadJob;
+        std::shared_ptr<jobsystem::JobHandle> completionMarkerJob;
     };
 
     struct MaterialHandle {
@@ -95,11 +97,13 @@ namespace playground::assetmanager {
         uint32_t material;
     };
 
-    ModelHandle* LoadModel(const char* name);
-    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t) = nullptr);
+    ModelHandle* LoadModel_C(const char* name);
+    ModelHandle* LoadModel(std::string name);
+    MaterialHandle* LoadMaterial_C(const char* name, void (*onCompletion)(uint32_t) = nullptr);
+    MaterialHandle* LoadMaterial(std::string name, void (*onCompletion)(uint32_t) = nullptr);
     ShaderHandle* LoadShader(const char* name);
-    TextureHandle* LoadTexture(const char* name, jobsystem::JobHandle* materialUploadJob);
+    TextureHandle* LoadTexture(std::string name);
     PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);
-    CubemapHandle* LoadCubemap(const char* name, jobsystem::JobHandle* materialUploadJob);
+    CubemapHandle* LoadCubemap(std::string name);
     AudioHandle* LoadAudio(const char* name);
 }

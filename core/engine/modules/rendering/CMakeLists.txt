@@ -5,7 +5,6 @@ add_library(Rendering SHARED ${SRC} ${HEADERS})
 
 target_include_directories(Rendering PRIVATE include)
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
-target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/logger/include)
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/math/include)
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/io/include)
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/profiler/include)
@@ -24,7 +23,7 @@ target_link_directories(Rendering PRIVATE ${EASTL_LIB_DIR})
 target_include_directories(Rendering PRIVATE ${EASTL_INC_DIR} ${EABASE_INC_DIR})
 target_include_directories(Rendering PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/math/include)
 
-target_link_libraries(Rendering PRIVATE Logger AssetLoader Profiler Math Shared EASTL)
+target_link_libraries(Rendering PRIVATE AssetLoader Profiler Math Shared EASTL)
 target_link_libraries(Rendering PRIVATE SDL3::SDL3 freeimage::FreeImage freeimage::FreeImagePlus concurrentqueue)
 
 if (WIN32)

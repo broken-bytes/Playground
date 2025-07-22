@@ -31,6 +31,7 @@
 #include <fstream>
 #include <iostream>
 #include <flecs/os_api.h>
+#include <tracy/Tracy.hpp>
 
 namespace playground::ecs {
     std::unique_ptr<flecs::world> world;
@@ -109,11 +110,17 @@ namespace playground::ecs {
     ecs_os_thread_t SpawnTask(ecs_os_thread_callback_t callback, void* param) {
         std::scoped_lock lock{ writeLock };
 
-        auto job = jobsystem::JobHandle::Create("FLECS_WORKER", jobsystem::JobPriority::High, [callback, param]() { callback(param); });
+        auto job = jobsystem::Job{
+            .Name = "FLECS_WORKER",
+            .Priority = jobsystem::JobPriority::High,
+            .Color = tracy::Color::Red,
+            .Dependencies = {},
+            .Task = [callback, param]() { callback(param); }
+        };
 
-        jobs.push_back(job);
+        
+        jobs.push_back(jobsystem::Submit(job));
 
-        jobsystem::Submit(job);
 
         return jobs.size();
     };
