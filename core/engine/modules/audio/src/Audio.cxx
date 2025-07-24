@@ -148,6 +148,8 @@ namespace playground::audio {
         instance->system->setNumListeners(1);
         instance->system->setListenerWeight(0, 1);
 
+        instance->coreSystem->loadPlugin("phonon_fmod.dll", nullptr, 0);
+
         instance->openFileCallback = openFileCallback;
         instance->readFileCallback = readFileCallback;
         instance->seekFileCallback = seekFileCallback;
@@ -166,11 +168,6 @@ namespace playground::audio {
 
         iplFMODInitialize(context);
         instance->context = context;
-
-        unsigned int handle = 0;
-        instance->coreSystem->registerDSP(FMOD_SteamAudio_Spatialize_GetDSPDescription(), &handle);
-        instance->coreSystem->registerDSP(FMOD_SteamAudio_MixerReturn_GetDSPDescription(), &handle);
-        instance->coreSystem->registerDSP(FMOD_SteamAudio_Reverb_GetDSPDescription(), &handle);
 
         IPLHRTFSettings hrtfSettings{};
         hrtfSettings.type = IPL_HRTFTYPE_DEFAULT;
@@ -308,7 +305,8 @@ namespace playground::audio {
         IPLSourceSettings sourceSettings = {};
         sourceSettings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING);
         IPLSource source = nullptr;
-        auto steamAudioResult = iplSourceCreate(
+        auto steamAudioResult =
+            iplSourceCreate(
             instance->simulator,
             &sourceSettings,
             &source
