@@ -16,15 +16,10 @@ namespace playground::ecs::audiosourcesystem {
                     audioSource.forward = rot.rotation.Forward();
                     audioSource.handle = audio::CreateAudioSource(
                         audioSource.eventName,
-                        trans.position.X,
-                        trans.position.Y,
-                        trans.position.Z,
-                        0,
-                        0,
-                        0,
-                        audioSource.forward.X,
-                        audioSource.forward.Y,
-                        audioSource.forward.Z
+                        trans.position,
+                        rot.rotation.Up(),
+                        rot.rotation.Forward(),
+                        math::Vector3(0.0f, 0.0f, 0.0f)
                     );
 
                     return;
@@ -38,8 +33,9 @@ namespace playground::ecs::audiosourcesystem {
                     audio::UpdateAudioSource(
                         audioSource.handle,
                         trans.position,
-                        (audioSource.previousPosition - trans.position) / it.delta_time(),
-                        rot.rotation.Forward()
+                        rot.rotation.Up(),
+                        rot.rotation.Forward(),
+                        (audioSource.previousPosition - trans.position) / it.delta_time()
                     );
                 }
             });

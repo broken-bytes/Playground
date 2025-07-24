@@ -32,7 +32,7 @@ target_link_libraries(AssetPipeline PRIVATE Math glm::glm assimp::assimp libzip:
     )
 
 # Link all engine libraries
-target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Logger Rendering Physics Shared)
+target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Rendering Physics Shared)
 
 add_custom_command(TARGET AssetPipeline POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:AssetPipeline> $<TARGET_RUNTIME_DLLS:AssetPipeline>

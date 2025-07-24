@@ -11,6 +11,7 @@ namespace playground::audio {
     struct AudioSource {
         FMOD::Studio::EventInstance* fmodEventInstance;
         IPLSource iplSource;
-        IPLSimulationInputs settings;
+        IPLint32 handle;
+        bool didSetupDSP = false;
     };
 }

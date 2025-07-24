@@ -13,6 +13,7 @@
 #include <shared/Job.hxx>
 #include <shared/JobHandle.hxx>
 #include <shared/JobSystem.hxx>
+#include <shared/Logger.hxx>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -51,7 +52,7 @@ namespace playground::audio {
 
     FMODInstance* instance = nullptr;
 
-    void SetSourceOutput(FMOD::Studio::EventInstance* instance, IPLSimulationOutputs& outputs);
+    void SetSourceOutput(AudioSource& source);
 
     FMOD_RESULT OpenFile(
         const char* name,
@@ -128,6 +129,8 @@ namespace playground::audio {
         std::function<void(io::FileHandle* handle, size_t offset)> seekFileCallback,
         std::function<void(io::FileHandle* handle)> closeFileCallback
     ) -> void {
+        logging::logger::SetupSubsystem("audio");
+        logging::logger::Info("Initializing FMOD Audio System...", "audio");
         FMOD::Debug_Initialize(FMOD_DEBUG_LEVEL_LOG, FMOD_DEBUG_MODE_TTY, 0, 0);
         void* extraDriverData = NULL;
         CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -135,7 +138,7 @@ namespace playground::audio {
         instance = new FMODInstance();
         FMOD::Studio::System::create(&instance->system);
         instance->system->getCoreSystem(&instance->coreSystem);
-        instance->coreSystem->setSoftwareFormat(0, FMOD_SPEAKERMODE_5POINT1, 0);
+        instance->coreSystem->setSoftwareFormat(0, FMOD_SPEAKERMODE_DEFAULT, 0);
 
         FMOD_RESULT result = instance->system->initialize(1024, FMOD_STUDIO_INIT_NORMAL | FMOD_STUDIO_INIT_LIVEUPDATE, FMOD_INIT_NORMAL, extraDriverData);
         if (result != FMOD_OK) {
@@ -144,12 +147,6 @@ namespace playground::audio {
 
         instance->system->setNumListeners(1);
         instance->system->setListenerWeight(0, 1);
-        SetListenerPosition(
-            0,
-            0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, -1.0f
-        );
 
         instance->openFileCallback = openFileCallback;
         instance->readFileCallback = readFileCallback;
@@ -200,7 +197,7 @@ namespace playground::audio {
         }
 
         IPLSimulationSettings simSettings = {};
-        simSettings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS);
+        simSettings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING);
         simSettings.sceneType = IPL_SCENETYPE_DEFAULT;
         simSettings.reflectionType = IPL_REFLECTIONEFFECTTYPE_HYBRID;
         simSettings.maxNumOcclusionSamples = 8;
@@ -256,25 +253,20 @@ namespace playground::audio {
 
     void SetListenerPosition(
         uint8_t index,
-        float x,
-        float y,
-        float z,
-        float vx,
-        float vy,
-        float vz,
-        float fx,
-        float fy,
-        float fz
+        math::Vector3 position,
+        math::Vector3 up,
+        math::Vector3 forward,
+        math::Vector3 velocity
     ) {
         FMOD_3D_ATTRIBUTES attributes = {};
-        attributes.position = { x, y, z };
-        attributes.velocity = { vx, vy, vz };
-        attributes.forward = { fx, fy, fz };
-        attributes.up = { 0, 1, 0 };
+        attributes.position = FMOD_VECTOR{ position.X, position.Y, position.Z };
+        attributes.velocity = FMOD_VECTOR{ velocity.X, velocity.Y, velocity.Z };
+        attributes.forward = FMOD_VECTOR{ forward.X, forward.Y, forward.Z };
+        attributes.up = FMOD_VECTOR{ up.X, up.Y, up.Z };
 
         FMOD_RESULT result = instance->system->setListenerAttributes(index, &attributes);
         if (result != FMOD_OK) {
-            printf("FMOD setListenerAttributes error: %s\n", FMOD_ErrorString(result));
+            logging::logger::Error("FMOD setListenerAttributes error: " + std::string(FMOD_ErrorString(result)), "audio");
         }
     }
 
@@ -308,15 +300,10 @@ namespace playground::audio {
 
     uint32_t CreateAudioSource(
         const char* eventName,
-        float x,
-        float y,
-        float z,
-        float vx,
-        float vy,
-        float vz,
-        float fx,
-        float fy,
-        float fz
+        math::Vector3 position,
+        math::Vector3 up,
+        math::Vector3 forward,
+        math::Vector3 velocity
     ) {
         IPLSourceSettings sourceSettings = {};
         sourceSettings.flags = static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING);
@@ -336,7 +323,7 @@ namespace playground::audio {
         );
         iplSimulatorCommit(instance->simulator);
 
-        //iplFMODAddSource
+        auto iplHandle = iplFMODAddSource(source);
 
         FMOD::Studio::EventDescription* description;
         auto result = instance->system->getEvent(eventName, &description);
@@ -351,10 +338,10 @@ namespace playground::audio {
         }
 
         FMOD_3D_ATTRIBUTES attributes = {};
-        attributes.position = { x, y, z };
-        attributes.velocity = { vx, vy, vz };
-        attributes.forward = { fx, fy, fz };
-        attributes.up = { 0.0f, 1.0f, 0.0f };
+        attributes.position = FMOD_VECTOR{ position.X, position.Y, position.Z };
+        attributes.velocity = FMOD_VECTOR{ velocity.X, velocity.Y, velocity.Z };
+        attributes.forward = FMOD_VECTOR{ forward.X, forward.Y, forward.Z };
+        attributes.up = FMOD_VECTOR{ up.X, up.Y, up.Z };
 
         result = eventInstance->set3DAttributes(&attributes);
         if (result != FMOD_OK) {
@@ -365,39 +352,6 @@ namespace playground::audio {
 
         std::scoped_lock<std::mutex> lock{ instance->audioSourcesMutex };
         uint64_t handle = instance->audioSources.size();;
-
-        IPLVector3 iplPosition = IPLVector3{ x, y, z };
-        IPLVector3 iplForward = IPLVector3{ fx, fy, fz };
-
-        IPLSimulationInputs inputs = {};
-        inputs.source.origin = iplPosition;
-        inputs.source.ahead = iplForward;
-        inputs.source.up = { 0.0f, 1.0f, 0.0f };
-        inputs.numTransmissionRays = 8;
-        IPLAirAbsorptionModel airAbsorption = {};
-        airAbsorption.type = IPL_AIRABSORPTIONTYPE_DEFAULT;
-        inputs.airAbsorptionModel = airAbsorption;
-        inputs.directFlags = static_cast<IPLDirectSimulationFlags>
-            (IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION |
-                IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION |
-                IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY |
-                IPL_DIRECTSIMULATIONFLAGS_OCCLUSION |
-                IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION
-                );
-        IPLDirectivity directivity = {};
-        directivity.dipoleWeight = 0.0f;
-        directivity.dipolePower = 0;
-        directivity.callback = nullptr;
-        directivity.userData = nullptr;
-        inputs.directivity = directivity;
-        inputs.numOcclusionSamples = 8;
-        inputs.occlusionType = IPLOcclusionType::IPL_OCCLUSIONTYPE_VOLUMETRIC;
-
-        iplSourceSetInputs(
-            source,
-            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING),
-            &inputs
-        );
 
         eventInstance->setVolume(1.0f);
 
@@ -430,7 +384,7 @@ namespace playground::audio {
         AudioSource audioSource = {
             .fmodEventInstance = eventInstance,
             .iplSource = source,
-            .settings = inputs,
+            .handle = iplHandle
         };
 
         instance->audioSources.push_back(audioSource);
@@ -441,20 +395,15 @@ namespace playground::audio {
     void UpdateAudioSource(
         uint64_t handle,
         math::Vector3 position,
-        math::Vector3 velocity,
-        math::Vector3 forward
+        math::Vector3 up,
+        math::Vector3 forward,
+        math::Vector3 velocity
     ) {
-        IPLVector3 iplPosition = reinterpret_cast<const IPLVector3&>(position);
-        IPLVector3 iplForward = reinterpret_cast<const IPLVector3&>(forward);
-        instance->audioSources[handle].settings.source.origin = iplPosition;
-        instance->audioSources[handle].settings.source.ahead = iplForward;
-        instance->audioSources[handle].settings.source.up = { 0.0f, 1.0f, 0.0f };
-
         FMOD_3D_ATTRIBUTES attributes = {};
-        attributes.position = reinterpret_cast<const FMOD_VECTOR&>(position);
-        attributes.velocity = reinterpret_cast<const FMOD_VECTOR&>(velocity);
-        attributes.forward = reinterpret_cast<const FMOD_VECTOR&>(forward);
-        attributes.up = { 0, 1, 0 };
+        attributes.position = FMOD_VECTOR{ position.X, position.Y, position.Z };
+        attributes.velocity = FMOD_VECTOR{ velocity.X, velocity.Y, velocity.Z };
+        attributes.forward = FMOD_VECTOR{ forward.X, forward.Y, forward.Z };
+        attributes.up = FMOD_VECTOR{ up.X, up.Y, up.Z };
 
         FMOD_RESULT result = instance->audioSources[handle].fmodEventInstance->set3DAttributes(&attributes);
         if (result != FMOD_OK) {
@@ -502,11 +451,6 @@ namespace playground::audio {
                         ZoneScopedNC("Audio Direct Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
-                        iplSourceSetInputs(
-                            source.iplSource,
-                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT),
-                            &source.settings
-                        );
                     }
                     iplSimulatorRunDirect(instance->simulator);
                 }
@@ -521,11 +465,6 @@ namespace playground::audio {
                     ZoneScopedNC("Audio Reflections Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
-                        iplSourceSetInputs(
-                            source.iplSource,
-                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_REFLECTIONS),
-                            &source.settings
-                        );
                     }
                     iplSimulatorRunReflections(instance->simulator);
                 }
@@ -540,11 +479,6 @@ namespace playground::audio {
                     ZoneScopedNC("Audio Pathing Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
-                        iplSourceSetInputs(
-                            source.iplSource,
-                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_PATHING),
-                            &source.settings
-                        );
                     }
                     iplSimulatorRunPathing(instance->simulator);
                 }
@@ -559,13 +493,7 @@ namespace playground::audio {
                     ZoneScopedNC("Audio Completion Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Outputs", tracy::Color::Purple1);
-                        IPLSimulationOutputs outputs = {};
-                        iplSourceGetOutputs(
-                            source.iplSource,
-                            static_cast<IPLSimulationFlags>(IPL_SIMULATIONFLAGS_DIRECT | IPL_SIMULATIONFLAGS_REFLECTIONS | IPL_SIMULATIONFLAGS_PATHING),
-                            &outputs
-                        );
-                        SetSourceOutput(source.fmodEventInstance, outputs);
+                        SetSourceOutput(source);
                     }
                     auto result = instance->system->update();
                     if (result != FMOD_OK) {
@@ -578,9 +506,13 @@ namespace playground::audio {
         }
     }
 
-    void SetSourceOutput(FMOD::Studio::EventInstance* instance, IPLSimulationOutputs& outputs) {
+    void SetSourceOutput(AudioSource& source) {
+        if (source.didSetupDSP) {
+            return; // Already set up
+        }
+
         FMOD::ChannelGroup* channelGroup = nullptr;
-        auto result = instance->getChannelGroup(&channelGroup);
+        auto result = source.fmodEventInstance->getChannelGroup(&channelGroup);
         if (result != FMOD_OK) {
             return;
         }
@@ -593,7 +525,7 @@ namespace playground::audio {
             channelGroup->getVolume(&volume);
 
             FMOD_STUDIO_PLAYBACK_STATE playbackState;
-            instance->getPlaybackState(&playbackState);
+            source.fmodEventInstance->getPlaybackState(&playbackState);
 
             for (int i = 0; i < dspCount; ++i) {
                 FMOD::DSP* dsp = nullptr;
@@ -603,33 +535,20 @@ namespace playground::audio {
                 dsp->getInfo(name, nullptr, nullptr, nullptr, nullptr);
 
                 if (strstr(name, "Steam Audio Spatializer")) {
-                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_OCCLUSION, 2); // Occlusion enabled
-                    dsp->setParameterFloat(IPL_SPATIALIZE_OCCLUSION, outputs.direct.occlusion);
-
-                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_TRANSMISSION, 2); // Transmission enabled
-                    dsp->setParameterFloat(IPL_SPATIALIZE_TRANSMISSION_LOW, outputs.direct.transmission[0]);
-                    dsp->setParameterFloat(IPL_SPATIALIZE_TRANSMISSION_MID, outputs.direct.transmission[1]);
-                    dsp->setParameterFloat(IPL_SPATIALIZE_TRANSMISSION_HIGH, outputs.direct.transmission[2]);
+                    ZoneScopedNC("Set Source Output", tracy::Color::Purple1);
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_OCCLUSION, 1); // Occlusion enabled
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_TRANSMISSION, 1); // Transmission enabled
                     dsp->setParameterInt(IPL_SPATIALIZE_TRANSMISSION_TYPE, 1); // Transmission type set to 3-band EQ
-
-                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DISTANCEATTENUATION, 2); // Distance attenuation enabled
-                    dsp->setParameterFloat(IPL_SPATIALIZE_DISTANCEATTENUATION_MINDISTANCE, 0.5f); // Minimum distance
-                    dsp->setParameterFloat(IPL_SPATIALIZE_DISTANCEATTENUATION_MAXDISTANCE, 100.0f); // Maximum distance
-
-
-                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_AIRABSORPTION, 2); // Air absorption enabled
-
-                    dsp->setParameterFloat(IPL_SPATIALIZE_AIRABSORPTION_LOW, outputs.direct.airAbsorption[0]);
-                    dsp->setParameterFloat(IPL_SPATIALIZE_AIRABSORPTION_MID, outputs.direct.airAbsorption[1]);
-                    dsp->setParameterFloat(IPL_SPATIALIZE_AIRABSORPTION_HIGH, outputs.direct.airAbsorption[2]);
-
-                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DIRECTIVITY, 2); // Directivity enabled
-                    dsp->setParameterFloat(IPL_SPATIALIZE_DIRECTIVITY, outputs.direct.directivity);
-
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DISTANCEATTENUATION, 1); // Distance attenuation enabled
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_AIRABSORPTION, 1); // Air absorption enabled
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DIRECTIVITY, 1); // Directivity enabled
                     dsp->setParameterFloat(IPL_SPATIALIZE_DIRECT_MIXLEVEL, 1);
                     dsp->setParameterBool(IPL_SPATIALIZE_REFLECTIONS_BINAURAL, true); // Binaural reflections enabled
+                    dsp->setParameterInt(IPL_SPATIALIZE_SIMULATION_OUTPUTS_HANDLE, source.handle);
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_PATHING, 1); // Pathing enabled
                     // Commit the changes to the DSP
                     dsp->setActive(true);
+                    source.didSetupDSP = true;
                 }
             }
         }
