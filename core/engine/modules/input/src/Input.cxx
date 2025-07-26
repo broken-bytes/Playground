@@ -10,6 +10,9 @@
 #include <events/Event.hxx>
 #include <events/InputEvent.hxx>
 #include <events/SystemEvent.hxx>
+#include <shared/Job.hxx>
+#include <shared/JobHandle.hxx>
+#include <shared/JobSystem.hxx>
 #include <stdexcept>
 #include <iostream>
 #include <SDL3/SDL.h>
@@ -55,9 +58,9 @@ namespace playground::input {
 
     moodycamel::ConcurrentQueue<InputAction> inputEventsQueue;
 
-    void ProcessKeyboard(InputEvent& event);
-    void ProcessController(InputEvent& event, uint8_t id);
-    void ProcessMouse(InputEvent& event);
+    void ProcessKeyboard(const eastl::vector<InputEvent, StackAllocator>& events);
+    void ProcessController(const eastl::vector<InputEvent, StackAllocator>& events, uint8_t id);
+    void ProcessMouse(const eastl::vector<InputEvent, StackAllocator>& events);
     void ProcessButtonDiff(Button* events, size_t count);
     void EmitButtonEvents(InputDevice device, Button* buttons, size_t count);
 
@@ -85,20 +88,46 @@ namespace playground::input {
 #ifdef _WIN32
         auto rawEvents = rawInputHandler->PollEvents(pollAllocator);
 #endif
-        // TODO: Do Input Logic Here
-        for (auto& newInput : rawEvents) {
-            switch (newInput.device) {
-            case InputDevice::Keyboard:
-                ProcessKeyboard(newInput);
-                break;
-            case InputDevice::Mouse:
-                ProcessMouse(newInput);
-                break;
-            case InputDevice::Controller0:
-                ProcessController(newInput, 0);
-                break;
+        auto mouseJob = jobsystem::Job{
+            .Name = "Process Mouse Input",
+            .Priority = jobsystem::JobPriority::High,
+            .Color = tracy::Color::Blue1,
+            .Task = [rawEvents](uint8_t workerId) {
+                ProcessMouse(rawEvents);
             }
-        }
+        };
+
+        auto keyboardJob = jobsystem::Job{
+            .Name = "Process Keyboard Input",
+            .Priority = jobsystem::JobPriority::High,
+            .Color = tracy::Color::Blue2,
+            .Task = [rawEvents](uint8_t workerId) {
+                ProcessKeyboard(rawEvents);
+            }
+        };
+
+        auto controllerJob = jobsystem::Job{
+            .Name = "Process Controller Input",
+            .Priority = jobsystem::JobPriority::High,
+            .Color = tracy::Color::Blue3,
+            .Task = [rawEvents](uint8_t workerId) {
+                ProcessController(rawEvents, 0); // Assuming single controller for now
+            }
+        };
+
+        auto completionJob = jobsystem::Job{
+            .Name = "Process Input Completion",
+            .Priority = jobsystem::JobPriority::High,
+            .Color = tracy::Color::Blue4,
+            .Dependencies = { mouseJob, keyboardJob, controllerJob },
+            .Task = [](uint8_t workerId) {
+                // This job is just to ensure all input processing is done before emitting events
+            }
+        };
+
+        // Submit jobs to the job system
+        auto completionHandle = jobsystem::Submit(completionJob);
+        completionHandle->Wait();
 
         {
             ZoneScopedNC("Input: Process Button Diff", tracy::Color::Blue2);
@@ -159,47 +188,59 @@ namespace playground::input {
         return inputEventsQueue.try_dequeue(action);
     }
 
-    void ProcessKeyboard(InputEvent& event) {
-        ZoneScopedNC("Input: Process Keyboard", tracy::Color::Blue2);
-        currentInputState.keys[event.actionId].tick = currentTick;
-        currentInputState.keys[event.actionId].timestamp = event.timestamp;
-        switch (event.type) {
+    void ProcessKeyboard(const eastl::vector<InputEvent, StackAllocator>& events) {
+        for (auto& event : events) {
+            ZoneScopedNC("Input: Process Keyboard", tracy::Color::Blue2);
+            if (event.device != InputDevice::Keyboard) {
+                continue; // Skip if not a keyboard event
+            }
+
+            currentInputState.keys[event.actionId].tick = currentTick;
+            currentInputState.keys[event.actionId].timestamp = event.timestamp;
+            switch (event.type) {
             case InputEventType::ButtonDown:
                 currentInputState.keys[event.actionId].state = ButtonState::Down;
                 break;
             case InputEventType::ButtonUp:
                 currentInputState.keys[event.actionId].state = ButtonState::Up;
                 break;
+            }
         }
     }
 
-    void ProcessController(InputEvent& event, uint8_t id) {
+    void ProcessController(const eastl::vector<InputEvent, StackAllocator>& events, uint8_t id) {
         ZoneScopedNC("Input: Process Controller", tracy::Color::Blue3);
     }
 
-    void ProcessMouse(InputEvent& event) {
-        ZoneScopedNC("Input: Process Mouse", tracy::Color::Blue4);
-        switch (event.type) {
-        case InputEventType::AxisMoved:
-            if (event.actionId == 0) {
-                currentInputState.mouseX += event.value * mouseSensitivity;
-                currentInputState.mouseXMoved = true;
+    void ProcessMouse(const eastl::vector<InputEvent, StackAllocator>& events) {
+        for (auto& event : events) {
+            ZoneScopedNC("Input: Process Mouse", tracy::Color::Blue4);
+            if (event.device != InputDevice::Mouse) {
+                continue; // Skip if not a mouse event
             }
-            else {
-                currentInputState.mouseY += event.value * mouseSensitivity;
-                currentInputState.mouseYMoved = true;
+
+            switch (event.type) {
+            case InputEventType::AxisMoved:
+                if (event.actionId == 0) {
+                    currentInputState.mouseX += event.value * mouseSensitivity;
+                    currentInputState.mouseXMoved = true;
+                }
+                else {
+                    currentInputState.mouseY += event.value * mouseSensitivity;
+                    currentInputState.mouseYMoved = true;
+                }
+                break;
+            case InputEventType::ButtonDown:
+                currentInputState.mouseButtons[event.actionId].tick = currentTick;
+                currentInputState.mouseButtons[event.actionId].timestamp = event.timestamp;
+                currentInputState.mouseButtons[event.actionId].state = ButtonState::Down;
+                break;
+            case InputEventType::ButtonUp:
+                currentInputState.mouseButtons[event.actionId].tick = currentTick;
+                currentInputState.mouseButtons[event.actionId].timestamp = event.timestamp;
+                currentInputState.mouseButtons[event.actionId].state = ButtonState::Up;
+                break;
             }
-            break;
-        case InputEventType::ButtonDown:
-            currentInputState.mouseButtons[event.actionId].tick = currentTick;
-            currentInputState.mouseButtons[event.actionId].timestamp = event.timestamp;
-            currentInputState.mouseButtons[event.actionId].state = ButtonState::Down;
-            break;
-        case InputEventType::ButtonUp:
-            currentInputState.mouseButtons[event.actionId].tick = currentTick;
-            currentInputState.mouseButtons[event.actionId].timestamp = event.timestamp;
-            currentInputState.mouseButtons[event.actionId].state = ButtonState::Up;
-            break;
         }
     }
 
