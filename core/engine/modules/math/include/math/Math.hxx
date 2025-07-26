@@ -8,6 +8,7 @@
 #include <limits>
 
 namespace playground::math {
+    math::Matrix4x4 Mat4FromPRS(const Vector3& position, const Quaternion& rotation, const Vector3& scale);
     void Mat4FromPRS(const Vector3* position, const Quaternion* rotation, const Vector3* scale, Matrix4x4* mat);
 
     void Mat4FromPRSBulk(const Vector3* position, const Quaternion* rotation, const Vector3* scale, size_t count, Matrix4x4* mats);

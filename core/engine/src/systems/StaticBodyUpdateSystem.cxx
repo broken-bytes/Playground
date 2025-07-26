@@ -1,16 +1,16 @@
 #include "playground/systems/StaticBodyUpdateSystem.hxx"
 #include "playground/components/StaticBodyComponent.hxx"
-#include "playground/components/WorldTranslationComponent.hxx"
-#include "playground/components/WorldRotationComponent.hxx"
+#include "playground/components/TranslationComponent.hxx"
+#include "playground/components/RotationComponent.hxx"
 #include "playground/PhysicsManager.hxx"
 #include <tracy/Tracy.hpp>
 
 namespace playground::ecs::staticbodyupdatesystem {
     void Init(flecs::world world) {
-        world.system<StaticBodyComponent, WorldTranslationComponent, WorldRotationComponent>("StaticBodyUpdateSystem")
+        world.system<StaticBodyComponent, const TranslationComponent, const RotationComponent>("StaticBodyUpdateSystem")
             .kind(flecs::PostUpdate)
             .multi_threaded(true)
-            .each([](flecs::entity e, StaticBodyComponent& rigidBody, WorldTranslationComponent& trans, WorldRotationComponent& rot) {
+            .each([](flecs::entity e, StaticBodyComponent& rigidBody, const TranslationComponent& trans, const RotationComponent& rot) {
                 ZoneScopedNC("StaticBodyUpdateSystem", tracy::Color::Green);
 
                 if (rigidBody.handle == UINT64_MAX) {
@@ -22,8 +22,14 @@ namespace playground::ecs::staticbodyupdatesystem {
 
                     return;
                 }
-                physicsmanager::GetBodyPosition(rigidBody.handle, &trans.position);
-                physicsmanager::GetBodyRotation(rigidBody.handle, &rot.rotation);
+
+                math::Vector3 position;
+                math::Quaternion rotation;
+                physicsmanager::GetBodyPosition(rigidBody.handle, &position);
+                physicsmanager::GetBodyRotation(rigidBody.handle, &rotation);
+
+                e.set<TranslationComponent>({ true, position });
+                e.set<RotationComponent>({ rotation });
             });
     }
 }

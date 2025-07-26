@@ -172,7 +172,7 @@ void SetupPointerLookupTable(const PlaygroundConfig& config) {
     config.Delegate("ECS_GetComponent\0", playground::ecs::GetComponent);
     config.Delegate("ECS_HasComponent\0", playground::ecs::HasComponent);
     config.Delegate("ECS_DestroyComponent\0", playground::ecs::DestroyComponent);
-    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateScriptingSystem);
+    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateUpdateSystem);
     config.Delegate("ECS_GetComponentBuffer\0", playground::ecs::GetComponentBuffer);
     config.Delegate("ECS_GetIteratorSize\0", playground::ecs::GetIteratorSize);
     config.Delegate("ECS_GetIteratorOffset\0", playground::ecs::GetIteratorOffset);
@@ -202,9 +202,6 @@ void SetupPointerLookupTable(const PlaygroundConfig& config) {
     config.Delegate("Input_Update\0", playground::input::Update);
 
     config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
-
-    config.Delegate("Math_Mat4FromPRS", playground::math::Mat4FromPRS);
-    config.Delegate("Math_Mat4FromPRSBulk", playground::math::Mat4FromPRSBulk);
 }
 
 void StartRenderThread(const PlaygroundConfig& config, void* window) {
@@ -272,20 +269,8 @@ void Update() {
         playground::inputmanager::Update();
     }
     {
-        ZoneScopedNC("Engine: ECS Pre Tick", tracy::Color::VioletRed1);
-        playground::ecs::RunPreUpdateSystems(deltaTime);
-    }
-    {
-        ZoneScopedNC("Engine: ECS Scripting Tick", tracy::Color::VioletRed2);
-        playground::ecs::RunScriptingSystems(deltaTime);
-    }
-    {
-        ZoneScopedNC("Engine: ECS Update Tick", tracy::Color::VioletRed3);
-        playground::ecs::RunUpdateSystems(deltaTime);
-    }
-    {
-        ZoneScopedNC("Engine: ECS Post Tick", tracy::Color::VioletRed4);
-        playground::ecs::RunPostUpdateSystems(deltaTime);
+        ZoneScopedNC("Engine: ECS Tick", tracy::Color::VioletRed1);
+        playground::ecs::Update(deltaTime);
     }
     {
         ZoneScopedNC("Engine: Physics Tick", tracy::Color::Salmon);

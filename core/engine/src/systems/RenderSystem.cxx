@@ -13,12 +13,12 @@
 #include <EASTL/fixed_vector.h>
 #include <tracy/Tracy.hpp>
 #include <shared/Arena.hxx>
+#include <shared/Logger.hxx>
 #include <math/Math.hxx>
 #include <memory>
 
 namespace playground::ecs::rendersystem {
     auto drawCalls = new drawcallbatcher::DrawCall[rendering::MAX_DRAW_CALLS_PER_FRAME];
-    math::Matrix4x4 matrices[rendering::MAX_DRAW_CALLS_PER_FRAME];
 
     std::atomic<uint32_t> offset = 0;
 
@@ -29,60 +29,36 @@ namespace playground::ecs::rendersystem {
         auto mesh = ecs::RegisterComponent("MeshComponent", sizeof(MeshComponent), alignof(MeshComponent));
         auto material = ecs::RegisterComponent("MaterialComponent", sizeof(MaterialComponent), alignof(MaterialComponent));
 
-        std::array<Filter, 5> components = {
-            Filter(translation, EcsIn, EcsAnd),
-            Filter(rotation, EcsIn, EcsAnd),
-            Filter(scale, EcsIn, EcsAnd),
-            Filter(mesh, EcsIn, EcsAnd),
-            Filter(material, EcsIn, EcsAnd)
-        };
+        world.system<const WorldTranslationComponent, const WorldRotationComponent, const WorldScaleComponent, const MeshComponent, const MaterialComponent>("RenderSystem")
+            .kind(flecs::PostUpdate)
+            .multi_threaded(true)
+            .run([](flecs::iter& it) {
+                while (it.next()) {
+                    ZoneScopedNC("RenderSystem", tracy::Color::Green);
+                    auto translation = it.field<const WorldTranslationComponent>(0);
+                    auto rotation = it.field<const WorldRotationComponent>(1);
+                    auto scale = it.field<const WorldScaleComponent>(2);
+                    auto mesh = it.field<const MeshComponent>(3);
+                    auto material = it.field<const MaterialComponent>(4);
+                    auto startIndex = offset.fetch_add(it.count(), std::memory_order_acquire);
+                    auto drawPtr = &drawCalls[startIndex];
+                    for (int x = 0; x < it.count(); x++) {
+                        math::Matrix4x4 mat = math::Mat4FromPRS(
+                            translation[x].position,
+                            rotation[x].rotation,
+                            scale[x].scale
+                        );
 
-        ecs_system_desc_t system = {};
-
-        ecs_entity_desc_t entity = {};
-        entity.name = "RenderSystem";
-
-        ecs_query_desc_t query = {};
-        for (int x = 0; x < components.size(); x++) {
-            query.terms[x] = ecs_term_t{ .id = components[x].filterComponentId, .inout = components[x].filterUsage, .oper = components[x].filterOperation };
-        }
-
-        memset(system.query.terms, 0, sizeof(system.query.terms));
-        auto entityId = ecs_entity_init(world, &entity);
-
-        system.query = query;
-        system.entity = entityId;
-        system.multi_threaded = true;
-        system.callback = [](ecs_iter_t* iter) {
-            ZoneScopedNC("RenderSystem", tracy::Color::Green);
-            auto translation = ecs_field(iter, WorldTranslationComponent, 0);
-            auto rotation = ecs_field(iter, WorldRotationComponent, 1);
-            auto scale = ecs_field(iter, WorldScaleComponent, 2);
-            auto mesh = ecs_field(iter, MeshComponent, 3);
-            auto material = ecs_field(iter, MaterialComponent, 4);
-
-            auto startIndex = offset.fetch_add(iter->count, std::memory_order_relaxed);
-
-            math::Mat4FromPRSBulk(
-                reinterpret_cast<math::Vector3*>(translation),
-                reinterpret_cast<math::Quaternion*>(rotation),
-                reinterpret_cast<math::Vector3*>(scale),
-                iter->count,
-                &matrices[startIndex]
-            );
-            auto drawPtr = &drawCalls[startIndex];
-            for (int x = 0; x < iter->count; x++) {
-                drawPtr[x] = drawcallbatcher::DrawCall{
-                    .modelHandle = mesh[x].handle,
-                    .meshId = mesh[x].meshId,
-                    .materialHandle = material[x].handle,
-                    .transform = (&matrices[startIndex])[x],
-                };
-            }
-            drawcallbatcher::Batch(drawPtr, iter->count);
-        };
-
-        ecs_system_init(world, &system);
+                        drawPtr[x] = drawcallbatcher::DrawCall{
+                            .modelHandle = mesh[x].handle,
+                            .meshId = mesh[x].meshId,
+                            .materialHandle = material[x].handle,
+                            .transform = mat,
+                        };
+                    }
+                    drawcallbatcher::Batch(drawPtr, it.count());
+                }
+            });
 
         world.system("PreRenderSystem")
             .kind(flecs::PostUpdate)

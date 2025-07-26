@@ -19,7 +19,8 @@ namespace playground::jobsystem {
             hardware::CPUEfficiencyClass cpuEfficiency,
             std::mutex& mutex,
             std::condition_variable& conditionVar,
-            std::function<bool(std::shared_ptr<JobHandle>&)> pullJob
+            std::function<bool(std::shared_ptr<JobHandle>&)> pullJob,
+            std::function<bool()> isWorkAvailable
         );
 
         void Stop();
@@ -31,6 +32,6 @@ namespace playground::jobsystem {
         std::mutex& _mutex;
         std::condition_variable& _conditionVar;
         bool _isRunning;
-        uint64_t _idleSpins;
+        std::function<bool()> _isWorkAvailable;
     };
 }

@@ -18,6 +18,7 @@
 #include <shared/Memory.hxx>
 #include <math/Math.hxx>
 #include <shared/Arena.hxx>
+#include <shared/Logger.hxx>
 #include <concurrentqueue.h>
 #include <iostream>
 

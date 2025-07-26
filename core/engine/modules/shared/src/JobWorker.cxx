@@ -14,10 +14,10 @@ namespace playground::jobsystem {
         hardware::CPUEfficiencyClass cpuEfficiency,
         std::mutex& mutex,
         std::condition_variable& conditionVar,
-        std::function<bool(std::shared_ptr<JobHandle>&)> pullJob
-    ) : _mutex(mutex), _conditionVar(conditionVar), _id(id) {
+        std::function<bool(std::shared_ptr<JobHandle>&)> pullJob,
+        std::function<bool()> isWorkAvailable
+    ) : _mutex(mutex), _conditionVar(conditionVar), _id(id), _isWorkAvailable(isWorkAvailable) {
         _isRunning = true;
-        _idleSpins = 0;
         auto cores = hardware::GetCoresByEfficiency(cpuEfficiency);
 
         _thread = std::thread([name, pullJob, cores, coreIndex, this]() {
@@ -42,7 +42,7 @@ namespace playground::jobsystem {
                 if (!pullJob(nextJob)) {
                     ZoneScopedNC("Job System: Idle Wait", tracy::Color::Blue1);
                     std::unique_lock<std::mutex> lock(_mutex);
-                    _conditionVar.wait(lock);
+                    _conditionVar.wait(lock, [&]() { return !_isRunning || _isWorkAvailable(); });
                     continue;
                 } else {
                     ZoneScopedN("Job System: Execute Job");

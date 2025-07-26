@@ -98,10 +98,10 @@ namespace playground::ecs {
     }
 
     void RegisterSystems() {
-        playground::ecs::hierarchysystem::Init(*world);  
         playground::ecs::boxcolliderupdatesystem::Init(*world);
         playground::ecs::rigidbodyupdatesystem::Init(*world);
         playground::ecs::staticbodyupdatesystem::Init(*world);
+        playground::ecs::hierarchysystem::Init(*world);
         playground::ecs::audiosourcesystem::Init(*world);
         playground::ecs::audiolistenersystem::Init(*world);
         playground::ecs::rendersystem::Init(*world);
@@ -115,19 +115,19 @@ namespace playground::ecs {
             .Priority = jobsystem::JobPriority::High,
             .Color = tracy::Color::Red,
             .Dependencies = {},
-            .Task = [callback, param]() { callback(param); }
+            .Task = [callback, param](uint8_t workerId) { callback(param); }
         };
-
         
         jobs.push_back(jobsystem::Submit(job));
-
 
         return jobs.size();
     };
 
     void* JoinTask(ecs_os_thread_t thread) {
         auto job = jobs.at(thread - 1);
-        while(!job->IsDone()) { }
+        while(!job->IsDone()) {
+            std::this_thread::yield();
+        }
 
         return nullptr;
     };

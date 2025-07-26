@@ -23,6 +23,8 @@ namespace playground::jobsystem {
     std::condition_variable conditionVarLowPerf;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> highPerfQueue;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> lowPerfQueue;
+    std::atomic<uint64_t> highPerfJobsAvailable{ 0 };
+    std::atomic<uint64_t> lowPerfJobsAvailable{ 0 };
 
     uint8_t highPerfWorkers;
     uint8_t lowPerfWorkers;
@@ -31,6 +33,8 @@ namespace playground::jobsystem {
     bool PullHighPerformanceTask(std::shared_ptr<JobHandle>& job);
     bool PullLowPerformanceTask(std::shared_ptr<JobHandle>& job);
     void Push(std::shared_ptr<JobHandle> handle);
+    bool HasHighPerfWorkAvailable();
+    bool HasLowPerfWorkAvailable();
 
     void Init() {
         logging::logger::SetupSubsystem("jobs");
@@ -52,11 +56,11 @@ namespace playground::jobsystem {
                     }
                 });
             }
-
-            return jobHandle;
         }
 
-        Push(jobHandle);
+        if (jobHandle->IsReady()) {
+            Push(jobHandle);
+        }
 
         return jobHandle;
     }
@@ -127,8 +131,9 @@ namespace playground::jobsystem {
                 hardware::CPUEfficiencyClass::Performance,
                 highPerfQueueMutex,
                 conditionVarHghPerf,
-                [](auto& job) { return PullHighPerformanceTask(job); })
-            );
+                [](auto& job) { return PullHighPerformanceTask(job); },
+                HasHighPerfWorkAvailable
+            ));
         }
 
         // If there are no low performance cores available, we use the high performance cores for low performance tasks as well
@@ -150,8 +155,9 @@ namespace playground::jobsystem {
                     hardware::CPUEfficiencyClass::Efficient,
                     lowPerfQueueMutex,
                     conditionVarLowPerf,
-                    [](auto& job) { return PullLowPerformanceTask(job); })
-                );
+                    [](auto& job) { return PullLowPerformanceTask(job); },
+                    HasLowPerfWorkAvailable
+                ));
             }
         }
         else {
@@ -166,14 +172,16 @@ namespace playground::jobsystem {
                     hardware::CPUEfficiencyClass::Efficient,
                     lowPerfQueueMutex,
                     conditionVarLowPerf,
-                    [](auto& job) { return PullLowPerformanceTask(job); })
-                );
+                    [](auto& job) { return PullLowPerformanceTask(job); },
+                    HasLowPerfWorkAvailable
+                ));
             }
         }
     }
 
     bool PullHighPerformanceTask(std::shared_ptr<JobHandle>& job) {
         if (highPerfQueue.try_dequeue(job)) {
+            highPerfJobsAvailable.fetch_sub(1, std::memory_order_release);
             return true;
         }
 
@@ -182,6 +190,7 @@ namespace playground::jobsystem {
 
     bool PullLowPerformanceTask(std::shared_ptr<JobHandle>& job) {
         if (lowPerfQueue.try_dequeue(job)) {
+            lowPerfJobsAvailable.fetch_sub(1, std::memory_order_release);
             return true;
         }
 
@@ -191,11 +200,21 @@ namespace playground::jobsystem {
     void Push(std::shared_ptr<JobHandle> handle) {
         if (handle->Priority() == JobPriority::High) {
             highPerfQueue.enqueue(handle);
+            highPerfJobsAvailable.fetch_add(1, std::memory_order_release);
             conditionVarHghPerf.notify_one();
         }
         else {
             lowPerfQueue.enqueue(handle);
+            lowPerfJobsAvailable.fetch_add(1, std::memory_order_release);
             conditionVarLowPerf.notify_one();
         }
+    }
+
+    bool HasHighPerfWorkAvailable() {
+        return highPerfJobsAvailable.load(std::memory_order_acquire) > 0;
+    }
+
+    bool HasLowPerfWorkAvailable() {
+        return lowPerfJobsAvailable.load(std::memory_order_acquire) > 0;
     }
 }

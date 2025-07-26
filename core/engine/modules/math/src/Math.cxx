@@ -7,6 +7,13 @@
 #include <iostream>
 
 namespace playground::math {
+    math::Matrix4x4 Mat4FromPRS(const Vector3& position, const Quaternion& rotation, const Vector3& scale) {
+        Matrix4x4 mat;
+        Mat4FromPRS(&position, &rotation, &scale, &mat);
+
+        return mat;
+    }
+
     void Mat4FromPRS(const Vector3* position, const Quaternion* rotation, const Vector3* scale, Matrix4x4* mat) {
         const float x = rotation->X;
         const float y = rotation->Y;
