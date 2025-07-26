@@ -11,6 +11,7 @@ namespace playground::ecs::audiosourcesystem {
             .kind(flecs::PostUpdate)
             .multi_threaded(true)
             .each([](flecs::iter& it, size_t, AudioSourceComponent& audioSource, const WorldTranslationComponent& trans, const WorldRotationComponent& rot) {
+                ZoneScopedNC("AudioSourceSystem", tracy::Color::Pink);
                 if (audioSource.handle == UINT64_MAX) {
                     audioSource.previousPosition = trans.position;
                     audioSource.forward = rot.rotation.Forward();

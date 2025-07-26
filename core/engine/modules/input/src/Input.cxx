@@ -17,6 +17,7 @@
 #include<thread>
 #include <vector>
 #include <concurrentqueue.h>
+#include <tracy/Tracy.hpp>
 
 namespace playground::input {
     struct Button {
@@ -72,7 +73,7 @@ namespace playground::input {
     }
 
     auto Update() -> void {
-        auto now = std::chrono::steady_clock::now();
+        ZoneScopedNC("Input: Update", tracy::Color::Blue1);
         pollArena.Reset();
 
         currentInputState.mouseX = 0.0f;
@@ -99,61 +100,59 @@ namespace playground::input {
             }
         }
 
-        // Check for all buttons if they were updated this frame or not and apply held/released
-        ProcessButtonDiff(currentInputState.mouseButtons.data(), currentInputState.mouseButtons.size());
-        ProcessButtonDiff(currentInputState.keys.data(), currentInputState.keys.size());
-        ProcessButtonDiff(currentInputState.controllerButtons.data(), currentInputState.controllerButtons.size());
-
+        {
+            ZoneScopedNC("Input: Process Button Diff", tracy::Color::Blue2);
+            // Check for all buttons if they were updated this frame or not and apply held/released
+            ProcessButtonDiff(currentInputState.mouseButtons.data(), currentInputState.mouseButtons.size());
+            ProcessButtonDiff(currentInputState.keys.data(), currentInputState.keys.size());
+            ProcessButtonDiff(currentInputState.controllerButtons.data(), currentInputState.controllerButtons.size());
+        }
         // Now emit all chanegd buttons + all axis
 
-        if (currentInputState.mouseXMoved) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 0, .value = currentInputState.mouseX } });
-            currentInputState.mouseXMoved = false;
-        }
-        else {
-            currentInputState.mouseX = 0.0f; // Reset mouse X if not moved
-        }
-        if (currentInputState.mouseYMoved) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 1, .value = currentInputState.mouseY } });
-            currentInputState.mouseYMoved = false;
-        }
-        else {
-            currentInputState.mouseY = 0.0f; // Reset mouse Y if not moved
-        }
+        {
+            ZoneScopedNC("Input: Emit Events", tracy::Color::Blue3);
+            if (currentInputState.mouseXMoved) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 0, .value = currentInputState.mouseX } });
+                currentInputState.mouseXMoved = false;
+            }
+            else {
+                currentInputState.mouseX = 0.0f; // Reset mouse X if not moved
+            }
+            if (currentInputState.mouseYMoved) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Mouse, .axisAction = AxisAction {.axisId = 1, .value = currentInputState.mouseY } });
+                currentInputState.mouseYMoved = false;
+            }
+            else {
+                currentInputState.mouseY = 0.0f; // Reset mouse Y if not moved
+            }
 
-        EmitButtonEvents(InputDevice::Mouse, currentInputState.mouseButtons.data(), currentInputState.mouseButtons.size());
-        EmitButtonEvents(InputDevice::Keyboard, currentInputState.keys.data(), currentInputState.keys.size());
+            EmitButtonEvents(InputDevice::Mouse, currentInputState.mouseButtons.data(), currentInputState.mouseButtons.size());
+            EmitButtonEvents(InputDevice::Keyboard, currentInputState.keys.data(), currentInputState.keys.size());
 
-        if (currentInputState.controllerAxes[0] > deadZone) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 0, .value = currentInputState.controllerAxes[0]} });
+            if (currentInputState.controllerAxes[0] > deadZone) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 0, .value = currentInputState.controllerAxes[0]} });
+            }
+            if (currentInputState.controllerAxes[1] > deadZone) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 1, .value = currentInputState.controllerAxes[1]} });
+            }
+            if (currentInputState.controllerAxes[2] > deadZone) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 2, .value = currentInputState.controllerAxes[2]} });
+            }
+            if (currentInputState.controllerAxes[3] > deadZone) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 3, .value = currentInputState.controllerAxes[3]} });
+            }
+            if (currentInputState.controllerAxes[4] > deadZone) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 4, .value = currentInputState.controllerAxes[4]} });
+            }
+            if (currentInputState.controllerAxes[5] > deadZone) {
+                inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 5, .value = currentInputState.controllerAxes[5]} });
+            }
+            EmitButtonEvents(InputDevice::Controller0, currentInputState.controllerButtons.data(), currentInputState.controllerButtons.size());
         }
-        if (currentInputState.controllerAxes[1] > deadZone) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 1, .value = currentInputState.controllerAxes[1]} });
-        }
-        if (currentInputState.controllerAxes[2] > deadZone) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 2, .value = currentInputState.controllerAxes[2]} });
-        }
-        if (currentInputState.controllerAxes[3] > deadZone) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 3, .value = currentInputState.controllerAxes[3]} });
-        }
-        if (currentInputState.controllerAxes[4] > deadZone) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 4, .value = currentInputState.controllerAxes[4]} });
-        }
-        if (currentInputState.controllerAxes[5] > deadZone) {
-            inputEventsQueue.enqueue(InputAction{ .type = InputType::Axis, .device = InputDevice::Controller0, .axisAction = AxisAction {.axisId = 5, .value = currentInputState.controllerAxes[5]} });
-        }
-        EmitButtonEvents(InputDevice::Controller0, currentInputState.controllerButtons.data(), currentInputState.controllerButtons.size());
 
         currentTick++;
 
         SDL_PumpEvents();
-
-        auto end = std::chrono::steady_clock::now();
-        auto elapsed = end - now;
-
-        if (elapsed.count() < tickRate) {
-            std::this_thread::sleep_for(std::chrono::nanoseconds(tickRate - elapsed.count()));
-        }
 	}
 
     auto FetchInput(InputAction& action) -> bool {
@@ -161,6 +160,7 @@ namespace playground::input {
     }
 
     void ProcessKeyboard(InputEvent& event) {
+        ZoneScopedNC("Input: Process Keyboard", tracy::Color::Blue2);
         currentInputState.keys[event.actionId].tick = currentTick;
         currentInputState.keys[event.actionId].timestamp = event.timestamp;
         switch (event.type) {
@@ -174,10 +174,11 @@ namespace playground::input {
     }
 
     void ProcessController(InputEvent& event, uint8_t id) {
-
+        ZoneScopedNC("Input: Process Controller", tracy::Color::Blue3);
     }
 
     void ProcessMouse(InputEvent& event) {
+        ZoneScopedNC("Input: Process Mouse", tracy::Color::Blue4);
         switch (event.type) {
         case InputEventType::AxisMoved:
             if (event.actionId == 0) {
@@ -203,6 +204,7 @@ namespace playground::input {
     }
 
     void ProcessButtonDiff(Button* events, size_t count) {
+        ZoneScopedNC("Input: Process Button Diff", tracy::Color::Blue4);
         for (int x = 0; x < count; x++) {
             auto& current = events[x];
             if (current.tick != currentTick) {
@@ -217,6 +219,7 @@ namespace playground::input {
     }
 
     void EmitButtonEvents(InputDevice device, Button* buttons, size_t count) {
+        ZoneScopedNC("Input: Emit Button Events", tracy::Color::Blue4);
         for (uint16_t x = 0; x < count; x++) {
             if (buttons[x].state == ButtonState::Released) {
                 continue;

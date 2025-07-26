@@ -18,7 +18,7 @@ namespace playground::jobsystem {
         void Add();
         void Sub();
         void Set(uint16_t);
-        void Complete();
+        void Complete(uint8_t workerId);
         bool IsDone() const;
         bool IsReady() const;
         JobPriority Priority() const;
@@ -38,14 +38,14 @@ namespace playground::jobsystem {
         void Wait() const;
 
     private:
-        JobHandle(std::string name, JobPriority priority, uint32_t tracerColour, std::function<void()> work, std::function<void()> onCompletion);
+        JobHandle(std::string name, JobPriority priority, uint32_t tracerColour, std::function<void(uint8_t workerId)> work, std::function<void()> onCompletion);
         uint64_t _id;
         std::string _name;
         JobPriority _priority;
         uint32_t _tracerColour;
         std::shared_ptr<std::atomic<bool>> _isCompleted;
         std::shared_ptr<std::atomic<int64_t>> _references;
-        std::function<void()> _work;
+        std::function<void(uint8_t workerId)> _work;
         std::function<void()> _onCompletion;
     };
 }

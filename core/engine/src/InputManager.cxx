@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <tracy/Tracy.hpp>
 
 namespace playground::inputmanager {
     struct PhysicalButton {
@@ -73,6 +74,8 @@ namespace playground::inputmanager {
     }
 
     void Update() {
+        ZoneScopedNC("Input Manager: Update", tracy::Color::Purple1);
+        input::Update();
         inputManagerArena.Reset();
 
         axisValues = AxisMap({}, inputManagerAllocator);

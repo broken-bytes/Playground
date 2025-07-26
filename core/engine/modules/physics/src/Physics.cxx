@@ -128,7 +128,7 @@ namespace playground::physics {
                 .Priority = jobsystem::JobPriority::High,
                 .Color = tracy::Color::Pink1,
                 .Dependencies = {},
-                .Task = [&task, this]() {
+                .Task = [&task, this](uint8_t workerId) {
                     task.run();
                     task.release();
                     _jobCounter.fetch_sub(1);

@@ -3,6 +3,7 @@
 #include <GameInput.h>
 #include <Windows.h>
 #include <iostream>
+#include <tracy/Tracy.hpp>
 
 namespace playground::input {
     void ReadingCallback(GameInputCallbackToken token, void* context, IGameInputReading* reading, bool overrun) {
@@ -26,6 +27,7 @@ namespace playground::input {
     }
 
     eastl::vector<InputEvent, StackAllocator> GameInputHandler::PollEvents(StackAllocator& alloc) {
+        ZoneScopedNC("GameInputHandler Poll", tracy::Color::Blue1);
         auto vec = eastl::vector<InputEvent, StackAllocator>(alloc);
 
         auto result = _gameInput->GetCurrentReading(GameInputKindKeyboard | GameInputKindGamepad | GameInputKindMouse, nullptr, &_nextReading);

@@ -8,7 +8,6 @@
 namespace playground::ecs::rigidbodyupdatesystem {
     void Init(flecs::world world) {
         world.system<RigidBodyComponent, WorldTranslationComponent, WorldRotationComponent>("RigidBodyUpdateSystem")
-            .kind(flecs::PostUpdate)
             .multi_threaded(true)
             .each([](flecs::entity e, RigidBodyComponent& rigidBody, WorldTranslationComponent& trans, WorldRotationComponent& rot) {
                 ZoneScopedNC("RigidBodyUpdateSystem", tracy::Color::Green);

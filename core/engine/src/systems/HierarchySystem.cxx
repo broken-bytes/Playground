@@ -50,7 +50,7 @@ namespace playground::ecs::hierarchysystem {
                     wt.position = t.position;
                     wr.rotation = r.rotation;
                     ws.scale = s.scale;
-                UpdateChildren(e, wt, wr, ws);
+                    UpdateChildren(e, wt, wr, ws);
             });
     }
 }

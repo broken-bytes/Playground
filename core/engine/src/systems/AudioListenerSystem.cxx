@@ -3,12 +3,14 @@
 #include "playground/components/WorldTranslationComponent.hxx"
 #include "playground/components/WorldRotationComponent.hxx"
 #include <audio/Audio.hxx>
+#include <tracy/Tracy.hpp>
 
 namespace playground::ecs::audiolistenersystem {
     void Init(flecs::world world) {
         world.system<const AudioListenerComponent, const WorldTranslationComponent, const WorldRotationComponent>("AudioListenerSystem")
             .kind(flecs::PostUpdate)
             .each([](flecs::entity e, const AudioListenerComponent& listener, const WorldTranslationComponent& trans, const WorldRotationComponent& rot) {
+                ZoneScopedNC("AudioListenerSystem", tracy::Color::Pink);
                 auto forward = rot.rotation.Forward();
                 auto up = rot.rotation.Up();
                 audio::SetListenerPosition(

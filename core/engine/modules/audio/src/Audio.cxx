@@ -239,7 +239,7 @@ namespace playground::audio {
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::DarkSeaGreen1,
             .Dependencies = {},
-            .Task = []() {
+            .Task = [](uint8_t workerId) {
                 // This job is just a filler to not have the audio system start with no job to wait for.
                 std::this_thread::yield();
             }
@@ -445,7 +445,7 @@ namespace playground::audio {
                 .Priority = jobsystem::JobPriority::High,
                 .Color = tracy::Color::Purple4,
                 .Dependencies = {},
-                .Task = []() {
+                .Task = [](uint8_t workerId) {
                         ZoneScopedNC("Audio Direct Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
@@ -459,7 +459,7 @@ namespace playground::audio {
                 .Priority = jobsystem::JobPriority::High,
                 .Color = tracy::Color::Purple4,
                 .Dependencies = {},
-                .Task = []() {
+                .Task = [](uint8_t workerId) {
                     ZoneScopedNC("Audio Reflections Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
@@ -473,7 +473,7 @@ namespace playground::audio {
                 .Priority = jobsystem::JobPriority::High,
                 .Color = tracy::Color::Purple4,
                 .Dependencies = {},
-                .Task = []() {
+                .Task = [](uint8_t workerId) {
                     ZoneScopedNC("Audio Pathing Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Inputs", tracy::Color::Purple1);
@@ -487,7 +487,7 @@ namespace playground::audio {
                 .Priority = jobsystem::JobPriority::High,
                 .Color = tracy::Color::Purple4,
                 .Dependencies = { directJob, reflectionsJob, pathingJob },
-                .Task = []() {
+                .Task = [](uint8_t workerId) {
                     ZoneScopedNC("Audio Completion Job", tracy::Color::Purple4);
                     for (auto& source : instance->audioSources) {
                         ZoneScopedNC("Set Source Outputs", tracy::Color::Purple1);

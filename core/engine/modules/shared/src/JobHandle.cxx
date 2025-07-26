@@ -22,9 +22,9 @@ namespace playground::jobsystem {
         _references->store(references, std::memory_order_relaxed);
     }
 
-    void JobHandle::Complete() {
+    void JobHandle::Complete(uint8_t workerId) {
         if (_work) {
-            _work();
+            _work(workerId);
         }
 
         _isCompleted->store(true, std::memory_order_release);
@@ -52,7 +52,7 @@ namespace playground::jobsystem {
         return _priority;
     }
 
-    JobHandle::JobHandle(std::string name, JobPriority priority, uint32_t colour, std::function<void()> work, std::function<void()> onCompletion) : _name(name) {
+    JobHandle::JobHandle(std::string name, JobPriority priority, uint32_t colour, std::function<void(uint8_t workerId)> work, std::function<void()> onCompletion) : _name(name) {
         _id = nextJobId.fetch_add(1, std::memory_order_acquire);
         _priority = priority;
         _work = work;

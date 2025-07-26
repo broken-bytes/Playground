@@ -16,6 +16,6 @@ namespace playground::jobsystem {
         JobPriority Priority;
         uint64_t Color = 0; // Black tracy
         std::vector<Job> Dependencies;
-        std::function<void()> Task;
+        std::function<void(uint8_t workerId)> Task;
     };
 }

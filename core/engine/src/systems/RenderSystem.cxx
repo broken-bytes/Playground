@@ -37,41 +37,58 @@ namespace playground::ecs::rendersystem {
             Filter(material, EcsIn, EcsAnd)
         };
 
-        ecs::CreatePostUpdateSystem("RenderSystem", components.data(), components.size(), true,
-            [](ecs_iter_t* iter) {
-                ZoneScopedNC("RenderSystem", tracy::Color::Green);
-                auto translation = ecs_field(iter, WorldTranslationComponent, 0);
-                auto rotation = ecs_field(iter, WorldRotationComponent, 1);
-                auto scale = ecs_field(iter, WorldScaleComponent, 2);
-                auto mesh = ecs_field(iter, MeshComponent, 3);
-                auto material = ecs_field(iter, MaterialComponent, 4);
+        ecs_system_desc_t system = {};
 
-                auto startIndex = offset.fetch_add(iter->count, std::memory_order_relaxed);
+        ecs_entity_desc_t entity = {};
+        entity.name = "RenderSystem";
 
-                math::Mat4FromPRSBulk(
-                    reinterpret_cast<math::Vector3*>(translation),
-                    reinterpret_cast<math::Quaternion*>(rotation),
-                    reinterpret_cast<math::Vector3*>(scale),
-                    iter->count,
-                    &matrices[startIndex]
-                );
-                auto drawPtr = &drawCalls[startIndex];
-                for (int x = 0; x < iter->count; x++) {
-                    drawPtr[x] = drawcallbatcher::DrawCall{
-                        .modelHandle = mesh[x].handle,
-                        .meshId = mesh[x].meshId,
-                        .materialHandle = material[x].handle,
-                        .transform = (&matrices[startIndex])[x],
-                    };
-                }
-                drawcallbatcher::Batch(drawPtr, iter->count);
-            });
+        ecs_query_desc_t query = {};
+        for (int x = 0; x < components.size(); x++) {
+            query.terms[x] = ecs_term_t{ .id = components[x].filterComponentId, .inout = components[x].filterUsage, .oper = components[x].filterOperation };
+        }
 
-        world.system()
+        memset(system.query.terms, 0, sizeof(system.query.terms));
+        auto entityId = ecs_entity_init(world, &entity);
+
+        system.query = query;
+        system.entity = entityId;
+        system.multi_threaded = true;
+        system.callback = [](ecs_iter_t* iter) {
+            ZoneScopedNC("RenderSystem", tracy::Color::Green);
+            auto translation = ecs_field(iter, WorldTranslationComponent, 0);
+            auto rotation = ecs_field(iter, WorldRotationComponent, 1);
+            auto scale = ecs_field(iter, WorldScaleComponent, 2);
+            auto mesh = ecs_field(iter, MeshComponent, 3);
+            auto material = ecs_field(iter, MaterialComponent, 4);
+
+            auto startIndex = offset.fetch_add(iter->count, std::memory_order_relaxed);
+
+            math::Mat4FromPRSBulk(
+                reinterpret_cast<math::Vector3*>(translation),
+                reinterpret_cast<math::Quaternion*>(rotation),
+                reinterpret_cast<math::Vector3*>(scale),
+                iter->count,
+                &matrices[startIndex]
+            );
+            auto drawPtr = &drawCalls[startIndex];
+            for (int x = 0; x < iter->count; x++) {
+                drawPtr[x] = drawcallbatcher::DrawCall{
+                    .modelHandle = mesh[x].handle,
+                    .meshId = mesh[x].meshId,
+                    .materialHandle = material[x].handle,
+                    .transform = (&matrices[startIndex])[x],
+                };
+            }
+            drawcallbatcher::Batch(drawPtr, iter->count);
+        };
+
+        ecs_system_init(world, &system);
+
+        world.system("PreRenderSystem")
             .kind(flecs::PostUpdate)
             .run([](flecs::iter& it) {
                 offset.store(0, std::memory_order_relaxed);
-            });
+        });
     }
 }
 /*

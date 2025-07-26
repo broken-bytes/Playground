@@ -11,7 +11,6 @@ namespace playground::ecs::boxcolliderupdatesystem {
 
     void Init(flecs::world world) {
         world.system<BoxColliderComponent>("BoxColliderUpdateSystem")
-            .kind(flecs::PostUpdate)
             .multi_threaded(true)
             .each([](flecs::entity e, BoxColliderComponent& boxCollider) {
                 ZoneScopedNC("BoxColliderUpdateSystem", tracy::Color::Green);

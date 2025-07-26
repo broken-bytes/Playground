@@ -78,6 +78,11 @@ namespace playground::drawcallbatcher {
     }
 
     void SetSun(math::Vector3 direction, math::Vector4 colour, float intensity) {
+        if (cameras.empty()) {
+            ZoneScopedN("Batcher: Set Sun - No Cameras");
+            return;
+        }
+
         math::Vector3 lightDir = direction.Normalise();
 
         math::Vector3 cameraPos = cameras.front().Position;

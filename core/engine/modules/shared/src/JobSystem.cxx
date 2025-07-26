@@ -17,7 +17,10 @@
 namespace playground::jobsystem {    
     std::vector<std::shared_ptr<JobWorker>> workers;
     std::vector<std::shared_ptr<JobHandle>> pendingJobs;
-    std::mutex pendingMutex;
+    std::mutex highPerfQueueMutex;
+    std::mutex lowPerfQueueMutex;
+    std::condition_variable conditionVarHghPerf;
+    std::condition_variable conditionVarLowPerf;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> highPerfQueue;
     moodycamel::ConcurrentQueue<std::shared_ptr<JobHandle>> lowPerfQueue;
 
@@ -63,6 +66,9 @@ namespace playground::jobsystem {
     }
 
     void Shutdown() {
+        conditionVarHghPerf.notify_all();
+        conditionVarLowPerf.notify_all();
+
         for (auto& worker : workers) {
             worker->Stop();
         }
@@ -114,7 +120,15 @@ namespace playground::jobsystem {
                 coreCounter = 0;
             }
 
-            workers.push_back(std::make_shared<JobWorker>(ss.str(), highPerfCoresAvailable[coreCounter++], hardware::CPUEfficiencyClass::Performance, [](auto& job) { return PullHighPerformanceTask(job); }));
+            workers.push_back(std::make_shared<JobWorker>(
+                ss.str(),
+                x,
+                highPerfCoresAvailable[coreCounter++],
+                hardware::CPUEfficiencyClass::Performance,
+                highPerfQueueMutex,
+                conditionVarHghPerf,
+                [](auto& job) { return PullHighPerformanceTask(job); })
+            );
         }
 
         // If there are no low performance cores available, we use the high performance cores for low performance tasks as well
@@ -129,7 +143,15 @@ namespace playground::jobsystem {
                     coreCounter = 0;
                 }
 
-                workers.push_back(std::make_shared<JobWorker>(ss.str(), highPerfCoresAvailable[coreCounter++], hardware::CPUEfficiencyClass::Performance, [](auto& job) { return PullHighPerformanceTask(job); }));
+                workers.push_back(std::make_shared<JobWorker>(
+                    ss.str(),
+                    x,
+                    highPerfCoresAvailable[coreCounter++],
+                    hardware::CPUEfficiencyClass::Efficient,
+                    lowPerfQueueMutex,
+                    conditionVarLowPerf,
+                    [](auto& job) { return PullLowPerformanceTask(job); })
+                );
             }
         }
         else {
@@ -137,7 +159,15 @@ namespace playground::jobsystem {
                 std::stringstream ss;
                 ss << "E_WORKER_THREAD" << +x;
 
-                workers.push_back(std::make_shared<JobWorker>(ss.str(), x, hardware::CPUEfficiencyClass::Efficient, [](auto& job) { return PullLowPerformanceTask(job); }));
+                workers.push_back(std::make_shared<JobWorker>(
+                    ss.str(),
+                    x,
+                    x,
+                    hardware::CPUEfficiencyClass::Efficient,
+                    lowPerfQueueMutex,
+                    conditionVarLowPerf,
+                    [](auto& job) { return PullLowPerformanceTask(job); })
+                );
             }
         }
     }
@@ -161,9 +191,11 @@ namespace playground::jobsystem {
     void Push(std::shared_ptr<JobHandle> handle) {
         if (handle->Priority() == JobPriority::High) {
             highPerfQueue.enqueue(handle);
+            conditionVarHghPerf.notify_one();
         }
         else {
             lowPerfQueue.enqueue(handle);
+            conditionVarLowPerf.notify_one();
         }
     }
 }

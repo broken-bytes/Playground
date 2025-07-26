@@ -40,7 +40,7 @@ namespace playground::assetmanager {
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Green,
             .Dependencies = {},
-            .Task = [handleId, materialId]() {
+            .Task = [handleId, materialId](uint8_t workerId) {
                 std::cout << "Setting up material with ID: " << materialId << " for handle ID: " << handleId << std::endl;
                 if (handleId < _materialHandles.size()) {
                     _materialHandles[handleId]->state.store(ResourceState::Uploaded);
@@ -101,7 +101,7 @@ namespace playground::assetmanager {
                 .Priority = jobsystem::JobPriority::Low,
                 .Color = tracy::Color::Violet,
                 .Dependencies = {},
-                .Task = [handleId]() {
+                .Task = [handleId](uint8_t workerId) {
                     std::cout << "Texture upload completed for handleId: " << handleId << std::endl;
                     // Additional completion logic can be added here if needed
                 }
@@ -125,7 +125,7 @@ namespace playground::assetmanager {
                 .Priority = jobsystem::JobPriority::Low,
                 .Color = tracy::Color::Violet,
                 .Dependencies = {},
-                .Task = [handleId]() {
+                .Task = [handleId](uint8_t workerId) {
                     std::cout << "Cubemap upload completed for handleId: " << handleId << std::endl;
                 }
             };
@@ -248,7 +248,7 @@ namespace playground::assetmanager {
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Green,
             .Dependencies = {},
-            .Task = [rawMaterialData, handleId, onCompletion]() {
+            .Task = [rawMaterialData, handleId, onCompletion](uint8_t workerId) {
                 auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
 
                 playground::rendering::MaterialType type;
@@ -366,7 +366,7 @@ namespace playground::assetmanager {
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Green,
             .Dependencies = {},
-            .Task = [handle, handleId, name]() {
+            .Task = [handle, handleId, name](uint8_t workerId) {
                 auto rawTextureData = playground::assetloader::LoadTexture(name);
                 auto data = new assetloader::RawTextureData();
                 data->MipMaps = rawTextureData.MipMaps;
@@ -465,7 +465,7 @@ namespace playground::assetmanager {
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Blue,
             .Dependencies = {},
-            .Task = [handle, handleId, name]() {
+            .Task = [handle, handleId, name](uint8_t workerId) {
                 auto rawCubemapData = playground::assetloader::LoadCubemap(name);
                 auto data = std::make_shared<assetloader::RawCubemapData>(rawCubemapData);
                 handle->data = data;

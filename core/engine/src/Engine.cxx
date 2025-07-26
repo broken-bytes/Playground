@@ -36,6 +36,8 @@ std::thread renderThread;
 
 double timeSinceStart = 0.0;
 double deltaTime = 0.0;
+double combinedDeltaTime = 0.0;
+int deltaStep = 0;
 
 uint8_t Startup(const PlaygroundConfig& config);
 uint8_t SetupSubsystems(const PlaygroundConfig& config);
@@ -170,7 +172,7 @@ void SetupPointerLookupTable(const PlaygroundConfig& config) {
     config.Delegate("ECS_GetComponent\0", playground::ecs::GetComponent);
     config.Delegate("ECS_HasComponent\0", playground::ecs::HasComponent);
     config.Delegate("ECS_DestroyComponent\0", playground::ecs::DestroyComponent);
-    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateUpdateSystem);
+    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateScriptingSystem);
     config.Delegate("ECS_GetComponentBuffer\0", playground::ecs::GetComponentBuffer);
     config.Delegate("ECS_GetIteratorSize\0", playground::ecs::GetIteratorSize);
     config.Delegate("ECS_GetIteratorOffset\0", playground::ecs::GetIteratorOffset);
@@ -266,33 +268,49 @@ void Update() {
     FrameMarkStart(CPU_FRAME);
 
     {
-        ZoneScopedN("Input");
-        ZoneColor(tracy::Color::AliceBlue);
-        playground::input::Update();
+        ZoneScopedNC("Engine: Input Tick", tracy::Color::AliceBlue);
         playground::inputmanager::Update();
     }
     {
-        ZoneScopedN("ECS Tick");
-        ZoneColor(tracy::Color::LightSalmon);
-        playground::ecs::Update(deltaTime);
+        ZoneScopedNC("Engine: ECS Pre Tick", tracy::Color::VioletRed1);
+        playground::ecs::RunPreUpdateSystems(deltaTime);
     }
     {
-        ZoneScopedN("Physics Tick");
-        ZoneColor(tracy::Color::Salmon);
+        ZoneScopedNC("Engine: ECS Scripting Tick", tracy::Color::VioletRed2);
+        playground::ecs::RunScriptingSystems(deltaTime);
+    }
+    {
+        ZoneScopedNC("Engine: ECS Update Tick", tracy::Color::VioletRed3);
+        playground::ecs::RunUpdateSystems(deltaTime);
+    }
+    {
+        ZoneScopedNC("Engine: ECS Post Tick", tracy::Color::VioletRed4);
+        playground::ecs::RunPostUpdateSystems(deltaTime);
+    }
+    {
+        ZoneScopedNC("Engine: Physics Tick", tracy::Color::Salmon);
         playground::physicsmanager::Update(deltaTime);
     }
     {
-        ZoneScopedNC("Audio Update", tracy::Color::DarkSeaGreen1);
+        ZoneScopedNC("Engine: Audio Tick", tracy::Color::DarkSeaGreen1);
         playground::audio::Update();
     }
     {
-        ZoneScopedN("Batcher Submit");
-        ZoneColor(tracy::Color::DarkSalmon);
+        ZoneScopedNC("Engine: Batcher Tick", tracy::Color::DarkSalmon);
         playground::drawcallbatcher::Submit();
     }
     auto next = std::chrono::high_resolution_clock::now();
     const auto int_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(next - now);
     deltaTime = (double)int_ns.count() / 1000000000.0;
+    combinedDeltaTime += deltaTime;
+    deltaStep++;
+
+    if (deltaStep >= 60) {
+        combinedDeltaTime /= 60;
+        deltaStep = 0;
+        SetWindowTextA(GetActiveWindow(), ("Playground Core Engine - FPS: " + std::to_string(1 / combinedDeltaTime) + " - Delta Time: " + std::to_string(combinedDeltaTime) + "s").c_str());
+    }
+
     timeSinceStart += deltaTime;
     now = next;
     FrameMarkEnd(CPU_FRAME);

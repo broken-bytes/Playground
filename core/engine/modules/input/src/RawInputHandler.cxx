@@ -6,6 +6,7 @@
 #include <events/SystemEvent.hxx>
 #include <SDL3/SDL.h>
 #include <functional>
+#include <tracy/Tracy.hpp>
 
 namespace playground::input {
     std::function<void(LPARAM)> procCallback;
@@ -56,6 +57,7 @@ namespace playground::input {
     }
 
     eastl::vector<InputEvent, StackAllocator> RawInputHandler::PollEvents(StackAllocator& alloc) {
+        ZoneScopedNC("RawInputHandler Poll", tracy::Color::Blue1);
         auto data = eastl::vector<InputEvent, StackAllocator>(alloc);
 
         InputEvent event = {};
@@ -67,6 +69,8 @@ namespace playground::input {
     }
 
     void RawInputHandler::HandleRawInput(LPARAM lParam) {
+        ZoneScopedNC("RawInputHandler HandleRawInput", tracy::Color::Blue2);
+
         UINT size;
         GetRawInputData((HRAWINPUT)lParam, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
 
