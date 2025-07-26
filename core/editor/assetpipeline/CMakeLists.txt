@@ -24,12 +24,12 @@ target_link_directories(AssetPipeline PRIVATE ${COMPRESSONATOR_LIB_DIR})
 
 target_link_libraries(AssetPipeline PRIVATE Math glm::glm assimp::assimp libzip::zip freeimage::FreeImagePlus dxcompiler)
 
-    target_link_libraries(
-        AssetPipeline
-        PRIVATE
-        $<$<CONFIG:Debug>:Compressonator_MDd.lib>
-        $<$<CONFIG:Release>:Compressonator_MD.lib>
-    )
+target_link_libraries(
+    AssetPipeline
+    PRIVATE
+    $<$<CONFIG:Debug>:Compressonator_MDd.lib>
+    $<$<CONFIG:Release>:Compressonator_MD.lib>
+)
 
 # Link all engine libraries
 target_link_libraries(AssetPipeline PRIVATE Audio AssetLoader Rendering Physics Shared)

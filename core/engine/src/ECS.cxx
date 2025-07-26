@@ -108,7 +108,7 @@ namespace playground::ecs {
     }
 
     ecs_os_thread_t SpawnTask(ecs_os_thread_callback_t callback, void* param) {
-        std::scoped_lock lock{ writeLock };
+        ZoneScopedNC("FLECS: Spawn Task", tracy::Color::Red);
 
         auto job = jobsystem::Job{
             .Name = "FLECS_WORKER",
@@ -117,13 +117,16 @@ namespace playground::ecs {
             .Dependencies = {},
             .Task = [callback, param](uint8_t workerId) { callback(param); }
         };
-        
+
+        std::scoped_lock lock{ writeLock };
+
         jobs.push_back(jobsystem::Submit(job));
 
         return jobs.size();
     };
 
     void* JoinTask(ecs_os_thread_t thread) {
+        ZoneScopedNC("FLECS: Join Task", tracy::Color::Red);
         auto job = jobs.at(thread - 1);
         while(!job->IsDone()) {
             std::this_thread::yield();

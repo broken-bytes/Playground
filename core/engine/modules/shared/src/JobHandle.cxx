@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include "shared/Logger.hxx"
+#include <tracy/Tracy.hpp>
 
 namespace playground::jobsystem {
     std::atomic<uint64_t> nextJobId = 0;
@@ -23,13 +24,17 @@ namespace playground::jobsystem {
     }
 
     void JobHandle::Complete(uint8_t workerId) {
+        ZoneScopedNC("Job System: Complete Job", tracy::Color::PaleVioletRed1);
         if (_work) {
+            ZoneScopedNC("Job System: Execute Work", tracy::Color::PaleVioletRed3);
+            ZoneText(Name().c_str(), Name().length());
             _work(workerId);
         }
 
         _isCompleted->store(true, std::memory_order_release);
 
         if (_onCompletion) {
+            ZoneScopedNC("Job System: On Completion", tracy::Color::PaleVioletRed4);
             _onCompletion();
         }
     }
@@ -39,6 +44,7 @@ namespace playground::jobsystem {
     }
 
     void JobHandle::Wait() const {
+        ZoneScopedNC("Job System: Wait for Job", tracy::Color::PaleVioletRed2);
         while (!IsDone()) {
             std::this_thread::yield();
         }

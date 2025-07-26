@@ -19,6 +19,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
+#include <chrono>
 #include <semaphore>
 #include <queue>
 #include <profiler/Profiler.hxx>
@@ -117,6 +118,9 @@ namespace playground::rendering {
     bool isRunning = false;
     std::thread renderThread;
 
+    std::chrono::high_resolution_clock::time_point lastFrameTime = std::chrono::high_resolution_clock::now();
+    double deltaTime = 0.0;
+
     void SetupBuiltinAssets();
 
 	auto Init(
@@ -206,6 +210,7 @@ namespace playground::rendering {
 
 	auto PreFrame() -> void {
         ZoneScopedN("RenderThread: Pre Frame");
+        lastFrameTime = std::chrono::high_resolution_clock::now();
         ZoneColor(tracy::Color::Orange);
 
         auto backBufferIndex = swapchain->BackBufferIndex();
@@ -452,6 +457,8 @@ namespace playground::rendering {
         swapchain->Swap();
 
         logicFrameIndex = (backBufferIndex + 2) % FRAME_COUNT;
+
+        deltaTime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - lastFrameTime).count();
 	}
 
     auto ReadbackBuffer(void* data) -> size_t {
@@ -668,6 +675,10 @@ namespace playground::rendering {
         }
 
         renderFrames.enqueue(frame);
+    }
+
+    double GetGPUFrameTime() {
+        return deltaTime;
     }
 
     auto CreateMaterial(MaterialUploadJob job) -> void {

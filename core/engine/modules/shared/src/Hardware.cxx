@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include <timeapi.h>
 #elif defined(__GNUC__) || defined(__clang__)
 #include <cpuid.h>
 #endif
@@ -114,5 +115,14 @@ namespace playground::hardware {
         if (!SetThreadGroupAffinity(GetCurrentThread(), &affinity, nullptr)) {
             exit(3);
         }
+
+        SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+
+        PROCESS_POWER_THROTTLING_STATE state = {};
+        state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+        state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        state.StateMask = 0; // Disable throttling
+        SetThreadInformation(GetCurrentThread(), ThreadPowerThrottling, &state, sizeof(state));
     }
 }

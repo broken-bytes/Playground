@@ -84,4 +84,6 @@ namespace playground::rendering {
     void SetMaterialFloat(uint32_t materialId, uint8_t slot, float value);
 
     auto SubmitFrame(RenderFrame frame) -> void;
+
+    double GetGPUFrameTime();
 }

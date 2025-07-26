@@ -293,7 +293,9 @@ void Update() {
     if (deltaStep >= 60) {
         combinedDeltaTime /= 60;
         deltaStep = 0;
-        SetWindowTextA(GetActiveWindow(), ("Playground Core Engine - FPS: " + std::to_string(1 / combinedDeltaTime) + " - Delta Time: " + std::to_string(combinedDeltaTime) + "s").c_str());
+        SetWindowTextA(
+            GetActiveWindow(),
+            ("Playground Core Engine - FPS: " + std::to_string(1 / combinedDeltaTime) + " - CPU Time: " + std::to_string(combinedDeltaTime) + "s - GPU Time: " + std::to_string(playground::rendering::GetGPUFrameTime()) + "s").c_str());
     }
 
     timeSinceStart += deltaTime;
