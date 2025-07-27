@@ -536,14 +536,16 @@ namespace playground::audio {
                     ZoneScopedNC("Set Source Output", tracy::Color::Purple1);
                     dsp->setParameterInt(IPL_SPATIALIZE_APPLY_OCCLUSION, 1); // Occlusion enabled
                     dsp->setParameterInt(IPL_SPATIALIZE_APPLY_TRANSMISSION, 1); // Transmission enabled
-                    dsp->setParameterInt(IPL_SPATIALIZE_TRANSMISSION_TYPE, 1); // Transmission type set to 3-band EQ
-                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DISTANCEATTENUATION, 1); // Distance attenuation enabled
+                    dsp->setParameterInt(IPL_SPATIALIZE_TRANSMISSION_TYPE, 0); // Transmission type set to 3-band EQ
+                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DISTANCEATTENUATION, 2); // Distance attenuation enabled
                     dsp->setParameterInt(IPL_SPATIALIZE_APPLY_AIRABSORPTION, 1); // Air absorption enabled
                     dsp->setParameterInt(IPL_SPATIALIZE_APPLY_DIRECTIVITY, 1); // Directivity enabled
                     dsp->setParameterFloat(IPL_SPATIALIZE_DIRECT_MIXLEVEL, 1);
                     dsp->setParameterBool(IPL_SPATIALIZE_REFLECTIONS_BINAURAL, true); // Binaural reflections enabled
+                    dsp->setParameterBool(IPL_SPATIALIZE_DIRECT_BINAURAL, true); // Binaural direct sound enabled
                     dsp->setParameterInt(IPL_SPATIALIZE_SIMULATION_OUTPUTS_HANDLE, source.handle);
-                    dsp->setParameterInt(IPL_SPATIALIZE_APPLY_PATHING, 1); // Pathing enabled
+                    dsp->setParameterBool(IPL_SPATIALIZE_APPLY_PATHING, true); // Pathing enabled
+                    dsp->setParameterInt(IPL_SPATIALIZE_HRTF_INTERPOLATION, 1); // 0 = Nearest, 1 = Bilinear
                     // Commit the changes to the DSP
                     dsp->setActive(true);
                     source.didSetupDSP = true;

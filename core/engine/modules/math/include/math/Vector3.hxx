@@ -29,6 +29,10 @@ namespace playground::math {
             return Vector3(X * scalar, Y * scalar, Z * scalar);
         }
 
+        Vector3 operator*(const Vector3& other) const {
+            return Vector3(X * other.X, Y * other.Y, Z * other.Z);
+        }
+
         Vector3 operator/(float scalar) const {
             if (scalar != 0.0f) {
                 return Vector3(X / scalar, Y / scalar, Z / scalar);

@@ -24,9 +24,9 @@ namespace playground::ecs::hierarchysystem {
     void UpdateChildren(flecs::entity e, const WorldTranslationComponent& t, const WorldRotationComponent& r, const WorldScaleComponent& s) {
         // Update the world components based on the local components
         e.children([t, r, s](flecs::entity child) {
-            child.set<WorldTranslationComponent>({ child.get<TranslationComponent>().position + t.position });
-            child.set<WorldRotationComponent>({ child.get<RotationComponent>().rotation * r.rotation });
-            child.set<WorldScaleComponent>({ child.get<ScaleComponent>().scale + s.scale });
+            child.set<WorldTranslationComponent>({ t.position + (r.rotation * child.get<TranslationComponent>().position )});
+            child.set<WorldRotationComponent>({ r.rotation * child.get<RotationComponent>().rotation });
+            child.set<WorldScaleComponent>({ child.get<ScaleComponent>().scale * s.scale });
 
             UpdateChildren(child, child.get<WorldTranslationComponent>(), child.get<WorldRotationComponent>(), child.get<WorldScaleComponent>());
         });

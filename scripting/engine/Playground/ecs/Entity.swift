@@ -42,6 +42,10 @@ public struct Entity {
     public func addTag(tag: String) {
         ECSHandler.addTag(id, tag)
     }
+
+    public func setParent(_ parent: Entity) {
+        ECSHandler.setParent(self.id, parent: parent.id)
+    }
 }
 
 extension Entity: Sendable, Identifiable, Hashable {

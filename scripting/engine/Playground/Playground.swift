@@ -75,7 +75,7 @@ func startUp() {
     var boxCollider = BoxColliderComponent(isTrigger: false, dimensions: Vector3(x: 100, y: 0.5, z: 100), offset: .zero, rotation: .identity, material: physicsMaterialHandle)
     floor.addComponent(&boxCollider)
 
-    for x in 0..<2 {
+    for x in 0..<500 {
         let entity = Entity("Entity\(x)")
         var material = MaterialComponent(handle: materialhandle)
         entity.addComponent(&material)
@@ -95,8 +95,18 @@ func startUp() {
         var boxCollider = BoxColliderComponent(isTrigger: false, dimensions: .one, offset: .zero, rotation: .identity, material: physicsMaterialHandle)
         entity.addComponent(&boxCollider)
 
-        var audioSource = AudioSourceComponent(with: x == 0 ? "event:/Ambient/motor_loop_1" : "event:/Ambient/radio_loop_1")
-        entity.addComponent(&audioSource)
+        var child = Entity("Child_\(x)")
+        var cTransform = TranslationComponent(position: Vector3(x: 0, y: +3, z: 0))
+        child.addComponent(&cTransform)
+        var cRotation = RotationComponent(rotation: .identity)
+        child.addComponent(&cRotation)
+        var cScale = ScaleComponent(scale: Vector3(x: 0.25, y: 0.25, z: 0.25))
+        child.addComponent(&cScale)
+
+        child.addComponent(&floorMaterial)
+        child.addComponent(&mesh)
+
+        child.setParent(entity)
     }
 }
 
