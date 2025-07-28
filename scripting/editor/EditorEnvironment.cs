@@ -1,7 +1,6 @@
 ﻿using System;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using Object = Playground.Object;
 
 namespace PlaygroundEditor;
 
@@ -71,12 +70,6 @@ public static class EditorEnvironment
         IsPlayMode = true;
         
         // FIXME Debug: test serialization of whole scene
-        var yamlSerializer = new SerializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-        
-        var yaml = yamlSerializer.Serialize(Playground.SceneManager.SceneObjects);
-        Console.WriteLine(yaml);
     }
 
     internal static void ExitPlayMode()

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Playground;
 using ReactiveUI;
 
 namespace PlaygroundEditor;
@@ -15,8 +14,6 @@ public class MainWindowViewModel : ReactiveObject
     private FileWatchdog _codeWatchdog;
     private FileWatchdog _assetsWatchdog;
     private ProgressBar _backgroundProgressbar;
-    
-    internal List<GameObject> GameObjects { get; set; } = new();
     
     public MainWindowViewModel(ProgressBar progressBar)
     {
@@ -38,13 +35,11 @@ public class MainWindowViewModel : ReactiveObject
         _backgroundProgressbar.Foreground = new SolidColorBrush(Theme.Colours.Actions.Friendly);
         
         RebuildAssembly();
-        
-        SceneManager.LoadScene("SampleScene");
     }
 
     private void CodeWatchdogOnFileChanged(FileSystemEventArgs args)
     {
-        if (!args.FullPath.EndsWith(".cs"))
+        if (!args.FullPath.EndsWith(".swift"))
         {
             return;
         }
@@ -57,7 +52,7 @@ public class MainWindowViewModel : ReactiveObject
 
     private void CodeWatchdogOnFileAdded(FileSystemEventArgs args)
     {
-        if (!args.FullPath.EndsWith(".cs"))
+        if (!args.FullPath.EndsWith(".swift"))
         {
             return;
         }

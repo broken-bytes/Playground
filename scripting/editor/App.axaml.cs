@@ -1,17 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
-using System.Xml;
 using System.Xml.Serialization;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using DynamicData;
-using Playground;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
-using YamlDotNet.Serialization.TypeInspectors;
 
 namespace PlaygroundEditor;
 
@@ -81,40 +73,51 @@ public partial class App : Application
         var serializer = new XmlSerializer(typeof(Project));
         serializer.Serialize(File.OpenWrite(projectPath + "/project.pproj"), project);
         
-        // Create a csproj file
-        // Create a new .csproj file
-        string projectFile = "GameAssembly.csproj";
-        string projectContent = "";
-        
-        File.WriteAllText($"{projectPath}/{projectFile}", projectContent);
-        
-        // Create a sln file
-        string solutionFile = $"{projectName}.sln";
-        string solutionContent = $@"
-Microsoft Visual Studio Solution File, Format Version 12.00
-Project(""{{{Guid.NewGuid().ToString()}}}"") = ""GameAssembly"", ""GameAssembly.csproj"", ""{{{project.GUID}}}""
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{{{project.GUID}}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{{{project.GUID}}}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{{{project.GUID}}}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{{{project.GUID}}}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-EndGlobal
-        ";
-        File.WriteAllText($"{projectPath}/{solutionFile}", solutionContent);
+        // Create a new package file
+        string projectContent = 
+"""
+// swift-tools-version: 6.1
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import PackageDescription
+
+let package = Package(
+    name: "Assembly",
+    products: [
+        // Products define the executables and libraries a package produces, making them visible to other packages.
+        .library(
+            name: "Assembly",
+            type: .dynamic,
+            targets: ["Assembly"]
+        ),
+    ],
+    targets: [
+        // Targets are the basic building blocks of a package, defining a module or a test suite.
+        // Targets can depend on other targets in this package and products from dependencies.
+        .target(
+            name: "Assembly",
+            path: "./",
+            swiftSettings: [
+                .unsafeFlags([
+                "-I", "H:/build",
+                "-L", "H:/build",
+                "-lPlayground",
+                "-lH:/build/Playground.lib"
+                ])
+            ]
+        ),
+    ]
+)
+""";
         
         // Create code folder
-        Directory.CreateDirectory(projectPath + "/code");
+        var codeDir = Directory.CreateDirectory(projectPath + "/code");
         // Create content folder
-        Directory.CreateDirectory(projectPath + "/content");
+        var contentDir = Directory.CreateDirectory(projectPath + "/content");
         // Create cache folder
         Directory.CreateDirectory(projectPath + "/.cache");
+        
+        File.WriteAllText(codeDir.FullName + "/Package.swift", projectContent);
 
         var buildProps = @"<Project>
   <PropertyGroup>
@@ -123,33 +126,10 @@ EndGlobal
 </Project>
 ";
         File.WriteAllText($"{projectPath}/Directory.Build.props", buildProps);
-
-        var sceneSerializer = new SerializerBuilder()
-            .IncludeNonPublicProperties()
-            .EnablePrivateConstructors()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-
-
-        var list = new List<GameObject>();
-        var objc = new GameObject();
-        objc.Name = "SampleObject";
-        objc.Attach<MeshRenderer>();
-        objc.Attach<SoundEmitter>();
-        objc.Attach<SoundReceiver>();
         
-        var objc2 = new GameObject();
-        objc2.Name = "SampleObject2";
-        objc2.SetParent(objc);
+        Directory.CreateDirectory(contentDir + "/" + "scenes");
         
-        list.Add(objc);
-        list.Add(objc2);
-        
-        Directory.CreateDirectory(projectPath + "/content/scenes");
-        
-        var yaml = sceneSerializer.Serialize(list);
-
-        File.WriteAllText(projectPath + "/content/scenes/SampleScene.pscn", yaml);
+        File.WriteAllText(projectPath + "/content/scenes/SampleScene.pscn", "{}");
         
         return project;
     }

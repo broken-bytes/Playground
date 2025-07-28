@@ -47,7 +47,7 @@ namespace playground::assetloader {
         return nullptr;
     }
 
-    void Init();
+    void Init(const char* path);
     std::string TryFindFile(std::string_view fileName);
     std::vector<RawMeshData> LoadMeshes(std::string_view name);
     RawTextureData LoadTexture(std::string_view name);

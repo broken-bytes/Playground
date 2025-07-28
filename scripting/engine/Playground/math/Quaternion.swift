@@ -1,4 +1,4 @@
-public struct Quaternion: Sendable {
+public struct Quaternion: Sendable, Codable {
     public var x: Float
     public var y: Float
     public var z: Float

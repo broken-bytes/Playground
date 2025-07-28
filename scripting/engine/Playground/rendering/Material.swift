@@ -1,11 +1,13 @@
-public class Material {
-    internal let materialHandle: UnsafeMutableRawPointer! // The handle to the material
+public extension Rendering {
+    public class Material {
+        internal let materialHandle: UnsafeMutableRawPointer! // The handle to the material
 
-    internal init (named: String) {
-        materialHandle = AssetHandler.loadMaterial(named: named)
-    }
+        internal init (named: String) {
+            materialHandle = AssetHandler.loadMaterial(named: named)
+        }
 
-    deinit {
-        // TODO: Add unloading
+        deinit {
+            // TODO: Add unloading
+        }
     }
 }

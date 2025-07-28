@@ -7,12 +7,13 @@ extern "C" {
     typedef void(__cdecl *ScriptStartupCallback)();
 
 	struct {
-		void* Window;
 		LookupTableDelegate Delegate;
+        ScriptStartupCallback startupCallback;
 		uint32_t Width;
 		uint32_t Height;
-        bool IsOffscreen;
-        ScriptStartupCallback startupCallback;
+        bool Fullscreen;
+        const char* Name;
+        const char* Path;
 
 	} typedef PlaygroundConfig;
 

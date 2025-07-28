@@ -9,9 +9,8 @@
 namespace playground::assetloader {
     auto paks = std::vector<std::filesystem::path>();
 
-    void Init() {
-        auto currentPath = std::filesystem::current_path();
-        auto filelIst = io::GetFileList(currentPath);
+    void Init(const char* path) {
+        auto filelIst = io::GetFileList(path);
         for (const auto& file : filelIst) {
             if (file.is_regular_file() && file.path().extension() == ".pak") {
                 paks.push_back(file.path());

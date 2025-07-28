@@ -1,4 +1,4 @@
-public struct WorldRotationComponent {
+public struct WorldRotationComponent: Codable {
     public var rotation: Quaternion
 
     public init(rotation: Quaternion) {

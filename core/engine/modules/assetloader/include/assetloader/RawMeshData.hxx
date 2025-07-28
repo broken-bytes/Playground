@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math/Vector3.hxx>
+#include <math/Quaternion.hxx>
 #include <string>
 #include <vector>
 #include <cereal/cereal.hpp>
@@ -49,6 +51,17 @@ namespace playground::assetloader
     };
 
     struct RawMeshData {
+        float posX;
+        float posY;
+        float posZ;
+        float rotX;
+        float rotY;
+        float rotZ;
+        float rotW;
+        float scaleX;
+        float scaleY;
+        float scaleZ;
+        std::string name;
         std::vector<RawBone> bones;
         std::vector<RawVertex> vertices;
         std::vector<uint32_t> indices;
@@ -56,7 +69,7 @@ namespace playground::assetloader
         template <class Archive>
         void serialize(Archive& ar)
         {
-            ar(vertices, indices);
+            ar(posX, posY, posZ, rotX, rotY, rotZ, rotW, scaleX, scaleY, scaleZ, name, vertices, indices);
         }
     };
 }

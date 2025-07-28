@@ -4,6 +4,7 @@
 #include "playground/DrawCallbatcher.hxx"
 #include "playground/InputManager.hxx"
 #include "playground/PhysicsManager.hxx"
+#include "playground/renderdoc_app.h"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -64,10 +65,28 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     playground::logging::logger::Info("Starting Playground Core Engine...", "core");
     auto code = Startup(config);
+
+    if (code == 2) {
+        auto cpuName = playground::hardware::GetCPUBrandString();
+        playground::logging::logger::Error(cpuName + " is not supported by this game", "core");
+        std::string message =
+            "Your system does not meet the minimum requirements to run this game.\nAVX instructions are required.\n\n"
+            + cpuName;
+        SDL_ShowSimpleMessageBox(
+            SDL_MESSAGEBOX_ERROR,
+            "Unsupported CPU",
+            message.c_str(),
+            nullptr
+        );
+        SDL_Quit();
+        std::exit(EXIT_FAILURE);
+    }
+
     if (code != 0) {
         playground::logging::logger::Error("Failed to start Playground Core Engine", "core");
         return code;
     }
+
     playground::logging::logger::Info("Playground Core Engine started.", "core");
     playground::logging::logger::Info("Initializing Scripting Layer...", "core");
 
@@ -118,9 +137,13 @@ void Shutdown() {
 }
 
 uint8_t SetupSubsystems(const PlaygroundConfig& config) {
-    playground::hardware::Init();
-    playground::jobsystem::Init();
+    SetupPointerLookupTable(config);
 
+    auto window = playground::system::Init(config.Width, config.Height, config.Fullscreen, config.Name);
+
+    StartRenderThread(config, window);
+
+    playground::hardware::Init();
     if (playground::hardware::SupportsAVX2()) {
         playground::logging::logger::Info("CPU supports AVX2.", "core");
     }
@@ -133,8 +156,10 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
         return 2;
     }
 
-    playground::assetloader::Init();
-    playground::input::Init(config.Window);
+    playground::jobsystem::Init();
+
+    playground::assetloader::Init(config.Path);
+    playground::input::Init(window);
     playground::audio::Init(
         playground::io::OpenFileFromArchive,
         playground::io::ReadFileFromArchive,
@@ -143,6 +168,7 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     );
     playground::inputmanager::Init();
     playground::physicsmanager::Init();
+
     playground::ecs::Init(ENABLE_INSPECTOR);
 
     return 0;
@@ -212,7 +238,7 @@ void StartRenderThread(const PlaygroundConfig& config, void* window) {
         auto cores = playground::hardware::GetCoresByEfficiency(playground::hardware::CPUEfficiencyClass::Performance);
 
         playground::hardware::PinCurrentThreadToCore(cores[1].id);
-        playground::rendering::Init(window, config.Width, config.Height, config.IsOffscreen, rendererReadyPromise);
+        playground::rendering::Init(window, config.Width, config.Height, false, rendererReadyPromise);
         });
 
     Subscribe(playground::events::EventType::System, [](playground::events::Event* event) {
@@ -248,12 +274,18 @@ void LoadCoreAssets() {
 }
 
 uint8_t Startup(const PlaygroundConfig& config) {
+    RENDERDOC_API_1_1_2* rdoc_api = nullptr;
+
+    // At init, on windows
+    if (HMODULE mod = GetModuleHandleA("renderdoc.dll"))
+    {
+        auto RENDERDOC_GetAPI =
+            (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
+        int ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, reinterpret_cast<void**>(&rdoc_api));
+        assert(ret == 1);
+    }
+
     auto code = SetupSubsystems(config);
-    SetupPointerLookupTable(config);
-
-    auto window = playground::system::Init(config.Window);
-
-    StartRenderThread(config, window);
 
     return code;
 }

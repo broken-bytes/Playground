@@ -14,5 +14,7 @@ public struct AudioSourceComponent {
         _ = eventName.withCString { basePtr in
             strcpy(self.eventName, basePtr)
         }
+
+        // TODO: Fix possible leak here
     }
 }

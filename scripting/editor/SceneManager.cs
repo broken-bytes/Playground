@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.IO;
-using Playground;
 
 namespace PlaygroundEditor;
 
@@ -16,7 +15,7 @@ public static class SceneManager
     internal static void LoadScene(string sceneName)
     {
         var sceneData = File.ReadAllText(EditorEnvironment.ProjectPath + $"/content/scenes/{sceneName}.pscn");
-        Playground.SceneManager.LoadScene(sceneName);
+        // TODO: Load scene
     }
 
     internal static void CommitScene()

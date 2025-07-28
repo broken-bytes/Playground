@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
@@ -5,7 +6,6 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
-using Playground;
 using Tmds.DBus.Protocol;
 
 namespace PlaygroundEditor.Controls;
@@ -48,28 +48,20 @@ public partial class HierarchyControl : UserControl, EditorWindow
         Dispatcher.UIThread.Post(() =>
         {
             _hierarchyTreeView.Items.Clear();
-            foreach (var objc in Playground.SceneManager.SceneObjects)
-            {
-                InjectGameObjectTreeView(objc, _hierarchyTreeView);
-            } 
+            // TODO: Get all entities in scene
         });
     }
 
-    private void InjectGameObjectTreeView(GameObject objc, ItemsControl item)
+    private void InjectGameObjectTreeView(Object objc, ItemsControl item)
     {
         TreeViewItem treeView = new();
-        treeView.Header = objc.Name;
+        treeView.Header = "";
         
         treeView.PointerPressed += TreeViewOnPointerPressed;
         
         item.Items.Add(treeView);
         
         _treeViewObjects.Add(treeView, objc);
-
-        foreach (var child in objc.Children)
-        {
-            InjectGameObjectTreeView(child, treeView);
-        }
     }
 
     private void TreeViewOnPointerPressed(object? sender, PointerPressedEventArgs e) {

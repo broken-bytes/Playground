@@ -7,36 +7,40 @@
 #include <rendering/Mesh.hxx>
 
 namespace playground::editor::assetpipeline::loaders::modelloader {
-	auto LoadFromFile(
-		std::filesystem::path path
-	) -> std::vector<assetloader::RawMeshData> {
-		std::vector<assetloader::RawMeshData> meshes = {};
+    void ProcessNode(aiNode* node, const aiScene* scene, const aiMatrix4x4& parentTransform, std::vector<assetloader::RawMeshData>& outMeshes, std::unordered_set<uint32_t>& processedMeshes) {
+        aiMatrix4x4 localTransform = node->mTransformation;
+        aiMatrix4x4 worldTransform = parentTransform * localTransform;
 
-		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(path.string(), 0);
+        for (auto& item : processedMeshes) {
+            std::cout << "Processed mesh ID: " << item << std::endl;
+        }
 
-		if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-			auto err = importer.GetErrorString();
-			throw std::runtime_error(err);
-		}
+        for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+            aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+            if (processedMeshes.find(node->mMeshes[i]) != processedMeshes.end()) {
+                std::cout << "Skipping already processed mesh: " << mesh->mName.C_Str() << std::endl;
+                continue; // Skip already processed meshes
+            }
 
-		std::vector<assetloader::RawVertex> vertices;
-		std::vector<uint32_t> indices = {};
+            std::cout << "Processing node: " << node->mName.C_Str() << ", mesh: " << mesh->mName.C_Str() << " ID: " << +node->mMeshes[i] << std::endl;
 
-		for (int x = 0; x < scene->mNumMeshes; x++) {
-			// Process mesh
-			aiMesh* mesh = scene->mMeshes[x];
+            processedMeshes.insert(node->mMeshes[i]);
 
-			// Fill vertices
-			for (int i = 0; i < mesh->mNumVertices; i++) {
-				assetloader::RawVertex vertex = {};
-				vertex.x = mesh->mVertices[i].x;
-				vertex.y = mesh->mVertices[i].y;
-				vertex.z = mesh->mVertices[i].z;
+            std::vector<assetloader::RawVertex> vertices;
+            std::vector<uint32_t> indices = {};
 
-				vertex.nx = mesh->mNormals[i].x;
-				vertex.ny = mesh->mNormals[i].y;
-				vertex.nz = mesh->mNormals[i].z;
+            std::cout << "Processing mesh: " << mesh->mName.C_Str() << std::endl;
+
+            // Fill vertices
+            for (int i = 0; i < mesh->mNumVertices; i++) {
+                assetloader::RawVertex vertex = {};
+                vertex.x = mesh->mVertices[i].x;
+                vertex.y = mesh->mVertices[i].y;
+                vertex.z = mesh->mVertices[i].z;
+
+                vertex.nx = mesh->mNormals[i].x;
+                vertex.ny = mesh->mNormals[i].y;
+                vertex.nz = mesh->mNormals[i].z;
 
                 if (mesh->mColors[0] != nullptr) {
                     vertex.cb = mesh->mColors[0][i].r;
@@ -51,38 +55,78 @@ namespace playground::editor::assetpipeline::loaders::modelloader {
                     vertex.ca = 1;
                 }
 
-				if (mesh->mTextureCoords[0]) {
+                if (mesh->mTextureCoords[0]) {
                     vertex.u = mesh->mTextureCoords[0][i].y;
                     vertex.v = 1 - mesh->mTextureCoords[0][i].x;
-				}
-				else {
-					vertex.u = 0;
-					vertex.v = 0;
-				}
-				vertices.push_back(vertex);
-			}
+                }
+                else {
+                    vertex.u = 0;
+                    vertex.v = 0;
+                }
+                vertices.push_back(vertex);
+            }
 
-			// Fill indices
-			for (int i = 0; i < mesh->mNumFaces; i++) {
-				aiFace face = mesh->mFaces[i];
-				for (int j = 0; j < face.mNumIndices; j++) {
-					indices.push_back(face.mIndices[j]);
-				}
-			}
+            // Fill indices
+            for (int i = 0; i < mesh->mNumFaces; i++) {
+                aiFace face = mesh->mFaces[i];
+                for (int j = 0; j < face.mNumIndices; j++) {
+                    indices.push_back(face.mIndices[j]);
+                }
+            }
 
-			// Create mesh
-			assetloader::RawMeshData meshData;
-			meshData.vertices = vertices;
-			meshData.indices = indices;
-			meshes.push_back(meshData);
+            // Decompose world transform
+            aiVector3D scale, position;
+            aiQuaternion rotation;
+            worldTransform.Decompose(scale, rotation, position);
 
-			// Clear vectors
-			vertices.clear();
-			indices.clear();
-		}
+            assetloader::RawMeshData meshData;
+            meshData.posX = position.x;
+            meshData.posY = position.y;
+            meshData.posZ = position.z;
+            meshData.rotX = rotation.x;
+            meshData.rotY = rotation.y;
+            meshData.rotZ = rotation.z;
+            meshData.rotW = rotation.w;
+            meshData.scaleX = scale.x;
+            meshData.scaleY = scale.y;
+            meshData.scaleZ = scale.z;
+            std::string name;
+            name.append(node->mName.C_Str());
+            name.append("_");
+            name.append(mesh->mName.C_Str());
+            meshData.name = name;
+            meshData.vertices = vertices;
+            meshData.indices = indices;
+            outMeshes.push_back(meshData);
 
-		return meshes;
-	}
+            // Clear vectors
+            vertices.clear();
+            indices.clear();
+        }
+
+        for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+            ProcessNode(node->mChildren[i], scene, worldTransform, outMeshes, processedMeshes);
+        }
+    }
+
+    auto LoadFromFile(
+        std::filesystem::path path
+    ) -> std::vector<assetloader::RawMeshData> {
+        std::vector<assetloader::RawMeshData> meshes = {};
+        std::unordered_set<uint32_t> processedMeshes;
+
+        Assimp::Importer importer;
+        const aiScene* scene = importer.ReadFile(path.string(), 0);
+
+        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+            auto err = importer.GetErrorString();
+            throw std::runtime_error(err);
+        }
+
+        ProcessNode(scene->mRootNode, scene, aiMatrix4x4(), meshes, processedMeshes);
+
+        return meshes;
+    }
 
     auto LoadAnimationsFromFile(
         std::filesystem::path path
@@ -100,8 +144,8 @@ namespace playground::editor::assetpipeline::loaders::modelloader {
             aiAnimation* animation = scene->mAnimations[x];
 
             assetloader::RawAnimationData rawAnimation = {};
-            rawAnimation.name = animation->mName.C_Str();  
-            rawAnimation.duration = animation->mDuration;  
+            rawAnimation.name = animation->mName.C_Str();
+            rawAnimation.duration = animation->mDuration;
             rawAnimation.framesPerSecond = animation->mTicksPerSecond;
 
             for (int i = 0; i < animation->mNumChannels; i++) {

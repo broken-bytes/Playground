@@ -1,4 +1,4 @@
-public struct ScaleComponent {
+public struct ScaleComponent: Codable {
     public var scale: Vector3
 
     public init(scale: Vector3) {

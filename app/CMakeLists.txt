@@ -12,9 +12,11 @@ target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine
 find_package(Stb REQUIRED)
 
 target_link_directories(PlaygroundApp PRIVATE ${PLAYGROUND_LIB_DIR})
-target_link_libraries(PlaygroundApp PRIVATE Playground PlaygroundCore SDL3::SDL3 Shared)
+target_link_libraries(PlaygroundApp PRIVATE Playground PlaygroundCore Profiler SDL3::SDL3 Shared)
 
 target_include_directories(PlaygroundApp PRIVATE ${Stb_INCLUDE_DIR})
+
+target_compile_definitions(PlaygroundApp PRIVATE -DTRACY_IMPORTS)
 
 # Set the library output directory for all libraries
 set_target_properties(PlaygroundApp PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)

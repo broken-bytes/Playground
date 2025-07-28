@@ -10,17 +10,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
 using Avalonia.Threading;
-using Playground;
 
 namespace PlaygroundEditor;
-
-class TimerComponent : Component
-{
-    public override void OnUpdate()
-    {
-        Console.WriteLine(Time.DeltaTime);
-    }
-}
 
 public partial class MainWindow : Window
 {
@@ -89,15 +80,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        var assembly = Assembly.Load("Playground");
 
-        var types = assembly.GetTypes();
-        var mainHandler = types.FirstOrDefault(type => type.Name.Contains("PlaygroundMainHandler"));
-        
-        var onShutdownMethod = mainHandler?.GetMethod("OnDestroy", BindingFlags.Static | BindingFlags.NonPublic);
-        onShutdownMethod?.Invoke(null, new object[] { });
-        
-        System.Environment.Exit(0);
     }
 
     private void NativeEmbed_OnLoaded(object? sender, RoutedEventArgs e)

@@ -1,4 +1,4 @@
-public struct TranslationComponent {
+public struct TranslationComponent: Codable {
     internal var isDirty: Bool = true
 
     public var position: Vector3 {

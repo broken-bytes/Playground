@@ -6,6 +6,6 @@ func cameraSystem(iter: UnsafeMutableRawPointer) {
     for x in 0..<cameras.count {
         var cam = cameras[x]
 
-        Renderer.addCamera(order: cam.order, fov: cam.fov, nearPlane: cam.nearPlane, farPlane: cam.farPlane, position: &translations[x].position, rotation: &rotations[x].rotation)
+        Rendering.Renderer.addCamera(order: cam.order, fov: cam.fov, nearPlane: cam.nearPlane, farPlane: cam.farPlane, position: &translations[x].position, rotation: &rotations[x].rotation)
     }
 }

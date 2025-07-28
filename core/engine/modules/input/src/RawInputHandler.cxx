@@ -1,5 +1,6 @@
 #ifdef _WIN32
 #include "input/RawInputHandler.hxx"
+#include <shared/Logger.hxx>
 #include <Windows.h>
 #include <iostream>
 #include <events/Events.hxx>
@@ -47,6 +48,7 @@ namespace playground::input {
         _qpcToSeconds = 1.0 / double(freq.QuadPart);
 
         if (!RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE))) {
+            logging::logger::Error("Failed to register raw input devices. Error: " + std::to_string(GetLastError()), "input");
             exit(1);
         }
 

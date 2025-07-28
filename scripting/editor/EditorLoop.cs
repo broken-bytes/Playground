@@ -3,8 +3,6 @@ using System.Reflection;
 
 namespace PlaygroundEditor;
 
-using Playground;
-
 internal static class EditorLoop
 {
     private static MethodInfo? _rendererPreUpdate;

@@ -13,6 +13,7 @@
 #include <shared/Job.hxx>
 #include <shared/JobHandle.hxx>
 #include <shared/JobSystem.hxx>
+#include <shared/Logger.hxx>
 #include <stdexcept>
 #include <iostream>
 #include <SDL3/SDL.h>
@@ -65,6 +66,7 @@ namespace playground::input {
     void EmitButtonEvents(InputDevice device, Button* buttons, size_t count);
 
     auto Init(void* windowHandle) -> void {
+        logging::logger::SetupSubsystem("input");
 #if _WIN32
         inputHandler = std::make_unique<GameInputHandler>();
         rawInputHandler = std::make_unique<RawInputHandler>(windowHandle);

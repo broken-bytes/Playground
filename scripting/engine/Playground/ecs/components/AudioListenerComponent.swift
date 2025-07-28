@@ -1,4 +1,4 @@
-public struct AudioListenerComponent {
+public struct AudioListenerComponent: Codable {
     var index: UInt8
 
     public init(index: UInt8) {

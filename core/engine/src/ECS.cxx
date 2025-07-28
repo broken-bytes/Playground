@@ -191,6 +191,14 @@ namespace playground::ecs {
         world->progress(deltaTime);
     }
 
+    void Clear() {
+        world->each([](flecs::entity e) {
+            if (e.is_alive()) {
+                e.destruct();
+            }
+        });
+    }
+
     void Shutdown() {
         world->quit();
 

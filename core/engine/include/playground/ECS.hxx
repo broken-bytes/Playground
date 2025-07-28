@@ -27,6 +27,7 @@ namespace playground::ecs {
     typedef void (*ComponentLifetimeDelegate)(ecs_iter_t*);
     void Init(bool debugServer);
     void Update(double deltaTime);
+    void Clear();
     void Shutdown();
 
     flecs::world& GetWorld();

@@ -1,4 +1,4 @@
-public struct Mat4 {
+public struct Mat4: Codable {
     public var m00: Float, m10: Float, m20: Float, m30: Float
     public var m01: Float, m11: Float, m21: Float, m31: Float
     public var m02: Float, m12: Float, m22: Float, m32: Float

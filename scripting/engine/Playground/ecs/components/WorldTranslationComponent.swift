@@ -1,4 +1,4 @@
-public struct WorldTranslationComponent {
+public struct WorldTranslationComponent: Codable {
     public var position: Vector3
 
     public init(
