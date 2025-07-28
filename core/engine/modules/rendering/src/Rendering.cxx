@@ -200,8 +200,6 @@ namespace playground::rendering {
         swapchain = nullptr;
         // Cleanup
         device = nullptr;
-
-        std::cout << "Render thread shutdown complete." << std::endl;
 	}
 
 	auto Shutdown() -> void {

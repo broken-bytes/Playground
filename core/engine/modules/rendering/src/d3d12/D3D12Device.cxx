@@ -34,6 +34,7 @@
 #include "rendering/d3d12/D3D12Texture.hxx"
 #include "rendering/d3d12/D3D12Sampler.hxx"
 #include "rendering/d3d12/D3D12Cubemap.hxx"
+#include <shared/Logger.hxx>
 
 using namespace Microsoft::WRL;
 
@@ -78,7 +79,7 @@ namespace playground::rendering::d3d12 {
         DXGI_ADAPTER_DESC adapterDesc;
         // Get the adapter description (including the name)
         if (SUCCEEDED(_adapter->GetDesc(&adapterDesc))) {
-            std::wcout << L"Graphics Adapter Name: " << adapterDesc.Description << std::endl;
+            logging::logger::Info((L"Using D3D12 adapter: " + std::wstring(adapterDesc.Description)).c_str(), "rendering");
         }
 
 #ifdef _DEBUG

@@ -14,6 +14,7 @@ extern "C" {
         bool Fullscreen;
         const char* Name;
         const char* Path;
+        void* WindowHandle;
 
 	} typedef PlaygroundConfig;
 

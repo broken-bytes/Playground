@@ -139,9 +139,16 @@ void Shutdown() {
 uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     SetupPointerLookupTable(config);
 
-    auto window = playground::system::Init(config.Width, config.Height, config.Fullscreen, config.Name);
-
-    StartRenderThread(config, window);
+    void* window = nullptr;
+    if (config.WindowHandle == nullptr) {
+        playground::logging::logger::Info("No window handle provided. Starting in standalone mode", "core");
+        window = playground::system::Init(config.Width, config.Height, config.Fullscreen, config.Name);
+        playground::input::Init(window);
+    }
+    else {
+        playground::logging::logger::Info("Window handle provided. Starting in embedded mode", "core");
+        window = config.WindowHandle;
+    }
 
     playground::hardware::Init();
     if (playground::hardware::SupportsAVX2()) {
@@ -159,7 +166,6 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     playground::jobsystem::Init();
 
     playground::assetloader::Init(config.Path);
-    playground::input::Init(window);
     playground::audio::Init(
         playground::io::OpenFileFromArchive,
         playground::io::ReadFileFromArchive,
@@ -168,6 +174,7 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     );
     playground::inputmanager::Init();
     playground::physicsmanager::Init();
+    StartRenderThread(config, window);
 
     playground::ecs::Init(ENABLE_INSPECTOR);
 

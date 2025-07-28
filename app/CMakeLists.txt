@@ -1,5 +1,5 @@
 if(WIN32)
-add_executable(PlaygroundApp WIN32 app.cxx)
+add_executable(PlaygroundApp app.cxx)
 endif()
 
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/include)

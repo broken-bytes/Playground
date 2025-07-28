@@ -20,7 +20,6 @@ namespace playground::assetloader
         };
 
         ~RawCubemapData() {
-            std::cout << "RawCubemapData destroyed" << std::endl;
         }
 
         uint16_t Width = 0;

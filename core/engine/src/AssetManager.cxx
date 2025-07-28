@@ -33,15 +33,12 @@ namespace playground::assetmanager {
     }
 
     void MarkMaterialUploadFinished(uint32_t handleId, uint32_t materialId) {
-        std::cout << "Marking material upload finished for handleId: " << handleId << ", materialId: " << materialId << std::endl;
-
         auto materialSetupJob = jobsystem::Job{
             .Name = std::string("MATERIAL_SETUP_JOB_") + std::to_string(handleId),
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Green,
             .Dependencies = {},
             .Task = [handleId, materialId](uint8_t workerId) {
-                std::cout << "Setting up material with ID: " << materialId << " for handle ID: " << handleId << std::endl;
                 if (handleId < _materialHandles.size()) {
                     _materialHandles[handleId]->state.store(ResourceState::Uploaded);
                     _materialHandles[handleId]->material = materialId;
@@ -49,30 +46,25 @@ namespace playground::assetmanager {
 
                     int index = 0;
                     for (auto& texture : _materialHandles[handleId]->textures) {
-                        std::cout << "Waiting for texture upload: " << texture.second->uploadJob->Name() << std::endl;
                         while (texture.second->completionMarkerJob == nullptr) {
                             std::this_thread::yield();
                         }
                         texture.second->completionMarkerJob->Wait();
                         rendering::SetMaterialTexture(materialId, index++, texture.second->texture);
-                        std::cout << "Material Texture: " << texture.second->texture << std::endl;
                     }
 
                     index = 0;
                     for (auto& cubemap : _materialHandles[handleId]->cubemaps) {
-                        std::cout << "Waiting for cubemap upload: " << cubemap.second->uploadJob->Name() << std::endl;
                         while (cubemap.second->completionMarkerJob == nullptr) {
                             std::this_thread::yield();
                         }
                         cubemap.second->completionMarkerJob->Wait();
                         rendering::SetMaterialCubemap(materialId, index++, cubemap.second->cubemap);
-                        std::cout << "Material Cubemap: " << cubemap.second->cubemap << std::endl;
                     }
 
                     index = 0;
                     for (auto floatProp : _materialHandles[handleId]->floats) {
                         rendering::SetMaterialFloat(materialId, index++, floatProp.second);
-                        std::cout << "Material Float: " << floatProp.first << " = " << floatProp.second << std::endl;
                     }
 
                     if (_materialHandles[handleId]->onCompletion != nullptr) {
@@ -82,17 +74,14 @@ namespace playground::assetmanager {
             }
         };
 
-        std::cout << "Submitting material setup job for handleId: " << handleId << std::endl;
         jobsystem::Submit(materialSetupJob);
     }
 
     void MarkTextureUploadFinished(uint32_t handleId, uint32_t texture) {
-        std::cout << "Marking texture upload finished for handleId: " << handleId << ", texture: " << texture << std::endl;
         if (handleId < _textureHandles.size()) {
             _textureHandles[handleId]->state = ResourceState::Uploaded;
             _textureHandles[handleId]->data = nullptr;
             _textureHandles[handleId]->texture = texture;
-            std::cout << "Texture: " << texture << std::endl;
             _textureHandles[handleId]->refCount--;
             delete _textureHandles[handleId]->data;
 
@@ -102,7 +91,6 @@ namespace playground::assetmanager {
                 .Color = tracy::Color::Violet,
                 .Dependencies = {},
                 .Task = [handleId](uint8_t workerId) {
-                    std::cout << "Texture upload completed for handleId: " << handleId << std::endl;
                     // Additional completion logic can be added here if needed
                 }
             };
@@ -112,7 +100,6 @@ namespace playground::assetmanager {
     }
 
     void MarkCubemapUploadFinished(uint32_t handleId, uint32_t cubemap) {
-        std::cout << "Marking cubemap upload finished for handleId: " << handleId << ", cubemap: " << cubemap << std::endl;
         if (handleId < _cubemapHandles.size()) {
             _cubemapHandles[handleId]->state = ResourceState::Uploaded;
             _cubemapHandles[handleId]->data = nullptr;
@@ -126,7 +113,6 @@ namespace playground::assetmanager {
                 .Color = tracy::Color::Violet,
                 .Dependencies = {},
                 .Task = [handleId](uint8_t workerId) {
-                    std::cout << "Cubemap upload completed for handleId: " << handleId << std::endl;
                 }
             };
 

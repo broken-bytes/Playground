@@ -84,15 +84,31 @@ namespace playground::logging::logger {
         subsystems[std::string(subsystem)].logger->info(message);
     }
 
+    void Info(std::wstring_view message, std::string_view subsystem) {
+        subsystems[std::string(subsystem)].logger->info(std::string(message.begin(), message.end()));
+    }
+
     void Debug(std::string_view message, std::string_view subsystem) {
         subsystems[std::string(subsystem)].logger->debug(message);    
+    }
+
+    void Debug(std::wstring_view message, std::string_view subsystem) {
+        subsystems[std::string(subsystem)].logger->debug(std::string(message.begin(), message.end()));
     }
 
     void Warn(std::string_view message, std::string_view subsystem) {
         subsystems[std::string(subsystem)].logger->warn(message);
     }
 
+    void Warn(std::wstring_view message, std::string_view subsystem) {
+        subsystems[std::string(subsystem)].logger->warn(std::string(message.begin(), message.end()));
+    }
+
     void Error(std::string_view message, std::string_view subsystem) {
         subsystems[std::string(subsystem)].logger->error(message);
+    }
+
+    void Error(std::wstring_view message, std::string_view subsystem) {
+        subsystems[std::string(subsystem)].logger->error(std::string(message.begin(), message.end()));
     }
 }

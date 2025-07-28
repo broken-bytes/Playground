@@ -11,25 +11,16 @@ namespace playground::editor::assetpipeline::loaders::modelloader {
         aiMatrix4x4 localTransform = node->mTransformation;
         aiMatrix4x4 worldTransform = parentTransform * localTransform;
 
-        for (auto& item : processedMeshes) {
-            std::cout << "Processed mesh ID: " << item << std::endl;
-        }
-
         for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
             if (processedMeshes.find(node->mMeshes[i]) != processedMeshes.end()) {
-                std::cout << "Skipping already processed mesh: " << mesh->mName.C_Str() << std::endl;
                 continue; // Skip already processed meshes
             }
-
-            std::cout << "Processing node: " << node->mName.C_Str() << ", mesh: " << mesh->mName.C_Str() << " ID: " << +node->mMeshes[i] << std::endl;
 
             processedMeshes.insert(node->mMeshes[i]);
 
             std::vector<assetloader::RawVertex> vertices;
             std::vector<uint32_t> indices = {};
-
-            std::cout << "Processing mesh: " << mesh->mName.C_Str() << std::endl;
 
             // Fill vertices
             for (int i = 0; i < mesh->mNumVertices; i++) {

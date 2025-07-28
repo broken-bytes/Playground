@@ -15,7 +15,6 @@ namespace playground::rendering {
         std::function<void(uint32_t, uint32_t)> callback;
 
         ~CubemapUploadJob() {
-            std::cout << "CubemapUploadJob destroyed for handle: " << handle << std::endl;
         }
     };
 }

@@ -1,7 +1,5 @@
 #include <cassert>
 #include <filesystem>
-#include <SDL3/SDL_main.h>
-#include <SDL3/SDL.h>
 #include <playground/Engine.hxx>
 
 #include <thread>
@@ -21,15 +19,24 @@ extern "C" void AssemblyMain();
 
 void StartUpEngine(LookupTableDelegate lookup, ScriptStartupCallback startup) {
     auto workDir = std::filesystem::current_path().string();
-    auto config = PlaygroundConfig{ lookup, startup, windowWidth, windowHeight, true, "Test", workDir.c_str()};
+    auto config = PlaygroundConfig{ lookup, startup, windowWidth, windowHeight, true, "Test", workDir.c_str(), nullptr };
 
     PlaygroundCoreMain(config);
 }
 
-int SDL_main(int argc, char** argv) {
-    PlaygroundMain([](auto lookup, auto startup) {
-        StartUpEngine(lookup, startup);
-    });
+void StartupDelegate(
+    LookupTableDelegate lookupPtr,
+    ScriptStartupCallback startupPtr
+) {
+    StartUpEngine(lookupPtr, startupPtr);
+}
+
+int main(int argc, char** argv) {
+    LookupTableDelegate lookupPtr;
+    ScriptStartupCallback startupPtr;
+
+    PlaygroundMain(StartupDelegate);
+
 
 	return 0;
 }

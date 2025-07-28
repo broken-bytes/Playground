@@ -93,10 +93,6 @@ public partial class MainWindow : Window
         var mainHandler = types.FirstOrDefault(type => type.Name.Contains("PlaygroundMainHandler"));
         var renderer = types.FirstOrDefault(type => type.Name.Contains("Renderer"));
         
-        var readBackBufferMethod = renderer?.GetMethod("ReadBackBuffer", BindingFlags.Static | BindingFlags.NonPublic);
-        
-        Environment.ReadBackBufferMethod = readBackBufferMethod;
-
         // Get the static method OnStart
         var onStartMethod = mainHandler?.GetMethod("OnStart", BindingFlags.Static | BindingFlags.NonPublic);
         var onUpdate = mainHandler?.GetMethod("OnUpdate", BindingFlags.Static | BindingFlags.NonPublic);

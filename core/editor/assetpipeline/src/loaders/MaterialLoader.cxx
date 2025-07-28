@@ -17,14 +17,11 @@ namespace playground::editor::assetpipeline::loaders::materialloader {
 
         std::string binaryStr((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-        std::cout << "JSON:\n" << binaryStr << std::endl;
-
         std::string& s = binaryStr;
         if (s.size() >= 3 &&
             static_cast<uint8_t>(s[0]) == 0xEF &&
             static_cast<uint8_t>(s[1]) == 0xBB &&
             static_cast<uint8_t>(s[2]) == 0xBF) {
-            std::cout << "⚠️ BOM detected — removing\n";
             s.erase(0, 3);
         }
 
