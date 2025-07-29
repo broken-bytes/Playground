@@ -2,6 +2,7 @@ public typealias StartDelegate = @convention(c) (@convention(c) (UnsafePointer<C
 
 @_cdecl("PlaygroundMain")
 public func playgroundMain(delegate: StartDelegate) {
+    print(delegate)
     delegate(
         { NativeLookupTable.addEntry(key: String(cString: $0), ptr: $1) },
         startUp

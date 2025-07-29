@@ -38,6 +38,7 @@ namespace playground::jobsystem {
 
     void Init() {
         logging::logger::SetupSubsystem("jobs");
+        logging::logger::Info("Initializing Job System", "jobs");
         SetupWorkers();
     }
 

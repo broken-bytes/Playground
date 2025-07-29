@@ -17,6 +17,7 @@ namespace playground::jobsystem {
         std::function<bool(std::shared_ptr<JobHandle>&)> pullJob,
         std::function<bool()> isWorkAvailable
     ) : _mutex(mutex), _conditionVar(conditionVar), _id(id), _isWorkAvailable(isWorkAvailable) {
+        logging::logger::Info("Starting Job Worker: " + name + " on core " + std::to_string(coreIndex), "jobs");
         _isRunning = true;
         auto cores = hardware::GetCoresByEfficiency(cpuEfficiency);
 

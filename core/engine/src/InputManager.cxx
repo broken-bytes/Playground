@@ -4,6 +4,7 @@
 #include <input/Input.hxx>
 #include <shared/Hasher.hxx>
 #include <shared/Arena.hxx>
+#include <shared/Logger.hxx>
 #include <EASTL/unordered_map.h>
 #include <algorithm>
 #include <cstdint>
@@ -69,8 +70,9 @@ namespace playground::inputmanager {
         std::vector<AxisMapping>& axes,
         std::vector<ButtonMapping>& buttons);
 
-    void Init() {
+    void Init(void* window) {
         LoadInputMappings(std::filesystem::current_path().append("input.ini").string(), axisMappings, buttonMappings);
+        input::Init(window);
     }
 
     void Update() {

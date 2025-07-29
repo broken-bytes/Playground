@@ -100,10 +100,13 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
 
     playground::logging::logger::SetupSubsystem("scripting");
 
+    playground::logging::logger::Info("Calling scripting startup", "core");
     config.startupCallback();
+    playground::logging::logger::Info("Scripting startup completed", "core");
 
     tracy::SetThreadName("Game Thread");
 
+    playground::logging::logger::Info("Starting main loop", "core");
     while (isRunning) {
         Update();
     }
@@ -143,7 +146,6 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     if (config.WindowHandle == nullptr) {
         playground::logging::logger::Info("No window handle provided. Starting in standalone mode", "core");
         window = playground::system::Init(config.Width, config.Height, config.Fullscreen, config.Name);
-        playground::input::Init(window);
     }
     else {
         playground::logging::logger::Info("Window handle provided. Starting in embedded mode", "core");
@@ -172,7 +174,7 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
         playground::io::SeekFileInArchive,
         playground::io::CloseFile
     );
-    playground::inputmanager::Init();
+    playground::inputmanager::Init(window);
     playground::physicsmanager::Init();
     StartRenderThread(config, window);
 

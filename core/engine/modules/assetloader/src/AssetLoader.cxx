@@ -1,5 +1,6 @@
 #include "assetloader/AssetLoader.hxx"
 #include <io/IO.hxx>
+#include <shared/Logger.hxx>
 #include <stdexcept>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/binary.hpp>
@@ -10,6 +11,8 @@ namespace playground::assetloader {
     auto paks = std::vector<std::filesystem::path>();
 
     void Init(const char* path) {
+        logging::logger::SetupSubsystem("assetloader");
+        logging::logger::Info("Initializing Asset Loader with path " + std::string(path), "assetloader");
         auto filelIst = io::GetFileList(path);
         for (const auto& file : filelIst) {
             if (file.is_regular_file() && file.path().extension() == ".pak") {

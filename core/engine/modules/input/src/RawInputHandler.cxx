@@ -28,6 +28,7 @@ namespace playground::input {
     }
 
     RawInputHandler::RawInputHandler(void* windowHandle) {
+        logging::logger::Info("Initializing Raw Input Handler", "input");
         RAWINPUTDEVICE rid[2] = {};
 
         rid[0].usUsagePage = 0x01;

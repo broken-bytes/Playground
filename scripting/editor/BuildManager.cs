@@ -11,7 +11,6 @@ internal static class BuildManager
 {
     private static string _projectPath;
     private static string _projectName;
-    private static string _playgroundAssemblyPath => $"{_projectPath}\\GameAssembly.csproj";
     private static string _solutionPath => $"{_projectPath}\\{_projectName}.sln";
     
     private static List<string> _filesToBuild = new();
@@ -91,52 +90,9 @@ internal static class BuildManager
 
     internal static async Task UpdateBuildConfig()
     {
-        
         await Task.Run(() =>
         {
-            var projectFileContent = ProjectHeader;
-            projectFileContent += "     <ItemGroup>\n";
-            projectFileContent += "        <Reference Include=\"Playground\">\n";
-            projectFileContent += $"             <HintPath>H:\\\\Projects\\\\Playground\\\\scripting\\\\editor\\\\bin\\\\Debug\\\\net9.0\\\\Playground.dll</HintPath>\n";
-            projectFileContent += "        </Reference>\n";
-            projectFileContent += "     </ItemGroup>\n";
-            projectFileContent += "</Project>";
-        
-            File.WriteAllText(_playgroundAssemblyPath, projectFileContent);
+          // TODO: Build Swoft assembly
         });
     }
-
-    private static string ProjectHeader = $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Project Sdk=""Microsoft.NET.Sdk"">
-  <PropertyGroup>
-    <Configuration Condition="" '$(Configuration)' == '' "">Debug</Configuration>
-    <Platform Condition="" '$(Platform)' == '' "">x64</Platform>
-    <UseArtifactsOutput>true</UseArtifactsOutput>
-    <RootNamespace>GameAssembly</RootNamespace>
-    <OutputType>Library</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <LangVersion>13</LangVersion>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <FileAlignment>512</FileAlignment>
-    <BaseDirectory>./code</BaseDirectory>
-    <IntermediateOutputPath>./.cache\bin\$(Configuration)\</IntermediateOutputPath>
-  </PropertyGroup>
-  <PropertyGroup Condition="" '$(Configuration)|$(Platform)' == 'Debug|x64' "">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <DefineConstants></DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
-  </PropertyGroup>
-  <PropertyGroup>
-    <NoConfig>true</NoConfig>
-    <NoStdLib>true</NoStdLib>
-    <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
-    <ImplicitlyExpandNETStandardFacades>false</ImplicitlyExpandNETStandardFacades>
-    <ImplicitlyExpandDesignTimeFacades>false</ImplicitlyExpandDesignTimeFacades>
-  </PropertyGroup>
-";
 }

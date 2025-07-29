@@ -222,6 +222,7 @@ namespace playground::physics {
 
     void Init() {
         logging::logger::SetupSubsystem("physics");
+        logging::logger::Info("Initializing PhysX Physics Engine...", "physics");
         isRunning = true;
         foundation = PxCreateFoundation(
             PX_PHYSICS_VERSION,

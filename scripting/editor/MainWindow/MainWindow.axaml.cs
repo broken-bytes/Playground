@@ -1,7 +1,9 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
@@ -22,6 +24,8 @@ public partial class MainWindow : Window
     private Thread _engineThread;
     private Thread _editorThread;
     private TreeView _hierarchyTreeView;
+    IntPtr _lookup;
+    IntPtr _startup;
     
     public MainWindow()
     {
@@ -86,48 +90,33 @@ public partial class MainWindow : Window
     private void NativeEmbed_OnLoaded(object? sender, RoutedEventArgs e)
     {
         var embed = (NativeEngineEmbedHost)sender!;
-        
-        var assembly = Assembly.Load("Playground");
 
-        var types = assembly.GetTypes();
-        var mainHandler = types.FirstOrDefault(type => type.Name.Contains("PlaygroundMainHandler"));
-        var renderer = types.FirstOrDefault(type => type.Name.Contains("Renderer"));
+        var engineThread = new Thread(
+            () => {
+                NativeEngineEmbedHost.ScriptingStartup startupCallback = (lookupFn, startupFn) =>
+                {
+                    _lookup = lookupFn;
+                    _startup = startupFn;
+                };
         
-        // Get the static method OnStart
-        var onStartMethod = mainHandler?.GetMethod("OnStart", BindingFlags.Static | BindingFlags.NonPublic);
-        var onUpdate = mainHandler?.GetMethod("OnUpdate", BindingFlags.Static | BindingFlags.NonPublic);
-        
-        if (onStartMethod != null)
-        {
-            // Get the HWND from the window implementation
-            if (PlatformImpl is { } windowImpl)
-            {
-                IntPtr hwnd = windowImpl.Handle?.Handle ?? IntPtr.Zero;
-
-                // Invoke the static OnStart method with the HWND
-                onStartMethod.Invoke(
-                    null, 
-                    new object[]
-                    {
-                        embed._handle, 
-                        (uint)embed.Bounds.Width, 
-                        (uint)embed.Bounds.Height, 
-                        false,
-                        EditorEnvironment.ProjectPath + @"/.cache/artifacts/bin/GameAssembly/debug/GameAssembly.dll",
-                    });
-
-                Environment.UpdateMethod = onUpdate;
-            }
-        }
-        
-        _engineThread = new Thread(() =>
-        {
-            while (true)
-            {
-                EditorLoop.OnUpdate();
-            }
-        });
-        _engineThread.Start();
+                // Call Swift to set the pointers
+                NativeEngineEmbedHost.PlaygroundMain(startupCallback);
+                
+                var config = new NativeEngineEmbedHost.PlaygroundConfig {
+                    Delegate = _lookup!,
+                    StartupCallback = _startup!,
+                    Width = 1280,
+                    Height = 720,
+                    Fullscreen = false,
+                    WindowName = "Editor",
+                    Path = Directory.GetCurrentDirectory(),
+                    WindowHandle = embed._handle
+                };
+                
+                NativeEngineEmbedHost.PlaygroundCoreMain(ref config);
+            });
+            
+        engineThread.Start();
     }
 
     private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)

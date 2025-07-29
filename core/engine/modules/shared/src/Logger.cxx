@@ -21,7 +21,6 @@ namespace playground::logging::logger {
 #ifdef _WIN32
         SetConsoleOutputCP(CP_UTF8);
         SetConsoleCP(CP_UTF8);
-        AllocConsole();
 #endif
     }
 

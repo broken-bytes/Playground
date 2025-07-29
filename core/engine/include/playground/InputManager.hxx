@@ -11,7 +11,7 @@ namespace playground::inputmanager {
     bool WasButtonHeld(const char* actionName);
     float GetAxis(const char* actionName);
 
-    void Init();
+    void Init(void* window);
     void Update();
 
     float GetAxis(const char* name);
