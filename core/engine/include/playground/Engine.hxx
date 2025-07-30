@@ -8,6 +8,9 @@ extern "C" {
 
 	struct {
 		LookupTableDelegate Delegate;
+#if EDITOR
+        LookupTableDelegate EditorDelegate;
+#endif
         ScriptStartupCallback startupCallback;
 		uint32_t Width;
 		uint32_t Height;

@@ -9,10 +9,16 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project(${PROJECT_NAME})
 
+option(BUILD_EDITOR "Build with editor functionality" OFF)
+
+if (BUILD_EDITOR)
+  add_compile_definitions(EDITOR)
+endif()
+
 enable_testing()
 
 if (MSVC)
-    add_compile_options(/utf-8)
+  add_compile_options(/utf-8)
 endif()
 
 include(FetchContent)
@@ -84,7 +90,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${OUTPUT_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${OUTPUT_DIR}/lib)
 
 add_subdirectory(core)
-add_subdirectory(app)
+#add_subdirectory(app)
 add_subdirectory(tools)
 
 set_target_properties(AssetPipeline PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
@@ -124,5 +130,9 @@ set_target_properties(Math PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DI
 set_target_properties(Profiler PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set_target_properties(Rendering PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set_target_properties(System PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
-set_target_properties(PlaygroundCore PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
+if (BUILD_EDITOR)
+  set_target_properties(PlaygroundCoreEditor PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
+else()
+  set_target_properties(PlaygroundCore PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)
+endif()
 set_target_properties(flecs PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/bin)

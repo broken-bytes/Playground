@@ -9,7 +9,9 @@ namespace playground::input {
     enum class InputEventType {
         ButtonUp,
         ButtonDown,
-        AxisMoved
+        AxisMoved,
+        PointerEnter,
+        PointerLeave,
     };
 
     struct InputEvent {

@@ -113,7 +113,7 @@ namespace playground::inputmanager {
                     }
                 }
             }
-            else {
+            else if (inputAction.type == input::InputType::Axis) {
                 for (auto& element : axisMappings) {
                     if (!element.physicalAxes.has_value()) {
                         continue;
@@ -231,6 +231,12 @@ namespace playground::inputmanager {
             buttonMappings.push_back(ButtonMapping { .nameHash = shared::Hash(buttonAction), .physicalButtons = {PhysicalButton{.device = device, .rawInputId = buttonId }}});
         }
     }
+
+#if EDITOR
+    void SetCapturesInput(bool capture) {
+        input::SetCapturesInput(capture);
+    }
+#endif
 
     bool LoadInputMappings(const std::string& path,
         std::vector<AxisMapping>& axes,

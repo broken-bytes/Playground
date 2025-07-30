@@ -102,8 +102,13 @@ public partial class MainWindow : Window
                 // Call Swift to set the pointers
                 NativeEngineEmbedHost.PlaygroundMain(startupCallback);
                 
+                var editorDel = new NativeLookupTable.AddEntryDelegate(NativeLookupTable.AddEntry);
+
+                GCHandle.Alloc(editorDel);
+                
                 var config = new NativeEngineEmbedHost.PlaygroundConfig {
                     Delegate = _lookup!,
+                    EditorDelegate = Marshal.GetFunctionPointerForDelegate(editorDel),
                     StartupCallback = _startup!,
                     Width = 1280,
                     Height = 720,
@@ -114,9 +119,18 @@ public partial class MainWindow : Window
                 };
                 
                 NativeEngineEmbedHost.PlaygroundCoreMain(ref config);
+                //EditorEnvironment.Setup();
             });
             
         engineThread.Start();
+    }
+    
+    private void NativeEmbed_OnGotFocus(object? sender, PointerEventArgs e) {
+        SceneViewManager.OnGotFocus();
+    }
+    
+    private void NativeEmbed_OnLostFocus(object? sender, PointerEventArgs e) {
+        SceneViewManager.OnLostFocus();
     }
 
     private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)

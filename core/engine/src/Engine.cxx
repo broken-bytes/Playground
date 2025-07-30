@@ -43,6 +43,9 @@ int deltaStep = 0;
 uint8_t Startup(const PlaygroundConfig& config);
 uint8_t SetupSubsystems(const PlaygroundConfig& config);
 void SetupPointerLookupTable(const PlaygroundConfig& config);
+#if EDITOR
+void SetupEditorPointerLookupTable(const PlaygroundConfig& config);
+#endif
 void StartRenderThread(const PlaygroundConfig& config, void* window);
 void LoadCoreAssets();
 void SubscribeToEventsFromScripting(playground::events::EventType type, ScriptingEventCallback callback);
@@ -88,7 +91,7 @@ uint8_t PlaygroundCoreMain(const PlaygroundConfig& config) {
     }
 
     playground::logging::logger::Info("Playground Core Engine started.", "core");
-    playground::logging::logger::Info("Initializing Scripting Layer...", "core");
+    playground::logging::logger::Info("Initialising Scripting Layer...", "core");
 
     // Register mandatory assets
 
@@ -141,6 +144,9 @@ void Shutdown() {
 
 uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     SetupPointerLookupTable(config);
+#if EDITOR
+    SetupEditorPointerLookupTable(config);
+#endif
 
     void* window = nullptr;
     if (config.WindowHandle == nullptr) {
@@ -166,6 +172,7 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
     }
 
     playground::jobsystem::Init();
+    playground::events::Init();
 
     playground::assetloader::Init(config.Path);
     playground::audio::Init(
@@ -184,6 +191,7 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
 }
 
 void SetupPointerLookupTable(const PlaygroundConfig& config) {
+    playground::logging::logger::Info("Setting up pointer lookup table", "core");
     config.Delegate("Logger_Info", playground::logging::logger::Info_C);
     config.Delegate("Logger_Warn", playground::logging::logger::Info_C);
     config.Delegate("Logger_Error", playground::logging::logger::Info_C);
@@ -234,10 +242,16 @@ void SetupPointerLookupTable(const PlaygroundConfig& config) {
     config.Delegate("Time_GetTimeSinceStart\0", GetTimeSinceStart);
     config.Delegate("Time_GetDeltaTime\0", GetDeltaTime);
 
-    config.Delegate("Input_Update\0", playground::input::Update);
-
     config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
 }
+
+#if EDITOR
+void SetupEditorPointerLookupTable(const PlaygroundConfig& config) {
+    playground::logging::logger::Info("Setting up editor pointer lookup table", "core");
+    config.EditorDelegate("Input_SetCapturesInput\0", playground::inputmanager::SetCapturesInput);
+    config.EditorDelegate("Events_Subscribe", SubscribeToEventsFromScripting);
+}
+#endif
 
 void StartRenderThread(const PlaygroundConfig& config, void* window) {
     std::promise<void> rendererReadyPromise;

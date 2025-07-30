@@ -88,6 +88,8 @@
                 Grid.Row="0"
                 VerticalAlignment="Stretch"
                 Loaded="NativeEmbed_OnLoaded"
+                PointerEntered="NativeEmbed_OnGotFocus"
+                PointerExited="NativeEmbed_OnLostFocus"
             >
                 
             </playgroundEditor:NativeEngineEmbedHost>

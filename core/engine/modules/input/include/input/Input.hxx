@@ -9,4 +9,8 @@ namespace playground::input {
 	auto Update() -> void;
 
     auto FetchInput(InputAction& event) -> bool;
+
+#if EDITOR
+    void SetCapturesInput(bool capture);
+#endif
 }

@@ -12,8 +12,31 @@
 namespace playground::input {
     std::function<void(LPARAM)> procCallback;
 
+    void EmitWindowFocusEvent(HWND handle) {
+        events::WindowFocusEvent enterEvent;
+        playground::events::Emit(&enterEvent);
+        TRACKMOUSEEVENT tme = {
+            sizeof(TRACKMOUSEEVENT),
+            TME_LEAVE,
+            handle,
+            0
+        };
+        TrackMouseEvent(&tme);
+    }
+
+    void EmitWindowLostFocusEvent() {
+        events::WindowLostFocusEvent leaveEvent;
+        playground::events::Emit(&leaveEvent);
+    }
+
     LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         switch (msg) {
+        case WM_MOUSEMOVE:
+            EmitWindowFocusEvent(hwnd);
+            break;
+        case WM_MOUSELEAVE:
+            EmitWindowLostFocusEvent();
+            break;
         case WM_INPUT:
             procCallback(lParam);
             break;
@@ -27,7 +50,7 @@ namespace playground::input {
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }
 
-    RawInputHandler::RawInputHandler(void* windowHandle) {
+    RawInputHandler::RawInputHandler(void* windowHandle): _windowHandle(windowHandle) {
         logging::logger::Info("Initializing Raw Input Handler", "input");
         RAWINPUTDEVICE rid[2] = {};
 

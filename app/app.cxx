@@ -19,7 +19,19 @@ extern "C" void AssemblyMain();
 
 void StartUpEngine(LookupTableDelegate lookup, ScriptStartupCallback startup) {
     auto workDir = std::filesystem::current_path().string();
-    auto config = PlaygroundConfig{ lookup, startup, windowWidth, windowHeight, true, "Test", workDir.c_str(), nullptr };
+    auto config = PlaygroundConfig{
+        lookup,
+#if EDITOR
+        nullptr,
+#endif,
+        startup,
+        windowWidth,
+        windowHeight,
+        true,
+        "Test",
+        workDir.c_str(),
+        nullptr
+    };
 
     PlaygroundCoreMain(config);
 }

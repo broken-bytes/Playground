@@ -6,9 +6,9 @@ namespace PlaygroundEditor;
 public static class SceneManager
 {
     internal static object? SceneData;
-    
-    static SceneManager()
-    {
+
+
+    public static void Setup() {
         
     }
 

@@ -21,6 +21,7 @@ public class NativeEngineEmbedHost : NativeControlHost
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct PlaygroundConfig {
         public IntPtr Delegate;
+        public IntPtr EditorDelegate;
         public IntPtr StartupCallback;
         public UInt32 Width;
         public UInt32 Height;
@@ -33,7 +34,7 @@ public class NativeEngineEmbedHost : NativeControlHost
         public IntPtr WindowHandle;
     }
     
-    [DllImport("PlaygroundCore.dll", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("PlaygroundCoreEditor.dll", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort PlaygroundCoreMain(ref PlaygroundConfig config);
     
     [DllImport("Playground.dll", CallingConvention = CallingConvention.Cdecl)]

@@ -65,6 +65,12 @@ public static class EditorEnvironment
     internal static OnObjectSelectedDelegate? OnObjectSelected { get; set; }
     internal static OnObjectDeselectedDelegate? OnObjectDeselected { get; set; }
 
+    internal static void Setup() {
+        SceneViewManager.Setup();
+        SceneManager.Setup();
+        EventManager.Setup();
+    }
+
     internal static void EnterPlayMode()
     {
         IsPlayMode = true;

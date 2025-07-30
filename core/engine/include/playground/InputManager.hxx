@@ -24,4 +24,8 @@ namespace playground::inputmanager {
     void SetPhysicalAxisPos(const char* axisName, input::InputDevice device, uint16_t axisId);
     void SetVPhysicalAxisNeg(const char* axisName, input::InputDevice device, uint16_t axisId);
     void SetButtonMapping(const char* buttonName, input::InputDevice deviceId, uint16_t buttonId);
+
+#if EDITOR
+    void SetCapturesInput(bool capture);
+#endif
 }

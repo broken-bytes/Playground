@@ -45,6 +45,9 @@ namespace playground::input {
     constexpr uint16_t tickRate = 1000000;
     constexpr float mouseSensitivity = 0.1f;
     uint64_t currentTick = 0;
+#if EDITOR
+    bool capturesInput = true;
+#endif
 
     std::unique_ptr<IInputHandler> inputHandler;
 
@@ -78,6 +81,11 @@ namespace playground::input {
     }
 
     auto Update() -> void {
+#if EDITOR
+        if (!capturesInput) {
+            return;
+        }
+#endif
         ZoneScopedNC("Input: Update", tracy::Color::Blue1);
         pollArena.Reset();
 
@@ -189,6 +197,12 @@ namespace playground::input {
     auto FetchInput(InputAction& action) -> bool {
         return inputEventsQueue.try_dequeue(action);
     }
+
+#if EDITOR
+    void SetCapturesInput(bool capture) {
+        capturesInput = capture;
+    }
+#endif
 
     void ProcessKeyboard(const eastl::vector<InputEvent, StackAllocator>& events) {
         for (auto& event : events) {

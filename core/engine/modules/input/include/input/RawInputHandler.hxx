@@ -17,7 +17,7 @@ namespace playground::input {
     private:
         moodycamel::ConcurrentQueue<InputEvent> _inputQueue;
         double _qpcToSeconds;
-
+        void* _windowHandle;
         void HandleRawInput(LPARAM lParam);
     };
 }
