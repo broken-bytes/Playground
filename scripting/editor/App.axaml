@@ -6,7 +6,6 @@
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
      <Application.DataTemplates>
-         <playgroundEditor:ViewLocator />
          <DataTemplate DataType="controls:HierarchyViewModel">
              <controls:Hierarchy />
          </DataTemplate>

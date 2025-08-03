@@ -17,7 +17,7 @@ public class MainWindowViewModel : ReactiveObject
     private FileWatchdog _assetsWatchdog;
     private ProgressBar _backgroundProgressbar;
 
-    public MainWindowViewModel(ProgressBar progressBar, DockControl dock)
+    public MainWindowViewModel(ProgressBar progressBar)
     {
         _backgroundProgressbar = progressBar;
     }

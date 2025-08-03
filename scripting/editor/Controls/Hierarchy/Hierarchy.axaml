@@ -11,7 +11,7 @@
         VerticalAlignment="Stretch"
         HorizontalAlignment="Stretch"
         RowDefinitions="32, *"
-        Background="#1E2A47"
+        Background="{DynamicResource ThemeBackgroundBrush}"
         Name="LeftPanel"
     >
         <StackPanel Grid.Row="0">
