@@ -1,39 +1,57 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace PlaygroundEditor;
 
 public static class EventManager {
-    public enum EventType {
-        Health,
-        System,
-        Input,
-        Network,
+    public enum EventType : int {
+        Health = 0,
+        System = 1,
+        Input = 2,
+        Network = 3,
+    }
+    
+    public enum SystemEventType: int {
+        Quit = 0,
+        WindowResize,
+        WindowMove,
+        WindowFocus,
+        WindowLostFocus,
     };
     
-    public class Event {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Event {
         public EventType Type;
+        public SystemEventType SystemType;
     };
     
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void EventCallbackDelegate(Event nativeEvent);
+    public delegate void EventCallbackDelegate(IntPtr nativeEvent);
     
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void SubscribeToEventsDelegate(EventCallbackDelegate @delegate);
+    public delegate void SubscribeToEventsDelegate(int eventType, IntPtr callback);
     
     private static SubscribeToEventsDelegate _subscribeToEvents;
+    private static EventCallbackDelegate _eventCallbackDelegate;
+    private static GCHandle _callbackHandle;
     
-    public static void Setup() {
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static void OnEvent(IntPtr ptr) {
+        var e = Marshal.PtrToStructure<Event>(ptr);
+        if (e.SystemType == SystemEventType.WindowFocus) {
+            SceneViewManager.OnGotFocus();
+        } else if (e.SystemType == SystemEventType.WindowLostFocus) {
+            SceneViewManager.OnLostFocus();
+        }
+    }
+    
+    public static unsafe void Setup() {
         _subscribeToEvents = Marshal.GetDelegateForFunctionPointer<SubscribeToEventsDelegate>(NativeLookupTable.Lookup("Events_Subscribe"));
-
-        _subscribeToEvents(
-            (e) => {
-                Debug.WriteLine("RECEIVED EVENT");
-                if (e.Type == EventType.System) {
-                    Debug.WriteLine("System event");
-                }
-            });
+        var fnPtr = (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&OnEvent;
+        
+        _subscribeToEvents((int)EventType.System, fnPtr);
     }
 
     private static void ProcessWindowFocusEvent() {

@@ -35,6 +35,8 @@ func startUp() {
     initComponents()
     initTags()
     initSystems()
+
+    var ent = Entity("Test")
 }
 
 func initComponents() {

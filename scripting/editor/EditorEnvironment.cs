@@ -69,6 +69,7 @@ public static class EditorEnvironment
         SceneViewManager.Setup();
         SceneManager.Setup();
         EventManager.Setup();
+        HierarchyManager.Setup();
     }
 
     internal static void EnterPlayMode()

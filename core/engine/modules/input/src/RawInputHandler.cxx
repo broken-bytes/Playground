@@ -11,31 +11,41 @@
 
 namespace playground::input {
     std::function<void(LPARAM)> procCallback;
+    bool lastFocus = true;
+    bool hasFocus = true;
 
     void EmitWindowFocusEvent(HWND handle) {
         events::WindowFocusEvent enterEvent;
         playground::events::Emit(&enterEvent);
-        TRACKMOUSEEVENT tme = {
-            sizeof(TRACKMOUSEEVENT),
-            TME_LEAVE,
-            handle,
-            0
-        };
-        TrackMouseEvent(&tme);
+        logging::logger::Info("Mouse entered window", "input");
     }
 
     void EmitWindowLostFocusEvent() {
         events::WindowLostFocusEvent leaveEvent;
         playground::events::Emit(&leaveEvent);
+        logging::logger::Info("Mouse left window", "input");
+    }
+
+    void TrackMouseLeave(HWND hwnd) {
+        TRACKMOUSEEVENT tme = {
+            sizeof(TRACKMOUSEEVENT),
+            TME_LEAVE,
+            hwnd,
+            0
+        };
+        TrackMouseEvent(&tme);
     }
 
     LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         switch (msg) {
         case WM_MOUSEMOVE:
-            EmitWindowFocusEvent(hwnd);
+            hasFocus = true;
+            logging::logger::Info("Seting focus true", "input");
+            TrackMouseLeave(hwnd);
             break;
         case WM_MOUSELEAVE:
-            EmitWindowLostFocusEvent();
+            hasFocus = false;
+            logging::logger::Info("Seting focus false", "input");
             break;
         case WM_INPUT:
             procCallback(lParam);
@@ -51,6 +61,14 @@ namespace playground::input {
     }
 
     RawInputHandler::RawInputHandler(void* windowHandle): _windowHandle(windowHandle) {
+        TRACKMOUSEEVENT tme = {
+            sizeof(TRACKMOUSEEVENT),
+            TME_LEAVE,
+            (HWND)windowHandle,
+            0
+        };
+        TrackMouseEvent(&tme);
+
         logging::logger::Info("Initializing Raw Input Handler", "input");
         RAWINPUTDEVICE rid[2] = {};
 
@@ -138,10 +156,26 @@ namespace playground::input {
             }
 
             if (m.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
+                logging::logger::Info("Left button down", "input");
                 event.actionId = 0;
                 event.type = InputEventType::ButtonDown;
+                // When the focus state changed and left button is pressed, we emit focus events
+                if (lastFocus != hasFocus) {
+                    logging::logger::Info("Focus state changed: " + std::to_string(hasFocus) + " previous: " + std::to_string(lastFocus), "input");
+                    if (!hasFocus) {
+                        // When the cursor was outside the window and the left button is pressed, we `lose` focus
+                        EmitWindowLostFocusEvent();
+                    }
+                    else {
+                        // When the cursor is inside the window and the left button is pressed, we `gain` focus
+                        EmitWindowFocusEvent((HWND)_windowHandle);
+                    }
+
+                    lastFocus = hasFocus;
+                }
             }
             if (m.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
+                logging::logger::Info("Left button up", "input");
                 event.actionId = 0;
                 event.type = InputEventType::ButtonDown;
             }

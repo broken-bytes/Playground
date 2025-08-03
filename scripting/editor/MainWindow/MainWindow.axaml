@@ -12,149 +12,44 @@
         PointerPressed="InputElement_OnPointerPressed"
         Loaded="MainWindow_OnLoaded"
 >
-    <Grid 
-        RowDefinitions="56, *, 16"
-        VerticalAlignment="Stretch"
-    >
-        <Grid 
-            ColumnDefinitions="*, 128, *" 
-            RowDefinitions="8, 40, 8" 
-            Grid.Row="0" 
-            Background="#16233B"
-            >
-            <StackPanel
-                Grid.Column="0"
-                Grid.Row="0"
-                Grid.RowSpan="2"
-                VerticalAlignment="Stretch"
-               >
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock 
-                        FontSize="18"
-                        FontFamily="{StaticResource Rubik}"
-                        Margin="16 0 0 0"
-                        Name="TitleText" 
-                        Background="#1E2A47"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Stretch"
-                        Padding="16 4 16 4"
-                    >Foo
-                    </TextBlock>
-
-                    <Menu>
-                        <MenuItem Header="_File">
-                            <MenuItem Header="_Open..." Command="{Binding OpenFileCommand}"/>
-                            <Separator/>
-                            <MenuItem Header="_Exit"/>
-                        </MenuItem>
-                        <MenuItem Header="_Edit">
-                            <MenuItem Header="Copy"/>
-                            <MenuItem Header="Paste"/>
-                        </MenuItem>
-                    </Menu>
-                </StackPanel>
-            </StackPanel>
-                <!-- Top Header (Full Width) -->
-                <controls:TopBarControl
-                    Grid.Row="1" Grid.Column="1"
-                />
-                <StackPanel 
-                    Grid.Column="2" 
-                    Grid.Row="0" 
-                    Grid.RowSpan="2"
-                >
-                </StackPanel>
-        </Grid>
-        <Grid
-            Grid.Row="1"
-            RowDefinitions="*, 5, 300"
-            ColumnDefinitions="250, 5, *, 5, 250"
-            VerticalAlignment="Stretch"
-        >
-            <!-- Left Panel (Resizable) -->
-            <controls1:HierarchyControl         
-                Grid.Column="0"
-                Grid.Row="0"/>
-
-            <GridSplitter 
-                Grid.RowSpan="2"
-                Grid.Row="0"
-                Grid.Column="1" 
-                Background="#16233B" 
-                ResizeDirection="Columns"
-            />
-            <playgroundEditor:NativeEngineEmbedHost
-                Grid.Column="2" 
-                Grid.Row="0"
-                VerticalAlignment="Stretch"
-                Loaded="NativeEmbed_OnLoaded"
-                PointerEntered="NativeEmbed_OnGotFocus"
-                PointerExited="NativeEmbed_OnLostFocus"
-            >
-                
-            </playgroundEditor:NativeEngineEmbedHost>
-            
-            <GridSplitter 
-                Grid.Row="0"
-                Grid.RowSpan="2"
-                Grid.Column="3" 
-                Background="#16233B" 
-                ResizeDirection="Columns"
-            />
-            <!-- Right Panel (Resizable) -->
-            <StackPanel 
-                VerticalAlignment="Stretch"
-                HorizontalAlignment="Stretch"
-                Grid.Row="0"
-                Grid.Column="4" Background="#1E2A47">
-                <controls1:InspectorControl/>
-            </StackPanel>
-            
-            <GridSplitter 
-                Grid.Row="1"
-                Grid.Column="0" 
-                Grid.ColumnSpan="5"
-                Background="#16233B" 
-                ResizeDirection="Rows"
-            />
-            <!-- Bottom Panel for Asset Browser/Console Switcher -->
-            <TabControl
-                Grid.Row="2"
-                Grid.Column="0"
-                Grid.ColumnSpan="5"
-                VerticalAlignment="Stretch"
-                Background="#1E2A47"
-            >
-                <TabItem Header="Content">
-                    <TextBlock Margin="5" Foreground="#D1D8E0">This is tab 1 content</TextBlock>
-                </TabItem>
-                <TabItem Header="Code">
-                    <TextBlock Margin="5" Foreground="Azure">This is tab 2 content</TextBlock>
-                </TabItem>
-                <TabItem Header="Console">
-                    <TextBlock Margin="5" Foreground="Azure">This is tab 2 content</TextBlock>
-                </TabItem>
-            </TabControl>
-        </Grid>
-        <Grid
-            Grid.ColumnDefinitions="128, *, 128"
-            Grid.Row="2" 
-            Grid.Column="0"
-            Background="#16233B" 
-            VerticalAlignment="Stretch"
-        >
-             <ProgressBar 
-                 Grid.Column="2"
-                 Name = "BackgroundProgressBar"
-                 Height="16"
-                 HorizontalAlignment="Stretch" 
-                 Background="#777A7A7A" 
-                 Foreground="Green" 
-                 Value="0"
-                 VerticalAlignment="Stretch"
-                >
-                 
-             </ProgressBar>
-        </Grid>
+    <Grid RowDefinitions="48, *, 24">
+        <Border Height="48" HorizontalAlignment="Stretch" Name="TitleBar" VerticalAlignment="Top" Padding="0" Margin="0" PointerPressed="TitleBar_OnPointerPressed">
+            <DockPanel Margin="0" VerticalSpacing="0" HorizontalAlignment="Stretch" Background="Gold">
+                <Grid DockPanel.Dock="Top" Background="Red" ColumnDefinitions ="96, *, 96">
+                    <StackPanel Grid.Column="0"></StackPanel>
+                    <TextBlock Grid.Column="1" Name="TitleText"
+                               Text="Custom Title"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="" VerticalAlignment="Stretch" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0" Spacing="0">
+                        <Button Background="Transparent">
+                            <Image 
+                                Source="avares://PlaygroundEditor/Assets/Icons/minimise-window.png"
+                                Width="16"
+                                Height="16"
+                            ></Image>
+                        </Button>
+                        <Button Background="Transparent">
+                            <Image 
+                                Source="avares://PlaygroundEditor/Assets/Icons/select-window.png"
+                                Width="16"
+                                Height="16"
+                            ></Image>
+                        </Button>
+                        <Button Background="Transparent">
+                            <Image 
+                                Source="avares://PlaygroundEditor/Assets/Icons/close-window.png"
+                                Width="16"
+                                Height="16"
+                            ></Image>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+        <DockControl Grid.Row="1" x:Name="Dock" Layout="{Binding Layout}" />
+        <StackPanel Grid.Row="2">
+            <ProgressBar Name="BackgroundProgressBar"></ProgressBar>
+        </StackPanel>
     </Grid>
 </Window>

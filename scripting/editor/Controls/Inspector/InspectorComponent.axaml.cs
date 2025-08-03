@@ -5,8 +5,8 @@ using Avalonia.Markup.Xaml;
 
 namespace PlaygroundEditor.Controls;
 
-public partial class InspectorComponentControl : UserControl {
-    public InspectorComponentControl(string title, List<Control> content) {
+public partial class InspectorComponent : UserControl {
+    public InspectorComponent(string title, List<Control> content) {
         InitializeComponent();
         
         var expander =  this.FindControl<Expander>("Expander");

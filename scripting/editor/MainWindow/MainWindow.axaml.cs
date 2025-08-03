@@ -10,6 +10,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
 
@@ -31,6 +32,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         
+        ExtendClientAreaToDecorationsHint = true;
+        ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.NoChrome;
+        ExtendClientAreaTitleBarHeightHint = -1;
+        TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
+        
         DataContext = new MainWindowViewModel(
             this.FindControl<ProgressBar>("BackgroundProgressBar")!
         );
@@ -46,6 +52,7 @@ public partial class MainWindow : Window
 
         _editorThread = new Thread(OnEditorUpdate);
         _editorThread.Start();
+
     }
 
     private void OnEditorUpdate()
@@ -119,10 +126,12 @@ public partial class MainWindow : Window
                 };
                 
                 NativeEngineEmbedHost.PlaygroundCoreMain(ref config);
-                //EditorEnvironment.Setup();
             });
             
         engineThread.Start();
+        
+        Thread.Sleep(250);
+        EditorEnvironment.Setup();
     }
     
     private void NativeEmbed_OnGotFocus(object? sender, PointerEventArgs e) {
@@ -151,5 +160,11 @@ public partial class MainWindow : Window
     private void MainWindow_OnLoaded(object? sender, RoutedEventArgs e)
     {
         ((MainWindowViewModel)DataContext!)?.OnViewDidAppear();
+    }
+    
+    private void TitleBar_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            BeginMoveDrag(e);
     }
 }

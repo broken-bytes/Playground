@@ -1,0 +1,32 @@
+<UserControl  xmlns="https://github.com/avaloniaui"
+              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+              xmlns:controls="clr-namespace:PlaygroundEditor.Controls"
+              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+              x:Class="PlaygroundEditor.Controls.Hierarchy"
+              x:DataType="controls:HierarchyViewModel" x:CompileBindings="True"
+>
+    <Grid
+        VerticalAlignment="Stretch"
+        HorizontalAlignment="Stretch"
+        RowDefinitions="32, *"
+        Background="#1E2A47"
+        Name="LeftPanel"
+    >
+        <StackPanel Grid.Row="0">
+            <Button>
+                <Image 
+                    Source="avares://PlaygroundEditor/Assets/Icons/plus-circle.png"
+                    Width="24"
+                    Height="24"
+                ></Image>
+            </Button>
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible">
+            <TreeView Name = "HierarchyTree" Foreground="#D1D8E0">
+            </TreeView>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
+

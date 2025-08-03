@@ -25,6 +25,11 @@ namespace playground::ecs {
 
     typedef void (*SystemTickDelegate)(ecs_iter_t*);
     typedef void (*ComponentLifetimeDelegate)(ecs_iter_t*);
+
+    typedef void (*CreateEntityHook)(uint64_t, const char*);
+    typedef void (*DestroyEntityHook)(uint64_t);
+    typedef void (*SetParentHook)(uint64_t, uint64_t);
+
     void Init(bool debugServer);
     void Update(double deltaTime);
     void Clear();
@@ -57,4 +62,10 @@ namespace playground::ecs {
 
     uint64_t CreateTag(const char* name);
     void AddTag(uint64_t entityId, uint64_t tagId);
+
+#if EDITOR
+    void SetEntityCreateHook(CreateEntityHook hook);
+    void SetEntityDestroyHook(DestroyEntityHook hook);
+    void SetEntitySetParentHook(SetParentHook hook);
+#endif
 }

@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Dock.Avalonia.Controls;
+using Dock.Model.Controls;
 using ReactiveUI;
 
 namespace PlaygroundEditor;
@@ -14,8 +16,8 @@ public class MainWindowViewModel : ReactiveObject
     private FileWatchdog _codeWatchdog;
     private FileWatchdog _assetsWatchdog;
     private ProgressBar _backgroundProgressbar;
-    
-    public MainWindowViewModel(ProgressBar progressBar)
+
+    public MainWindowViewModel(ProgressBar progressBar, DockControl dock)
     {
         _backgroundProgressbar = progressBar;
     }

@@ -248,8 +248,14 @@ void SetupPointerLookupTable(const PlaygroundConfig& config) {
 #if EDITOR
 void SetupEditorPointerLookupTable(const PlaygroundConfig& config) {
     playground::logging::logger::Info("Setting up editor pointer lookup table", "core");
+
     config.EditorDelegate("Input_SetCapturesInput\0", playground::inputmanager::SetCapturesInput);
+
     config.EditorDelegate("Events_Subscribe", SubscribeToEventsFromScripting);
+
+    config.EditorDelegate("ECS_CreateEntityHook\0", playground::ecs::SetEntityCreateHook);
+    config.EditorDelegate("ECS_DestroyEntityHook\0", playground::ecs::SetEntityDestroyHook);
+    config.EditorDelegate("ECS_SetEntityParentHook\0", playground::ecs::SetEntitySetParentHook);
 }
 #endif
 

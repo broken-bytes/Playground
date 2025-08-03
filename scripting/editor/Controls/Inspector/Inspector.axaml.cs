@@ -7,10 +7,10 @@ using Avalonia.Media;
 
 namespace PlaygroundEditor.Controls;
 
-public partial class InspectorControl : UserControl, EditorWindow {
+public partial class Inspector : UserControl, EditorWindow {
     private StackPanel _content;
     
-    public InspectorControl() {
+    public Inspector() {
         InitializeComponent();
         _content = this.FindControl<StackPanel>("Content")!;
         

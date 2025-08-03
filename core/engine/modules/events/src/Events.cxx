@@ -19,11 +19,15 @@ namespace playground::events {
 
     auto Subscribe(EventType type, std::function<void(Event*)> subscription) -> void {
         logging::logger::Info("Subscribing to event type: " + std::to_string(static_cast<uint32_t>(type)), "events");
+        // Print the address of the subscription function
+        logging::logger::Info("Subscription address: " + std::to_string(reinterpret_cast<uintptr_t>(subscription.target<void(Event*)>())), "events");
 		subscriptions[type].push_back(subscription);
     }
 
     auto Emit(Event* event) -> void {
         for (auto subscription : subscriptions[event->Type]) {
+            logging::logger::Debug("Emitting subscriber: " + std::to_string(*reinterpret_cast<uintptr_t*>(&subscription)), "events");
+            logging::logger::Info("Emitting event of type: " + std::to_string(static_cast<uint32_t>(event->Type)), "events");
 			subscription(event);
         }
     }

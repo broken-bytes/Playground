@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
 namespace playground::events {
-	enum class EventType {
+	enum class EventType: int32_t {
 		Health,
 		System,
 		Input,

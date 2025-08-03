@@ -26,7 +26,16 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Avalonia.Win32" Version="11.3.2" />
+    <PackageReference Include="Dock.Avalonia" Version="11.3.0.17" />
+    <PackageReference Include="Dock.Model" Version="11.3.0.17" />
+    <PackageReference Include="Dock.Model.Avalonia" Version="11.3.0.17" />
+    <PackageReference Include="Dock.Model.Mvvm" Version="11.3.0.17" />
+    <PackageReference Include="Dock.Model.ReactiveUI" Version="11.3.0.17" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
+    <PackageReference Include="StaticViewLocator" Version="0.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="StbSharp" Version="0.7.2.38" />
     <PackageReference Include="Svg.Skia" Version="2.0.0.4" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
@@ -59,6 +68,12 @@
         <AvaloniaResource Include="Assets\Fonts\Rubik-Italic.ttf" />
         <None Remove="Assets\Fonts\Rubik-VariableFont_wght.ttf" />
         <AvaloniaResource Include="Assets\Fonts\Rubik.ttf" />
+        <None Remove="Assets\Icons\close-window.png" />
+        <AvaloniaResource Include="Assets\Icons\close-window.png" />
+        <None Remove="Assets\Icons\minimise-window.png" />
+        <AvaloniaResource Include="Assets\Icons\minimise-window.png" />
+        <None Remove="Assets\Icons\select-window.png" />
+        <AvaloniaResource Include="Assets\Icons\select-window.png" />
     </ItemGroup>
     <ItemGroup>
       <Reference Include="Playground">
@@ -74,6 +89,28 @@
         <DependentUpon>MainWindow.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
+      <Compile Update="Controls\Hierarchy\Hierarchy.axaml.cs">
+        <DependentUpon>HierarchyControl.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Controls\Inspector\Inspector.axaml.cs">
+        <DependentUpon>InspectorControl.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Controls\Inspector\InspectorComponent.axaml.cs">
+        <DependentUpon>InspectorComponentControl.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Controls\Inspector\InspectorField.axaml.cs">
+        <DependentUpon>InspectorField.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+    </ItemGroup>
+    <ItemGroup>
+      <None Remove="Assets\Icons\plus-circle.png" />
+      <AvaloniaResource Include="Assets\Icons\plus-circle.png">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </AvaloniaResource>
     </ItemGroup>
 
 </Project>

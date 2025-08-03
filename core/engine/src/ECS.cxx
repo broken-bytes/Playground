@@ -42,6 +42,12 @@ namespace playground::ecs {
 
     std::vector<std::shared_ptr<jobsystem::JobHandle>> jobs;
 
+#if EDITOR
+    CreateEntityHook createEntityHook = nullptr;
+    DestroyEntityHook destroyEntityHook = nullptr;
+    SetParentHook setParentHook = nullptr;
+#endif
+
     uint64_t CreateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate, ecs_entity_t dependsOn);
     void RegisterComponents();
     void RegisterSystems();
@@ -210,17 +216,37 @@ namespace playground::ecs {
     }
 
     uint64_t CreateEntity(const char* name) {
+#if EDITOR
+        auto entity = world->entity(name);
+
+        if (createEntityHook) {
+            createEntityHook(entity.id(), name);
+        }
+
+        return entity.id();
+#else
         return world->entity(name);
+#endif
     }
 
     void DestroyEntity(uint64_t entityId) {
         world->entity(entityId).destruct();
+#if EDITOR
+        if (destroyEntityHook) {
+            destroyEntityHook(entityId);
+        }
+#endif
     }
 
     void SetParent(uint64_t childId, uint64_t parentId) {
         world->entity(childId).remove(flecs::ChildOf);
         // Make entity a child of the new parent
         world->entity(childId).add(flecs::ChildOf, parentId);
+#if EDITOR
+        if (setParentHook) {
+            setParentHook(childId, parentId);
+        }
+#endif
     }
 
     uint64_t GetParent(uint64_t childId) {
@@ -358,4 +384,18 @@ namespace playground::ecs {
 
         return ecs_system_init(*world, &system);
     }
+
+#if EDITOR
+    void SetEntityCreateHook(CreateEntityHook hook) {
+        createEntityHook = hook;
+    }
+
+    void SetEntityDestroyHook(DestroyEntityHook hook) {
+        destroyEntityHook = hook;
+    }
+
+    void SetEntitySetParentHook(SetParentHook hook) {
+        setParentHook = hook;
+    }
+#endif
 }

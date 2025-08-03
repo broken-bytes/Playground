@@ -6,9 +6,9 @@ public static class Theme
 {
     public static class Colours
     {
-        public static readonly Color Background = Color.Parse("#16233B");
-        public static readonly Color BackgroundLight = Color.Parse("#1E2A47");
-        public static readonly Color Elevated = Color.Parse("#777A7A7A");
+        public static readonly Color Background = Color.Parse("#121212");
+        public static readonly Color BackgroundLight = Color.Parse("#282828");
+        public static readonly Color Elevated = Color.Parse("#3f3f3f");
         
         public static class Actions
         {
