@@ -1,3 +1,5 @@
+@component
+@component
 internal struct DrawCallComponent {
     let modelHandle: UnsafeMutableRawPointer
     let materialHandle: UnsafeMutableRawPointer

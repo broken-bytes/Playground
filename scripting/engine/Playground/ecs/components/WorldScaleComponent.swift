@@ -1,3 +1,4 @@
+@component
 public struct WorldScaleComponent: Codable {
     public var scale: Vector3
 

@@ -42,7 +42,7 @@ internal enum ECSHandler {
     private static nonisolated(unsafe) var createTagPtr: CreateTag!
     private static nonisolated(unsafe) var addTagPtr: AddTag!
 
-    private static nonisolated(unsafe) var componentMapping: [ObjectIdentifier: UInt64] = [:]
+    private static nonisolated(unsafe) var componentMapping: [String: UInt64] = [:]
     private static nonisolated(unsafe) var tagMapping: [String: UInt64] = [:]
 
     internal static func start() {
@@ -88,46 +88,52 @@ internal enum ECSHandler {
         return name.withCString { return getEntityByNamePtr($0) }
     }
 
-    internal static nonisolated func registerComponent<T>(_ type: T.Type) -> UInt64 {
+    internal static nonisolated func registerComponent<T>(_ type: T.Type) -> UInt64 where T: ~Copyable, T: Sendable {
         "\(T.self)".withCString {
-            let objectId = ObjectIdentifier(T.self)
+            let typeName = String(reflecting: T.self)
             let id = registerComponentPtr($0, UInt64(MemoryLayout<T>.stride), UInt64(MemoryLayout<T>.alignment))
 
-            componentMapping[objectId] = id
+            componentMapping[typeName] = id
 
             return id
         }
     }
 
     internal static nonisolated func addComponent<T>(_ id: UInt64, type: T.Type) {
-        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        let typeName = String(reflecting: T.self)
+        let componentId = componentMapping[typeName] ?? registerComponent(T.self)
         addComponentPtr(id, componentId)
     }
 
     internal static nonisolated func setComponent<T>(_ id: UInt64, data: inout T) {
-        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        let typeName = String(reflecting: T.self)
+        let componentId = componentMapping[typeName] ?? registerComponent(T.self)
         setComponentPtr(id, componentId, &data)
     }
 
     internal static nonisolated func getComponent<T>(_ id: UInt64, type: T.Type) -> UnsafeMutablePointer<T> {
-        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        let typeName = String(reflecting: T.self)
+        let componentId = componentMapping[typeName] ?? registerComponent(T.self)
 
         return getComponentPtr(id, componentId).assumingMemoryBound(to: T.self)
     }
 
     internal static nonisolated func hasComponent<T>(_ id: UInt64, type: T.Type) -> Bool {
-        let componentId: UInt64 = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        let typeName = String(reflecting: T.self)
+        let componentId = componentMapping[typeName] ?? registerComponent(T.self)
 
         return hasComponentPtr(id, componentId)
     }
 
     internal static func id<T>(for type: T.Type) -> UInt64 {
-        return componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        let typeName = String(reflecting: T.self)
+        
+        return componentMapping[typeName] ?? registerComponent(T.self)
     }
 
     internal static nonisolated func destroyComponent<T>(_ id: UInt64, type: T.Type) {
-        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
-
+        let typeName = String(reflecting: T.self)
+        let componentId = componentMapping[typeName] ?? registerComponent(T.self)
         destroyComponentPtr(id, componentId)
     }
 
@@ -158,7 +164,8 @@ internal enum ECSHandler {
     }
 
     internal static nonisolated func addHook<T>(_ type: T.Type, onAdd: IteratorDelegate, onRemove: IteratorDelegate) {
-        let componentId = componentMapping[ObjectIdentifier(T.self)] ?? registerComponent(T.self)
+        let typeName = String(reflecting: T.self)
+        let componentId = componentMapping[typeName] ?? registerComponent(T.self)
         createHookPtr(componentId, onAdd, onRemove)
     }
 

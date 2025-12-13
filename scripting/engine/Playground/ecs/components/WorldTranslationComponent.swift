@@ -1,3 +1,4 @@
+@component
 public struct WorldTranslationComponent: Codable {
     public var position: Vector3
 

@@ -1,3 +1,4 @@
+@component
 public struct AudioListenerComponent: Codable {
     var index: UInt8
 

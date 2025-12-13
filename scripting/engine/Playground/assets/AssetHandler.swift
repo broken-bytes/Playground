@@ -1,3 +1,5 @@
+public typealias AssetReference = UnsafePointer<CChar>
+
 internal typealias LoadModel = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer
 internal typealias LoadMaterial = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer
 internal typealias LoadPhysicsMaterial = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer
@@ -13,21 +15,15 @@ internal enum AssetHandler {
         loadPhysicsMaterialPtr = NativeLookupTable.getFunctionPointer(by: "AssetManager_LoadPhysicsMaterial")
     }
 
-    internal nonisolated static func loadModel(named: String) -> UnsafeMutableRawPointer {
-        named.withCString {
-            loadModelPtr($0)
-        }
+    internal nonisolated static func loadModel(named: AssetReference) -> UnsafeMutableRawPointer {
+        loadModelPtr(named)
     }
 
-    internal nonisolated static func loadMaterial(named: String) -> UnsafeMutableRawPointer {
-        named.withCString {
-            loadMaterialPtr($0)
-        }
+    internal nonisolated static func loadMaterial(named: AssetReference) -> UnsafeMutableRawPointer {
+        loadMaterialPtr(named)
     }
 
-    internal nonisolated static func loadPhysicsMaterial(named: String) -> UnsafeMutableRawPointer {
-        named.withCString {
-            loadPhysicsMaterialPtr($0)
-        }
+    internal nonisolated static func loadPhysicsMaterial(named: AssetReference) -> UnsafeMutableRawPointer {
+        loadPhysicsMaterialPtr(named)
     }
 }

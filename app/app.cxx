@@ -1,5 +1,6 @@
 #include <cassert>
 #include <filesystem>
+#include <iostream>
 #include <playground/Engine.hxx>
 
 #include <thread>
@@ -23,7 +24,7 @@ void StartUpEngine(LookupTableDelegate lookup, ScriptStartupCallback startup) {
         lookup,
 #if EDITOR
         nullptr,
-#endif,
+#endif
         startup,
         windowWidth,
         windowHeight,
@@ -47,8 +48,12 @@ int main(int argc, char** argv) {
     LookupTableDelegate lookupPtr;
     ScriptStartupCallback startupPtr;
 
-    PlaygroundMain(StartupDelegate);
+    //PlaygroundMain(StartupDelegate);
 
+    StartUpEngine([](auto name, auto ptr)
+    {
+        std::cout << name << std::endl;
+    }, []() {});
 
 	return 0;
 }

@@ -2,17 +2,17 @@ if(WIN32)
 add_executable(PlaygroundApp app.cxx)
 endif()
 
-target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/include)
+target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/editor/assetpipeline/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/editor/assetdatabase/include)
-target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
+target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/assetloader/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
-target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/shared/include)
+target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/shared/include)
 
 find_package(Stb REQUIRED)
 
 target_link_directories(PlaygroundApp PRIVATE ${PLAYGROUND_LIB_DIR})
-target_link_libraries(PlaygroundApp PRIVATE Playground PlaygroundCore Profiler SDL3::SDL3 Shared)
+target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore Profiler SDL3::SDL3 Shared)
 
 target_include_directories(PlaygroundApp PRIVATE ${Stb_INCLUDE_DIR})
 

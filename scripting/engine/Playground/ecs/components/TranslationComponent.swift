@@ -1,3 +1,4 @@
+@component
 public struct TranslationComponent: Codable {
     internal var isDirty: Bool = true
 

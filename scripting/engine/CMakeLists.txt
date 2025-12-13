@@ -29,6 +29,10 @@ else()
     set(SWIFT_FLAGS "")
 endif()
 
+if(ENGINE_BUILD)
+    list(APPEND SWIFT_FLAGS -DENGINE_BUILD)
+endif()
+
 message(INFO ${SWIFT_FLAGS})
 
 add_subdirectory(Native)

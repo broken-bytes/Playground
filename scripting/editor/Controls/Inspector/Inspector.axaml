@@ -4,6 +4,32 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="PlaygroundEditor.Controls.Inspector">
-    <StackPanel Name = "Content" Background="{DynamicResource ThemeBackgroundBrush}" Orientation="Vertical" HorizontalAlignment="Stretch"></StackPanel>
+    <TabControl 
+        Grid.Row="2" 
+        Grid.Column="0" 
+        Grid.ColumnSpan="5" 
+        Background="{DynamicResource ThemeBackgroundBrush}"
+        VerticalAlignment="Stretch" 
+    > 
+        <TabItem Header="Inspector"> 
+            <Grid
+                VerticalAlignment="Stretch"
+                HorizontalAlignment="Stretch"
+                RowDefinitions="32, *, 32"
+                Background="{DynamicResource ThemeBackgroundBrush}"
+                Name="LeftPanel"
+            >
+                <TextBlock Name="EntityName"></TextBlock>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible">
+                    <StackPanel Name = "Content" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"></StackPanel>
+                </ScrollViewer>
+                <StackPanel Grid.Row="2">
+                    <Button>
+                        Add Component
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </TabItem> 
+    </TabControl>
 </UserControl>
 

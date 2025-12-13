@@ -2,7 +2,8 @@
 import WinSDK
 #endif
 
-public struct AudioSourceComponent {
+@component
+public struct AudioSourceComponent: ~Copyable {
     var previousPosition: Vector3 = .zero
     var forward: Vector3 = .zero
     var handle: UInt64 = UInt64.max
@@ -14,7 +15,9 @@ public struct AudioSourceComponent {
         _ = eventName.withCString { basePtr in
             strcpy(self.eventName, basePtr)
         }
+    }
 
-        // TODO: Fix possible leak here
+    deinit {
+        self.eventName.deallocate()
     }
 }

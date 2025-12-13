@@ -7,26 +7,32 @@
               x:Class="PlaygroundEditor.Controls.Hierarchy"
               x:DataType="controls:HierarchyViewModel" x:CompileBindings="True"
 >
-    <Grid
-        VerticalAlignment="Stretch"
-        HorizontalAlignment="Stretch"
-        RowDefinitions="32, *"
+    <TabControl 
+        Grid.Row="2" 
+        Grid.Column="0" 
+        Grid.ColumnSpan="5" 
         Background="{DynamicResource ThemeBackgroundBrush}"
-        Name="LeftPanel"
-    >
-        <StackPanel Grid.Row="0">
-            <Button>
-                <Image 
-                    Source="avares://PlaygroundEditor/Assets/Icons/plus-circle.png"
-                    Width="24"
-                    Height="24"
-                ></Image>
-            </Button>
-        </StackPanel>
-        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible">
-            <TreeView Name = "HierarchyTree" Foreground="#D1D8E0">
-            </TreeView>
-        </ScrollViewer>
-    </Grid>
+        VerticalAlignment="Stretch" 
+    > 
+        <TabItem Header="Hierarchy"> 
+            <Grid
+                VerticalAlignment="Stretch"
+                HorizontalAlignment="Stretch"
+                RowDefinitions="32, *"
+                Background="{DynamicResource ThemeBackgroundBrush}"
+                Name="LeftPanel"
+            >
+                <StackPanel Grid.Row="0">
+                    <Button>
+                        Create
+                    </Button>
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible">
+                    <TreeView Name = "HierarchyTree" Foreground="#D1D8E0">
+                    </TreeView>
+                </ScrollViewer>
+            </Grid>
+        </TabItem> 
+    </TabControl>
 </UserControl>
 

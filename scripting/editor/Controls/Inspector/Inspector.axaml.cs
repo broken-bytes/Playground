@@ -8,10 +8,12 @@ using Avalonia.Media;
 namespace PlaygroundEditor.Controls;
 
 public partial class Inspector : UserControl, EditorWindow {
+    private TextBlock _titleTextBlock;
     private StackPanel _content;
     
     public Inspector() {
         InitializeComponent();
+        _titleTextBlock = this.FindControl<TextBlock>("EntityName")!;
         _content = this.FindControl<StackPanel>("Content")!;
         
         EditorWindowManager.EditorWindows.Add(this);

@@ -12,7 +12,7 @@
         PointerPressed="InputElement_OnPointerPressed"
         Loaded="MainWindow_OnLoaded"
 >
-    <Grid RowDefinitions="36, *, 24">
+    <Grid RowDefinitions="36, 48, *, 24">
         <Border Height="36" HorizontalAlignment="Stretch" Name="TitleBar" VerticalAlignment="Top" Padding="0" Margin="0" PointerPressed="TitleBar_OnPointerPressed">
             <DockPanel Margin="0" VerticalSpacing="0" HorizontalAlignment="Stretch">
                 <Grid DockPanel.Dock="Top" ColumnDefinitions ="112, *, 112">
@@ -47,8 +47,24 @@
                 </Grid>
             </DockPanel>
         </Border>
+        <Grid Grid.Row="1">
+            <DockPanel>
+                <Menu DockPanel.Dock="Top">
+                    <MenuItem Header="_File">
+                        <MenuItem Header="_Open..."/>
+                        <Separator/>
+                        <MenuItem Header="_Exit"/>
+                    </MenuItem>
+                    <MenuItem Header="_Edit">
+                        <MenuItem Header="Copy"/>
+                        <MenuItem Header="Paste"/>
+                    </MenuItem>
+                </Menu>
+                <TextBlock/>
+            </DockPanel>
+        </Grid>
         <Grid 
-            Grid.Row="1" 
+            Grid.Row="2" 
             RowDefinitions="*, 5, 300" 
             ColumnDefinitions="250, 5, *, 5, 250" 
             VerticalAlignment="Stretch" 
@@ -118,8 +134,8 @@
                 </TabItem> 
             </TabControl> 
         </Grid> 
-      <StackPanel Grid.Row="2">
+        <StackPanel Grid.Row="3">
             <ProgressBar Name="BackgroundProgressBar"></ProgressBar>
-    </StackPanel>
+        </StackPanel>
     </Grid>
 </Window>

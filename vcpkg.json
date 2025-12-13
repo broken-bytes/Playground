@@ -12,10 +12,8 @@
     "libjpeg-turbo",
     "libpng",
     "libsodium",
-    "libvorbis",
     "libzip",
     "nlohmann-json",
-    "openal-soft",
     "rmlui",
     "stduuid",
     "stb"

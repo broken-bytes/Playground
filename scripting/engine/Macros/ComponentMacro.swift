@@ -1,17 +1,18 @@
+import Foundation
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 import SwiftParser
 
-public struct ComponentMacro: MemberMacro, ExtensionMacro  {
+public struct ComponentMacro: MemberMacro  {
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        guard let classDecl = declaration.as(ClassDeclSyntax.self) else { return [] }
+        guard let structDecl = declaration.as(StructDeclSyntax.self) else { return [] }
 
-        let fields = classDecl.memberBlock.members.compactMap { member -> (name: String, type: String)? in
+        let fields = structDecl.memberBlock.members.compactMap { member -> (name: String, type: String)? in
             guard
                 let varDecl = member.decl.as(VariableDeclSyntax.self),
                 let binding = varDecl.bindings.first,
@@ -22,66 +23,70 @@ public struct ComponentMacro: MemberMacro, ExtensionMacro  {
             return (identifier.identifier.text, type.trimmingCharacters(in: .whitespacesAndNewlines))
         }
 
-        let setCases = fields.map { name, type in
-            "case \"\(name)\": self.\(name) = value as! \(type)"
-        }.joined(separator: "\n        ")
-
-        let getCases = fields.map { name, _ in
-            "case \"\(name)\": return \(name)"
-        }.joined(separator: "\n        ")
-
-        let setField = """
-        func setField(_ name: String, _ value: Any) {
-            switch name {
-        \(setCases)
-            default: fatalError("Unknown field: \\(name)")
-            }
+        let jsonFields: [[String: String]] = fields.map { field in
+            return [
+                "name": String(describing: field.name),
+                "type": String(describing: field.type)
+            ]
         }
-        """
 
-        let getField = """
-        func getField(_ name: String) -> Any? {
-            switch name {
-        \(getCases)
-            default: return nil
-            }
-        }
-        """
-
-        return [
-            DeclSyntax(stringLiteral: setField),
-            DeclSyntax(stringLiteral: getField)
+        let jsonObject: [String: Any] = [
+            "name": structDecl.identifier.text,
+            "fields": jsonFields
         ]
-    }
 
-    public static func expansion(
-        of node: AttributeSyntax,
-        attachedTo declaration: some DeclGroupSyntax,
-        providingExtensionsOf type: some TypeSyntaxProtocol,
-        conformingTo protocols: [TypeSyntax],
-        in context: some MacroExpansionContext
-    ) throws -> [ExtensionDeclSyntax] {
-        guard let classDecl = declaration.as(ClassDeclSyntax.self) else { return [] }
+        let isEngineBuild = ProcessInfo.processInfo.environment["ENGINE_BUILD"] == "1"
+        let projectName = ProcessInfo.processInfo.environment["PROJECT_NAME"] ?? "Unknown"
 
-        var inheritedTypes = ""
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
 
-        // Parse macro arguments: @Component(OnUpdate, OnStart)
-        if let arguments = node.argument?.as(TupleExprElementListSyntax.self) {
-            for arg in arguments {
-                if let memberAccess = arg.expression.as(MemberAccessExprSyntax.self) {
-                    let caseName = memberAccess.declName.baseName.text
-                    let protocolName = "Component.\(uppercasedFirstLetter(caseName))"
-                    inheritedTypes += protocolName + ","
+        let outputDir: URL
+        if isEngineBuild {
+            outputDir = base.appendingPathComponent("BrokenBytes/BlitzEngine/CoreComponents/Reflection")
+        } else {
+            outputDir = base
+                .appendingPathComponent("BrokenBytes/BlitzEngine/Projects")
+                .appendingPathComponent(projectName)
+                .appendingPathComponent("Reflection")
+        }
+
+        try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+        let jsonData = try JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted])
+
+        // Pick a write path — this must be somewhere writable by your build env
+        let outputPath = outputDir.appendingPathComponent("\(structDecl.identifier.text).json")
+
+        try jsonData.write(to: outputPath)
+
+         // Generate switch cases for each field
+        let switchCases = fields.map { field in
+            let name = field.name
+            return """
+            case "\(name)":
+                return base.distance(to: UnsafeRawPointer(&instance.\(name)))
+            """
+        }.joined(separator: "\n")
+
+        let offsetFunc = try DeclSyntax(stringLiteral:
+            """
+            static func offset(of field: String) -> Int {
+                var raw = [UInt8](repeating: 0, count: MemoryLayout<Self>.size)
+                return raw.withUnsafeMutableBytes { rawBuffer in
+                    let ptr = rawBuffer.baseAddress!.assumingMemoryBound(to: Self.self)
+                    let base = UnsafeRawPointer(ptr)
+                    var instance = ptr.pointee
+
+                    switch field {
+                        \(switchCases)
+                        default:
+                            return -1
+                    }
                 }
             }
-        }
+            """
+        )
 
-        inheritedTypes = String(inheritedTypes.dropLast())
-
-        return [ExtensionDeclSyntax(
-            extendedType: type,
-            memberBlock: MemberBlockSyntax(": \(raw: inheritedTypes) {}"))
-        ]
+        return [offsetFunc]
     }
 }
 

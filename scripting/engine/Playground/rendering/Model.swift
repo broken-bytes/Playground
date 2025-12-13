@@ -1,9 +1,11 @@
 public extension Rendering {
     public class Model {
-        internal let handle: UnsafeMutableRawPointer!
+        internal private(set) var handle: UnsafeMutableRawPointer!
 
         internal init(named: String) {
-            handle = AssetHandler.loadModel(named: named)
+            named.withCString { str in
+                handle = AssetHandler.loadModel(named: str)
+            }
         }
     }
 }

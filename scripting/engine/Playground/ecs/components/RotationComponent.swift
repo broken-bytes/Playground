@@ -1,3 +1,4 @@
+@component
 public struct RotationComponent: Codable {
     public var rotation: Quaternion
 

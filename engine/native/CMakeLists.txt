@@ -1,0 +1,52 @@
+add_subdirectory(modules)
+
+FILE(GLOB_RECURSE HEADERS "include/*.h*")
+FILE(GLOB_RECURSE SRC "src/*.cxx")
+
+if (BUILD_EDITOR)
+    add_library(PlaygroundCoreEditor SHARED ${SRC} ${HEADERS})
+
+    target_compile_definitions(PlaygroundCoreEditor PUBLIC -DEDITOR)
+
+    target_include_directories(PlaygroundCoreEditor PRIVATE include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${EASTL_INC_DIR} ${EABASE_INC_DIR})
+
+    target_link_directories(PlaygroundCoreEditor PRIVATE ${EASTL_LIB_DIR})
+    target_link_libraries(PlaygroundCoreEditor PRIVATE AssetLoader Audio Events flecs::flecs_static Input IO Physics Rendering Shared SDL3::SDL3 System Profiler Math EASTL concurrentqueue)
+
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/assetloader/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/audio/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/input/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/io/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/logger/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/math/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/physics/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/profiler/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/rendering/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/shared/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/system/include)
+    target_include_directories(PlaygroundCoreEditor PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/events/include)
+else()
+    add_library(PlaygroundCore SHARED ${SRC} ${HEADERS})
+    target_include_directories(PlaygroundCore PRIVATE include)
+
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/vendor/tracy/public)
+
+    target_link_directories(PlaygroundCore PRIVATE ${EASTL_LIB_DIR})
+    target_include_directories(PlaygroundCore PRIVATE ${EASTL_INC_DIR} ${EABASE_INC_DIR})
+
+    target_link_libraries(PlaygroundCore PRIVATE AssetLoader Audio Events flecs::flecs_static Input IO Physics Rendering Shared SDL3::SDL3 System Profiler Math EASTL concurrentqueue)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/assetloader/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/audio/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/input/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/io/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/logger/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/math/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/physics/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/profiler/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/rendering/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/shared/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/system/include)
+    target_include_directories(PlaygroundCore PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/events/include)
+endif()

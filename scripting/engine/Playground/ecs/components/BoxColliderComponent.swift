@@ -1,5 +1,6 @@
 @_alignment(8)
 @frozen
+@component
 public struct BoxColliderComponent {
     public var dimensions: Vector3 = .zero
     public var offset: Vector3 = .zero

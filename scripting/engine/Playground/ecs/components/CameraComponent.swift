@@ -1,4 +1,5 @@
 @frozen
+@component
 public struct CameraComponent: Codable {
     public var order: UInt8
     public var fov: Float

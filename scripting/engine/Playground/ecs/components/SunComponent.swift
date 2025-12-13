@@ -1,3 +1,4 @@
+@component
 public struct SunComponent: Codable {
     public var direction: Vector3
     public var colour: Rendering.Colour

@@ -7,8 +7,8 @@ find_package(cereal CONFIG REQUIRED)
 
 target_include_directories(Cooker PRIVATE include)
 target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/core/editor/assetpipeline/include)
-target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/assetloader/include)
-target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/core/engine/modules/math/include)
+target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/assetloader/include)
+target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/math/include)
 
 target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/vendor/dxc/inc)
 target_link_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/vendor/dxc/lib)

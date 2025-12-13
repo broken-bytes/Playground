@@ -1,9 +1,11 @@
 public extension Rendering {
     public class Material {
-        internal let materialHandle: UnsafeMutableRawPointer! // The handle to the material
+        internal private(set) var handle: UnsafeMutableRawPointer! // The handle to the material
 
         internal init (named: String) {
-            materialHandle = AssetHandler.loadMaterial(named: named)
+            named.withCString { str in
+                handle = AssetHandler.loadMaterial(named: str)
+            }
         }
 
         deinit {

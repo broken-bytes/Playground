@@ -41,7 +41,7 @@ FetchContent_MakeAvailable(SIMDe)
 FetchContent_Declare(
 	glm
 	GIT_REPOSITORY	https://github.com/g-truc/glm.git
-	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
+	GIT_TAG 	a532f5b1cf27d6a3c099437e6959cf7e398a0a67 #refs/tags/1.0.2
 )
 FetchContent_MakeAvailable(glm)
 
@@ -51,6 +51,13 @@ FetchContent_Declare(
   GIT_TAG 6dd38b8a1dbaa7863aa907045f32308a56a6ff5d
 )
 FetchContent_MakeAvailable(concurrentqueue)
+
+FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG        v1.16.0
+)
+FetchContent_MakeAvailable(spdlog)
 
 if(ENABLE_PROFILER)
     add_compile_definitions(ENABLE_TRACY)
@@ -89,8 +96,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${OUTPUT_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${OUTPUT_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${OUTPUT_DIR}/lib)
 
-add_subdirectory(core)
-#add_subdirectory(app)
+add_subdirectory(engine)
+add_subdirectory(app)
+add_subdirectory(editor)
 add_subdirectory(tools)
 
 set_target_properties(AssetPipeline PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
