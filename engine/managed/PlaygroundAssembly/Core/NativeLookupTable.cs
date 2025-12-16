@@ -1,4 +1,6 @@
-﻿namespace PlaygroundAssembly.Core;
+﻿using System.Text;
+
+namespace PlaygroundAssembly.Core;
 
 internal static unsafe class NativeLookupTable
 {
@@ -9,8 +11,9 @@ internal static unsafe class NativeLookupTable
         return (void*)Table[name];
     }
 
-    internal static void AddEntry(string key, IntPtr ptr)
+    internal static void AddEntry(byte* key, int length, IntPtr ptr)
     {
-        Table[key] = ptr;
+        var strName = Encoding.UTF8.GetString(key, length);
+        Table[strName] = ptr;
     }
 }

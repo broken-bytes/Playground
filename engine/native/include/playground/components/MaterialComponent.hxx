@@ -8,7 +8,6 @@ namespace playground::assetmanager {
 }
 
 struct MaterialComponent {
-    const char* name;
     playground::assetmanager::MaterialHandle* handle;
 };
 

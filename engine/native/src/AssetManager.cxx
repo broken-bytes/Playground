@@ -28,7 +28,7 @@ namespace playground::assetmanager {
         if (handleId < _modelHandles.size()) {
             _modelHandles[handleId]->state.store(ResourceState::Uploaded);
             _modelHandles[handleId]->meshes = std::move(meshes);
-            _modelHandles[handleId]->refCount--;
+            _modelHandles[handleId]->internalRefs--;
         }
     }
 
@@ -42,7 +42,7 @@ namespace playground::assetmanager {
                 if (handleId < _materialHandles.size()) {
                     _materialHandles[handleId]->state.store(ResourceState::Uploaded);
                     _materialHandles[handleId]->material = materialId;
-                    _materialHandles[handleId]->refCount--;
+                    _materialHandles[handleId]->internalRefs--;
 
                     int index = 0;
                     for (auto& texture : _materialHandles[handleId]->textures) {
@@ -82,7 +82,7 @@ namespace playground::assetmanager {
             _textureHandles[handleId]->state = ResourceState::Uploaded;
             _textureHandles[handleId]->data = nullptr;
             _textureHandles[handleId]->texture = texture;
-            _textureHandles[handleId]->refCount--;
+            _textureHandles[handleId]->internalRefs--;
             delete _textureHandles[handleId]->data;
 
             auto completion = jobsystem::Job{
@@ -105,7 +105,7 @@ namespace playground::assetmanager {
             _cubemapHandles[handleId]->data = nullptr;
             _cubemapHandles[handleId]->faces = {};
             _cubemapHandles[handleId]->cubemap = cubemap;
-            _cubemapHandles[handleId]->refCount--;
+            _cubemapHandles[handleId]->internalRefs--;
 
             auto completion = jobsystem::Job{
                 .Name = std::string("CUBEMAP_UPLOAD_COMPLETION_") + std::to_string(handleId),
@@ -120,11 +120,7 @@ namespace playground::assetmanager {
         }
     }
 
-    ModelHandle* LoadModel_C(const char* name) {
-        return LoadModel(std::string(name));
-    }
-
-    ModelHandle* LoadModel(std::string name) {
+    ModelHandle* LoadModel(const char* name) {
         auto hash = shared::Hash(name);
 
         ModelHandle* handle;
@@ -133,12 +129,12 @@ namespace playground::assetmanager {
             if (handle->hash == hash) {
                 auto state = handle->state.load();
                 if (state == ResourceState::Uploaded || state == ResourceState::Loading || state == ResourceState::Created) {
-                    handle->refCount++;
+                    handle->externalRefs++;
                     return handle;
                 }
-                else if (state == ResourceState::Unloaded) {
+                if (state == ResourceState::Unloaded) {
                     auto rawMeshData = playground::assetloader::LoadMeshes(name);
-                    handle->refCount = 1;
+                    handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
                     playground::rendering::QueueUploadModel(rawMeshData, i, MarkModelUploadFinished);
 
@@ -152,7 +148,8 @@ namespace playground::assetmanager {
         auto newHandle = new ModelHandle{
             .hash = hash,
             .state = {ResourceState::Created},
-            .refCount = 1,
+            .externalRefs = 1,
+            .internalRefs = 0,
             .meshes = {},
         };
 
@@ -165,11 +162,7 @@ namespace playground::assetmanager {
         return _modelHandles[handleId];
     }
 
-    MaterialHandle* LoadMaterial_C(const char* name, void (*onCompletion)(uint32_t)) {
-        return LoadMaterial(std::string(name), onCompletion);
-    }
-
-    MaterialHandle* LoadMaterial(std::string name, void (*onCompletion)(uint32_t)) {
+    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t)) {
         auto hash = shared::Hash(name);
 
         std::optional<uint32_t> handleId;
@@ -178,14 +171,14 @@ namespace playground::assetmanager {
             handle = _materialHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
-                    handle->refCount++;
+                    handle->externalRefs++;
 
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     handle = _materialHandles[i];
                     handleId = i;
-                    handle->refCount = 1;
+                    handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
 
                     break;
@@ -197,11 +190,12 @@ namespace playground::assetmanager {
             handleId = _materialHandles.size();
 
             handle = new MaterialHandle{
-              .hash = hash,
-              .state = {ResourceState::Created},
-              .refCount = 1,
-              .material = 0,
-              .onCompletion = onCompletion,
+                .hash = hash,
+                .state = {ResourceState::Created},
+                .externalRefs = 1,
+                .internalRefs = 0,
+                .material = 0,
+                .onCompletion = onCompletion,
             };
 
             _materialHandles.push_back(handle);
@@ -211,12 +205,12 @@ namespace playground::assetmanager {
         auto rawMaterialData = playground::assetloader::LoadMaterial(materialName);
 
         for (auto& texture : rawMaterialData.textures) {
-            auto texHandle = LoadTexture(texture.value);
+            auto texHandle = LoadTexture(texture.value.c_str());
             handle->textures.insert({ texture.name, texHandle });
         }
 
         for (auto& cubemap : rawMaterialData.cubemaps) {
-            auto cubemapHandle = LoadCubemap(cubemap.value);
+            auto cubemapHandle = LoadCubemap(cubemap.value.c_str());
             handle->cubemaps.insert({ cubemap.name, cubemapHandle });
         }
 
@@ -278,12 +272,12 @@ namespace playground::assetmanager {
             handle = _shaderHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
-                    handle->refCount++;
+                    handle->externalRefs++;
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto rawShaderData = playground::assetloader::LoadShader(name);
-                    handle->refCount = 1;
+                    handle->externalRefs = 1;
                     handle->state = ResourceState::Created;
                     handle->vertexShader = rawShaderData.vertexShader;
                     handle->pixelShader = rawShaderData.pixelShader;
@@ -298,7 +292,8 @@ namespace playground::assetmanager {
         auto newHandle = new ShaderHandle{
             .hash = hash,
             .state = ResourceState::Created,
-            .refCount = 1,
+            .externalRefs = 1,
+            .internalRefs = 0,
             .vertexShader = rawShaderData.vertexShader,
             .pixelShader = rawShaderData.pixelShader,
         };
@@ -310,7 +305,7 @@ namespace playground::assetmanager {
         return _shaderHandles[handleId];
     }
 
-    TextureHandle* LoadTexture(std::string name) {
+    TextureHandle* LoadTexture(const char* name) {
         auto hash = shared::Hash(name);
 
         std::optional<uint32_t> handleId;
@@ -319,13 +314,13 @@ namespace playground::assetmanager {
             handle = _textureHandles[i];
             if (handle->hash == hash) {
                 if (handle->state.load() == ResourceState::Uploaded) {
-                    handle->refCount++;
+                    handle->externalRefs++;
 
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto rawTextureData = playground::assetloader::LoadTexture(name);
-                    handle->refCount = 1;
+                    handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
                 }
             }
@@ -337,7 +332,8 @@ namespace playground::assetmanager {
             handle = new TextureHandle{
                 .hash = hash,
                 .state = {ResourceState::Created},
-                .refCount = 1,
+                .externalRefs = 1,
+                .internalRefs = 0,
                 .data = {},
                 .texture = 0,
                 .uploadJob = nullptr,
@@ -377,13 +373,13 @@ namespace playground::assetmanager {
             handle = _physicsMaterialHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
-                    handle->refCount++;
+                    handle->externalRefs++;
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(name);
                     auto rawHandle = playground::physics::CreateMaterial(rawMaterial.staticFriction, rawMaterial.dynamicFriction, rawMaterial.restitution);
-                    handle->refCount = 1;
+                    handle->externalRefs = 1;
                     handle->state = ResourceState::Uploaded;
                     handle->material = rawHandle;
 
@@ -398,7 +394,8 @@ namespace playground::assetmanager {
         auto newHandle = new PhysicsMaterialHandle{
             .hash = hash,
             .state = ResourceState::Uploaded,
-            .refCount = 1,
+            .externalRefs = 1,
+            .internalRefs = 0,
             .material = rawHandle
         };
 
@@ -409,7 +406,7 @@ namespace playground::assetmanager {
         return _physicsMaterialHandles[handleId];
     }
 
-    CubemapHandle* LoadCubemap(std::string name) {
+    CubemapHandle* LoadCubemap(const char* name) {
         auto hash = shared::Hash(name);
 
         std::optional<uint32_t> handleId;
@@ -418,12 +415,12 @@ namespace playground::assetmanager {
             handle = _cubemapHandles[i];
             if (handle->hash == hash) {
                 if (handle->state.load() == ResourceState::Uploaded) {
-                    handle->refCount++;
+                    handle->externalRefs++;
 
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
-                    handle->refCount = 1;
+                    handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
                 }
             }
@@ -435,7 +432,8 @@ namespace playground::assetmanager {
             handle = new CubemapHandle{
                 .hash = hash,
                 .state = {ResourceState::Created},
-                .refCount = 1,
+                .externalRefs = 1,
+                .internalRefs = 0,
                 .data = {},
                 .faces = {},
                 .cubemap = 0,
@@ -471,7 +469,7 @@ namespace playground::assetmanager {
             handle = _audioHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
-                    handle->refCount++;
+                    handle->externalRefs++;
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
@@ -480,7 +478,7 @@ namespace playground::assetmanager {
                         throw std::runtime_error("Audio file not found: " + std::string(name));
                     }
                     handle->audioBank = audio::LoadBank(archive, name);
-                    handle->refCount = 1;
+                    handle->externalRefs = 1;
                     handle->state = ResourceState::Uploaded;
 
                     return handle;
@@ -490,7 +488,8 @@ namespace playground::assetmanager {
         handle = new AudioHandle{
             .hash = hash,
             .state = ResourceState::Created,
-            .refCount = 1,
+            .externalRefs = 1,
+            .internalRefs = 0,
             .audioBank = nullptr
         };
 
@@ -507,5 +506,41 @@ namespace playground::assetmanager {
         _audioHandles.push_back(handle);
 
         return _audioHandles[handleId];
+    }
+
+    void ReleaseModel(ModelHandle* handle)
+    {
+        handle->externalRefs--;
+        // TODO: Free model
+    }
+
+    void ReleaseMaterial(MaterialHandle* handle)
+    {
+
+    }
+
+    void ReleaseShader(ShaderHandle* handle)
+    {
+
+    }
+
+    void ReleaseTexture(TextureHandle* handle)
+    {
+
+    }
+
+    void ReleaseCubemap(CubemapHandle* handle)
+    {
+
+    }
+
+    void ReleaseAudio(AudioHandle* handle)
+    {
+
+    }
+
+    void ReleasePhysicsMaterial(PhysicsMaterialHandle* handle)
+    {
+
     }
 }

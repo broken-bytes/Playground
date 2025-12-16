@@ -1,6 +1,5 @@
 #pragma once
 
-#include <math/Vector3.hxx>
 #include <cstdint>
 
 namespace playground::assetmanager {
@@ -8,7 +7,6 @@ namespace playground::assetmanager {
 }
 
 struct MeshComponent {
-    const char* name;
     playground::assetmanager::ModelHandle* handle;
     uint16_t meshId;
 };

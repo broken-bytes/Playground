@@ -40,12 +40,10 @@ namespace playground::input {
         switch (msg) {
         case WM_MOUSEMOVE:
             hasFocus = true;
-            logging::logger::Info("Seting focus true", "input");
             TrackMouseLeave(hwnd);
             break;
         case WM_MOUSELEAVE:
             hasFocus = false;
-            logging::logger::Info("Seting focus false", "input");
             break;
         case WM_INPUT:
             procCallback(lParam);

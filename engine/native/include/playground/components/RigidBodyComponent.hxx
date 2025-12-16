@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <math/Vector3.hxx>
 
 struct RigidBodyComponent {
     uint64_t handle = UINT64_MAX;

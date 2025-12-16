@@ -196,57 +196,57 @@ uint8_t SetupSubsystems(const PlaygroundConfig& config) {
 
 void SetupPointerLookupTable(const PlaygroundConfig& config) {
     playground::logging::logger::Info("Setting up pointer lookup table", "core");
-    config.Delegate("Logger_Info", playground::logging::logger::Info_C);
-    config.Delegate("Logger_Warn", playground::logging::logger::Info_C);
-    config.Delegate("Logger_Error", playground::logging::logger::Info_C);
+    config.Delegate("Logger_Info", reinterpret_cast<void*>(playground::logging::logger::Info_C));
+    config.Delegate("Logger_Warn", reinterpret_cast<void*>(playground::logging::logger::Info_C));
+    config.Delegate("Logger_Error", reinterpret_cast<void*>(playground::logging::logger::Info_C));
 
-    config.Delegate("AssetManager_LoadModel\0", playground::assetmanager::LoadModel_C);
-    config.Delegate("AssetManager_LoadMaterial\0", playground::assetmanager::LoadMaterial_C);
-    config.Delegate("AssetManager_LoadPhysicsMaterial\0", playground::assetmanager::LoadPhysicsMaterial);
+    config.Delegate("AssetManager_LoadModel\0", reinterpret_cast<void*>(playground::assetmanager::LoadModel));
+    config.Delegate("AssetManager_LoadMaterial\0", reinterpret_cast<void*>(playground::assetmanager::LoadMaterial));
+    config.Delegate("AssetManager_LoadPhysicsMaterial\0", reinterpret_cast<void*>(playground::assetmanager::LoadPhysicsMaterial));
 
-    config.Delegate("Batcher_Batch\0", playground::drawcallbatcher::Batch);
-    config.Delegate("Batcher_SetSun\0", playground::drawcallbatcher::SetSun);
-    config.Delegate("Batcher_AddCamera\0", playground::drawcallbatcher::AddCamera);
+    config.Delegate("Batcher_Batch\0", reinterpret_cast<void*>(playground::drawcallbatcher::Batch));
+    config.Delegate("Batcher_SetSun\0", reinterpret_cast<void*>(playground::drawcallbatcher::SetSun));
+    config.Delegate("Batcher_AddCamera\0", reinterpret_cast<void*>(playground::drawcallbatcher::AddCamera));
 
-    config.Delegate("ECS_CreateEntity\0", playground::ecs::CreateEntity);
-    config.Delegate("ECS_DestroyEntity\0", playground::ecs::DestroyEntity);
-    config.Delegate("ECS_SetParent\0", playground::ecs::SetParent);
-    config.Delegate("ECS_GetParent\0", playground::ecs::GetParent);
-    config.Delegate("ECS_GetEntityByName\0", playground::ecs::GetEntityByName);
-    config.Delegate("ECS_RegisterComponent\0", playground::ecs::RegisterComponent);
-    config.Delegate("ECS_AddComponent\0", playground::ecs::AddComponent);
-    config.Delegate("ECS_SetComponent\0", playground::ecs::SetComponent);
-    config.Delegate("ECS_GetComponent\0", playground::ecs::GetComponent);
-    config.Delegate("ECS_HasComponent\0", playground::ecs::HasComponent);
-    config.Delegate("ECS_DestroyComponent\0", playground::ecs::DestroyComponent);
-    config.Delegate("ECS_CreateSystem\0", playground::ecs::CreateUpdateSystem);
-    config.Delegate("ECS_GetComponentBuffer\0", playground::ecs::GetComponentBuffer);
-    config.Delegate("ECS_GetIteratorSize\0", playground::ecs::GetIteratorSize);
-    config.Delegate("ECS_GetIteratorOffset\0", playground::ecs::GetIteratorOffset);
-    config.Delegate("ECS_GetEntitiesFromIterator\0", playground::ecs::GetEntitiesFromIterator);
-    config.Delegate("ECS_CreateHook\0", playground::ecs::CreateHook);
-    config.Delegate("ECS_DeleteAllEntitiesByTag\0", playground::ecs::DeleteAllEntitiesByTag);
-    config.Delegate("ECS_CreateTag\0", playground::ecs::CreateTag);
-    config.Delegate("ECS_AddTag\0", playground::ecs::AddTag);
+    config.Delegate("ECS_CreateEntity\0", reinterpret_cast<void*>(playground::ecs::CreateEntity));
+    config.Delegate("ECS_DestroyEntity\0", reinterpret_cast<void*>(playground::ecs::DestroyEntity));
+    config.Delegate("ECS_SetParent\0", reinterpret_cast<void*>(playground::ecs::SetParent));
+    config.Delegate("ECS_GetParent\0", reinterpret_cast<void*>(playground::ecs::GetParent));
+    config.Delegate("ECS_GetEntityByName\0", reinterpret_cast<void*>(playground::ecs::GetEntityByName));
+    config.Delegate("ECS_RegisterComponent\0", reinterpret_cast<void*>(playground::ecs::RegisterComponent));
+    config.Delegate("ECS_AddComponent\0", reinterpret_cast<void*>(playground::ecs::AddComponent));
+    config.Delegate("ECS_SetComponent\0", reinterpret_cast<void*>(playground::ecs::SetComponent));
+    config.Delegate("ECS_GetComponent\0", reinterpret_cast<void*>(playground::ecs::GetComponent));
+    config.Delegate("ECS_HasComponent\0", reinterpret_cast<void*>(playground::ecs::HasComponent));
+    config.Delegate("ECS_DestroyComponent\0", reinterpret_cast<void*>(playground::ecs::DestroyComponent));
+    config.Delegate("ECS_CreateSystem\0", reinterpret_cast<void*>(playground::ecs::CreateUpdateSystem));
+    config.Delegate("ECS_GetComponentBuffer\0", reinterpret_cast<void*>(playground::ecs::GetComponentBuffer));
+    config.Delegate("ECS_GetIteratorSize\0", reinterpret_cast<void*>(playground::ecs::GetIteratorSize));
+    config.Delegate("ECS_GetIteratorOffset\0", reinterpret_cast<void*>(playground::ecs::GetIteratorOffset));
+    config.Delegate("ECS_GetEntitiesFromIterator\0", reinterpret_cast<void*>(playground::ecs::GetEntitiesFromIterator));
+    config.Delegate("ECS_CreateHook\0", reinterpret_cast<void*>(playground::ecs::CreateHook));
+    config.Delegate("ECS_DeleteAllEntitiesByTag\0", reinterpret_cast<void*>(playground::ecs::DeleteAllEntitiesByTag));
+    config.Delegate("ECS_CreateTag\0", reinterpret_cast<void*>(playground::ecs::CreateTag));
+    config.Delegate("ECS_AddTag\0", reinterpret_cast<void*>(playground::ecs::AddTag));
 
-    config.Delegate("Input_GetAxis\0", playground::inputmanager::GetAxis);
-    config.Delegate("Input_IsButtonPressed\0", playground::inputmanager::IsButtonPressed);
-    config.Delegate("Input_IsButtonDown\0", playground::inputmanager::IsButtonDown);
-    config.Delegate("Input_IsButtonUp\0", playground::inputmanager::IsButtonUp);
+    config.Delegate("Input_GetAxis\0", reinterpret_cast<void*>(playground::inputmanager::GetAxis));
+    config.Delegate("Input_IsButtonPressed\0", reinterpret_cast<void*>(playground::inputmanager::IsButtonPressed));
+    config.Delegate("Input_IsButtonDown\0", reinterpret_cast<void*>(playground::inputmanager::IsButtonDown));
+    config.Delegate("Input_IsButtonUp\0", reinterpret_cast<void*>(playground::inputmanager::IsButtonUp));
 
-    config.Delegate("Physics_CreateRigidBody\0", playground::physicsmanager::CreateRigidBody);
-    config.Delegate("Physics_CreateStaticBody\0", playground::physicsmanager::CreateStaticBody);
-    config.Delegate("Physics_CreateBoxCollider\0", playground::physicsmanager::CreateBoxCollider);
-    config.Delegate("Physics_AttachCollider\0", playground::physicsmanager::AttachCollider);
-    config.Delegate("Physics_DestroyBody\0", playground::physicsmanager::RemoveBody);
-    config.Delegate("Physics_DestroyCollider\0", playground::physicsmanager::RemoveCollider);
-    config.Delegate("Physics_GetBodyPosition\0", playground::physicsmanager::GetBodyPosition);
-    config.Delegate("Physics_GetBodyRotation\0", playground::physicsmanager::GetBodyRotation);
+    config.Delegate("Physics_CreateRigidBody\0", reinterpret_cast<void*>(playground::physicsmanager::CreateRigidBody));
+    config.Delegate("Physics_CreateStaticBody\0", reinterpret_cast<void*>(playground::physicsmanager::CreateStaticBody));
+    config.Delegate("Physics_CreateBoxCollider\0", reinterpret_cast<void*>(playground::physicsmanager::CreateBoxCollider));
+    config.Delegate("Physics_AttachCollider\0", reinterpret_cast<void*>(playground::physicsmanager::AttachCollider));
+    config.Delegate("Physics_DestroyBody\0", reinterpret_cast<void*>(playground::physicsmanager::RemoveBody));
+    config.Delegate("Physics_DestroyCollider\0", reinterpret_cast<void*>(playground::physicsmanager::RemoveCollider));
+    config.Delegate("Physics_GetBodyPosition\0", reinterpret_cast<void*>(playground::physicsmanager::GetBodyPosition));
+    config.Delegate("Physics_GetBodyRotation\0", reinterpret_cast<void*>(playground::physicsmanager::GetBodyRotation));
 
-    config.Delegate("Time_GetTimeSinceStart\0", GetTimeSinceStart);
-    config.Delegate("Time_GetDeltaTime\0", GetDeltaTime);
+    config.Delegate("Time_GetTimeSinceStart\0", reinterpret_cast<void*>(GetTimeSinceStart));
+    config.Delegate("Time_GetDeltaTime\0", reinterpret_cast<void*>(GetDeltaTime));
 
-    config.Delegate("Events_Subscribe", SubscribeToEventsFromScripting);
+    config.Delegate("Events_Subscribe", reinterpret_cast<void*>(SubscribeToEventsFromScripting));
 }
 
 #if EDITOR

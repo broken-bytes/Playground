@@ -1,6 +1,6 @@
 ﻿namespace PlaygroundAssembly.Rendering;
 
-public struct Colour
+public struct Colour(float r, float g, float b, float a = 1) : IEquatable<Colour>
 {
     public static Colour White => new() { R = 1, G = 1, B = 1, A = 1 };
     public static Colour Black => new() { R = 0, G = 0, B = 0, A = 1 };
@@ -17,8 +17,27 @@ public struct Colour
     public static Colour Brown => new() { R = 0.6f, G = 0.4f, B = 0.2f, A = 1 };
     public static Colour Gray => new() { R = 0.5f, G = 0.5f, B = 0.5f, A = 1 };
 
-    public float R;
-    public float G;
-    public float B;
-    public float A;
+    public float R = r;
+    public float G = g;
+    public float B = b;
+    public float A = a;
+
+    public static bool operator ==(Colour lhs, Colour rhs) => lhs.R == rhs.R && lhs.G == rhs.G && lhs.B == rhs.B && lhs.A == rhs.A;
+
+    public static bool operator !=(Colour lhs, Colour rhs) => !(lhs == rhs);
+
+    public bool Equals(Colour other)
+    {
+        return R.Equals(other.R) && G.Equals(other.G) && B.Equals(other.B) && A.Equals(other.A);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is Colour other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(R, G, B, A);
+    }
 }

@@ -2,6 +2,8 @@ if(WIN32)
 add_executable(PlaygroundApp app.cxx)
 endif()
 
+target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/app/include/app)
+target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/vendor/coreclr/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/editor/assetpipeline/include)
 target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/core/editor/assetdatabase/include)
@@ -12,7 +14,12 @@ target_include_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/engine/nati
 find_package(Stb REQUIRED)
 
 target_link_directories(PlaygroundApp PRIVATE ${PLAYGROUND_LIB_DIR})
-target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore Profiler SDL3::SDL3 Shared)
+if(WIN32)
+    target_link_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/vendor/coreclr/lib/win64)
+else()
+    target_link_directories(PlaygroundApp PRIVATE ${CMAKE_SOURCE_DIR}/vendor/coreclr/lib/linux)
+endif()
+target_link_libraries(PlaygroundApp PRIVATE PlaygroundCore Profiler SDL3::SDL3 Shared nethost)
 
 target_include_directories(PlaygroundApp PRIVATE ${Stb_INCLUDE_DIR})
 

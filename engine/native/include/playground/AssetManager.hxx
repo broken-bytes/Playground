@@ -38,7 +38,8 @@ namespace playground::assetmanager {
     struct ModelHandle {
         uint64_t hash;
         std::atomic<ResourceState> state;
-        std::atomic<uint32_t> refCount;
+        std::atomic<uint32_t> externalRefs; // ECS/components
+        std::atomic<uint32_t> internalRefs;
         std::vector<playground::rendering::Mesh> meshes;
         std::vector<assetloader::RawMeshData> rawMeshData;
     };
@@ -46,7 +47,8 @@ namespace playground::assetmanager {
     struct TextureHandle {
         uint64_t hash;
         std::atomic<ResourceState> state;
-        uint32_t refCount;
+        std::atomic<uint32_t> externalRefs; // ECS/components
+        std::atomic<uint32_t> internalRefs;
         assetloader::RawTextureData* data;
         uint32_t texture;
         std::shared_ptr<jobsystem::JobHandle> uploadJob;
@@ -56,7 +58,8 @@ namespace playground::assetmanager {
     struct CubemapHandle {
         uint64_t hash;
         std::atomic<ResourceState> state;
-        uint32_t refCount;
+        std::atomic<uint32_t> externalRefs; // ECS/components
+        std::atomic<uint32_t> internalRefs;
         std::shared_ptr<assetloader::RawCubemapData> data;
         std::vector<std::shared_ptr<assetloader::RawTextureData>> faces;
         uint32_t cubemap;
@@ -70,7 +73,8 @@ namespace playground::assetmanager {
         std::map<std::string, TextureHandle*> textures;
         std::map<std::string, CubemapHandle*> cubemaps;
         std::map<std::string, float> floats;
-        uint32_t refCount;
+        std::atomic<uint32_t> externalRefs; // ECS/components
+        std::atomic<uint32_t> internalRefs;
         uint32_t material;
         void (*onCompletion)(uint32_t);
     };
@@ -78,7 +82,8 @@ namespace playground::assetmanager {
     struct ShaderHandle {
         uint64_t hash;
         ResourceState state;
-        uint32_t refCount;
+        std::atomic<uint32_t> externalRefs; // ECS/components
+        std::atomic<uint32_t> internalRefs;
         std::string vertexShader;
         std::string pixelShader;
     };
@@ -86,24 +91,32 @@ namespace playground::assetmanager {
     struct AudioHandle {
         uint64_t hash;
         ResourceState state;
-        uint32_t refCount;
+        std::atomic<uint32_t> externalRefs; // ECS/components
+        std::atomic<uint32_t> internalRefs;
         void* audioBank;
     };
 
     struct PhysicsMaterialHandle {
         uint64_t hash;
         ResourceState state;
-        uint32_t refCount;
+        std::atomic<uint32_t> externalRefs; // ECS/components
+        std::atomic<uint32_t> internalRefs;
         uint32_t material;
     };
 
-    ModelHandle* LoadModel_C(const char* name);
-    ModelHandle* LoadModel(std::string name);
-    MaterialHandle* LoadMaterial_C(const char* name, void (*onCompletion)(uint32_t) = nullptr);
-    MaterialHandle* LoadMaterial(std::string name, void (*onCompletion)(uint32_t) = nullptr);
+    ModelHandle* LoadModel(const char* name);
+    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t) = nullptr);
     ShaderHandle* LoadShader(const char* name);
-    TextureHandle* LoadTexture(std::string name);
+    TextureHandle* LoadTexture(const char* name);
     PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);
-    CubemapHandle* LoadCubemap(std::string name);
+    CubemapHandle* LoadCubemap(const char* name);
     AudioHandle* LoadAudio(const char* name);
+
+    void ReleaseModel(ModelHandle* handle);
+    void ReleaseMaterial(MaterialHandle* handle);
+    void ReleaseShader(ShaderHandle* handle);
+    void ReleaseTexture(TextureHandle* handle);
+    void ReleaseCubemap(CubemapHandle* handle);
+    void ReleaseAudio(AudioHandle* handle);
+    void ReleasePhysicsMaterial(PhysicsMaterialHandle* handle);
 }

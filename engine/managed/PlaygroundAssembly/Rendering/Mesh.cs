@@ -1,16 +1,16 @@
-﻿namespace PlaygroundAssembly.Rendering;
+﻿namespace PlaygroundAssembly.ECS;
 
-public sealed class Material : IDisposable
+public sealed class Mesh : IDisposable
 {
-    internal IntPtr  NativePtr { get; private set; }
+    internal IntPtr NativePtr { get; private set; }
     private bool _disposed;
 
-    internal Material(IntPtr nativePtr)
+    internal Mesh(IntPtr nativePtr)
     {
         NativePtr = nativePtr;
     }
     
-    ~Material() => Dispose();
+    ~Mesh() => Dispose();
 
     public void Dispose()
     {

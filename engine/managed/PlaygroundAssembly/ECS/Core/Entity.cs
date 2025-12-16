@@ -8,31 +8,22 @@ public struct Entity : IEquatable<Entity>
     
     internal Entity(ulong id) => Id = id;
 
-    public void AddComponent<T>() where T : unmanaged, IComponent
+    public void AddComponent<T>() where T : unmanaged
     {
-        unsafe
-        {
-            ECSApi.AddComponentPtr(Id, ECSApi.RegisterComponent<T>());
-        }
+        EcsApi.AddComponent<T>(Id);
     }
 
-    public void SetComponent<T>(T component) where T : unmanaged, IComponent
+    public void SetComponent<T>(T component) where T : unmanaged
     {
-        unsafe
-        {
-            ECSApi.SetComponentPtr(Id, ECSApi.RegisterComponent<T>(), &component);
-        }
+        EcsApi.SetComponent(Id, component);
     }
 
-    public void RemoveComponent<T>() where T : unmanaged, IComponent
+    public void RemoveComponent<T>() where T : unmanaged
     {
-        unsafe
-        {
-            ECSApi.RemoveComponentPtr(Id, ECSApi.RegisterComponent<T>());
-        }
+        EcsApi.RemoveComponent<T>(Id);
     }
 
-    public Entity With<T>(T component) where T : unmanaged, IComponent
+    public Entity With<T>(T component) where T : unmanaged
     {
         AddComponent<T>();
         SetComponent(component);

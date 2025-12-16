@@ -15,7 +15,7 @@ namespace playground::drawcallbatcher {
         math::Matrix4x4 transform;
     };
 
-    void Batch(drawcallbatcher::DrawCall*, uint16_t count);
+    void Batch(DrawCall*, uint16_t count);
     void SetSun(math::Vector3 direction, math::Vector4 colour, float intensity);
     void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, math::Vector3& position, math::Quaternion& rotation);
     void Submit();
