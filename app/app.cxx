@@ -10,6 +10,8 @@
 #include <vector>
 #include <playground/Engine.hxx>
 
+#include "executable_path.hxx"
+
 #ifdef _WIN32
 #include <Windows.h>
 typedef wchar_t char_t;
@@ -40,10 +42,6 @@ typedef string_t std::string
 #include <nethost.h>
 #include <coreclr_delegates.h>
 #include <hostfxr.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include <thread>
 
@@ -51,7 +49,7 @@ typedef void(__cdecl* Startup)(LookupTableDelegate, ScriptStartupCallback);
 typedef void(__cdecl* CoreLayerStartUp)(PlaygroundConfig&);
 typedef void(__cdecl* ScriptingLayerStartUp)(Startup);
 typedef void(*register_function_fn)(const char* name, size_t length, void* ptr);
-typedef int(*startup_fn)();
+typedef int(*startup_fn)(const char* path, size_t len);
 
 CoreLayerStartUp coreStartup = nullptr;
 uint16_t windowWidth = 1280;
@@ -114,8 +112,6 @@ int wmain(int argc, char_t** argv)
 int main(int argc, char_t** argv)
 #endif
 {
-    //PlaygroundMain(StartupDelegate);
-
     auto coreClr = run_engine_dot_net_assembly(get_full_path(argc, argv));
     if (coreClr != EXIT_SUCCESS)
     {
@@ -127,7 +123,8 @@ int main(int argc, char_t** argv)
         registerFunctionPtr(name, strlen(name), ptr);
     }, [] ()
     {
-        std::cout << "Scripting Assembly startup: "<< startupPtr() << std::endl;
+        auto path = executable_path().parent_path().string();
+        std::cout << "Scripting Assembly startup: "<< startupPtr(path.c_str(), path.size()) << std::endl;
     });
 
 	return 0;

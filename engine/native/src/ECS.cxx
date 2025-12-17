@@ -319,6 +319,11 @@ namespace playground::ecs {
         return ptr;
     }
 
+    uint64_t GetIteratorSystem(ecs_iter_t* iter)
+    {
+        return iter->system;
+    }
+
     uint64_t GetIteratorSize(ecs_iter_t* iter) {
         return iter->count;
     }
@@ -371,7 +376,7 @@ namespace playground::ecs {
 
         ecs_query_desc_t query = {};
         for (int x = 0; x < filterCount; x++) {
-            query.terms[x] = ecs_term_t{ .id = filter[x].filterComponentId, .inout = filter[x].filterUsage, .oper = filter[x].filterOperation};
+            query.terms[x] = ecs_term_t{ .id = filter[x].filterComponentId, .inout = filter[x].filterUsage, .oper = filter[x].filterOperation };
         }
 
         memset(system.query.terms, 0, sizeof(system.query.terms));

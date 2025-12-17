@@ -54,6 +54,7 @@ namespace playground::ecs {
     uint64_t CreateUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
     uint64_t CreatePostUpdateSystem(const char* name, Filter* filter, size_t filterCount, bool isParallel, SystemTickDelegate delegate);
     void* GetComponentBuffer(ecs_iter_t* iter, uint32_t index, size_t componentSize, size_t* numItems);
+    uint64_t GetIteratorSystem(ecs_iter_t* iter);
     uint64_t GetIteratorSize(ecs_iter_t* iter);
     uint64_t GetIteratorOffset(ecs_iter_t* iter);
     const uint64_t* GetEntitiesFromIterator(ecs_iter_t* iter, size_t* size);

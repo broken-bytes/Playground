@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="../Tests/Tests/Tests.csproj" />
-  <Project Path="PlaygroundAssembly.csproj" />
+  <Project Path="Playground.Core/Playground.Core.csproj" />
+  <Project Path="PlaygroundAssembly/PlaygroundAssembly.csproj" />
 </Solution>

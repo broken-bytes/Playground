@@ -221,6 +221,7 @@ void SetupPointerLookupTable(const PlaygroundConfig& config) {
     config.Delegate("ECS_DestroyComponent\0", reinterpret_cast<void*>(playground::ecs::DestroyComponent));
     config.Delegate("ECS_CreateSystem\0", reinterpret_cast<void*>(playground::ecs::CreateUpdateSystem));
     config.Delegate("ECS_GetComponentBuffer\0", reinterpret_cast<void*>(playground::ecs::GetComponentBuffer));
+    config.Delegate("ECS_GetIteratorSystem\0", reinterpret_cast<void*>(playground::ecs::GetIteratorSystem));
     config.Delegate("ECS_GetIteratorSize\0", reinterpret_cast<void*>(playground::ecs::GetIteratorSize));
     config.Delegate("ECS_GetIteratorOffset\0", reinterpret_cast<void*>(playground::ecs::GetIteratorOffset));
     config.Delegate("ECS_GetEntitiesFromIterator\0", reinterpret_cast<void*>(playground::ecs::GetEntitiesFromIterator));
