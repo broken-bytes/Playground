@@ -178,12 +178,13 @@ namespace playground::editor::assetpipeline {
     auto CookMaterial(assetloader::RawMaterialData materialData) -> std::vector<uint8_t> {
         for (auto& tex: materialData.textures)
         {
-            tex.value = playground::shared::Hash(tex.value);
+            tex.value = std::to_string(playground::shared::Hash(tex.value));
         }
         for (auto& cube: materialData.cubemaps)
         {
-            cube.value = playground::shared::Hash(cube.value);
+            cube.value = std::to_string(playground::shared::Hash(cube.value));
         }
+        materialData.shaderName = std::to_string(playground::shared::Hash(materialData.shaderName));
         std::ostringstream oss;
         {
             cereal::BinaryOutputArchive oarchive(oss);
@@ -392,6 +393,20 @@ namespace playground::editor::assetpipeline {
         {
             cereal::BinaryOutputArchive oarchive(oss);
             oarchive(audioData);
+        }
+        // Convert the serialized output to a vector<uint8_t>
+        std::string outString = oss.str();
+        std::vector<uint8_t> buffer(outString.begin(), outString.end());
+
+        return buffer;
+    }
+
+    auto CookScene(assetloader::RawSceneData sceneData) -> std::vector<uint8_t>
+    {
+        std::ostringstream oss;
+        {
+            cereal::BinaryOutputArchive oarchive(oss);
+            oarchive(sceneData);
         }
         // Convert the serialized output to a vector<uint8_t>
         std::string outString = oss.str();

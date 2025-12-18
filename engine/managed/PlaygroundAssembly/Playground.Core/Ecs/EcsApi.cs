@@ -162,6 +162,22 @@ internal static class EcsApi
     {
         SetComponentPtr(entity, IdFor<T>(), Unsafe.AsPointer(ref component));
     }
+
+    internal static unsafe void SetComponent(ulong entity, Type type, object boxed)
+    {
+        ulong id = IdFor(type);
+
+        var handle = GCHandle.Alloc(boxed, GCHandleType.Pinned);
+        try
+        {
+            void* ptr = handle.AddrOfPinnedObject().ToPointer();
+            SetComponentPtr(entity, id, ptr);
+        }
+        finally
+        {
+            handle.Free();
+        }
+    }
     
     internal static unsafe T GetComponent<T>(ulong entity) where T : unmanaged
     {
@@ -208,6 +224,16 @@ internal static class EcsApi
         }
         
         throw new Exception($"Component {typeof(T).Name} is not registered.");
+    }
+    
+    private static ulong IdFor(Type type)
+    {
+        if (RegisteredComponents.TryGetValue(type, out var value))
+        {
+            return value;
+        }
+        
+        throw new Exception($"Component {type.Name} is not registered.");
     }
     
     private static int GetAlignment(Type type)

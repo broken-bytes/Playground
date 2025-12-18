@@ -6,7 +6,7 @@ add_executable(Cooker ${SRC} ${HEADERS})
 find_package(cereal CONFIG REQUIRED)
 
 target_include_directories(Cooker PRIVATE include)
-target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/editor/assetpipeline/include)
+target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/editor/native/assetpipeline/include)
 target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/assetloader/include)
 target_include_directories(Cooker PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/math/include)
 

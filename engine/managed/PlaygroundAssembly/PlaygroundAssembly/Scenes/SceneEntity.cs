@@ -1,7 +1,7 @@
 ﻿namespace PlaygroundAssembly.Scenes;
 
-internal struct SceneEntity
+public sealed class SceneEntity
 {
-    internal string Name;
-    internal List<SceneComponent> Components;
+    public string Name { get; set; }
+    public List<SceneComponent> Components { get; set; } = new();
 }

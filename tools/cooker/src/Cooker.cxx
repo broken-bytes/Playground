@@ -16,6 +16,7 @@
 
 #include "../../../engine/native/modules/shared/include/shared/Hasher.hxx"
 #include "assetloader/AssetLoader.hxx"
+#include "assetpipeline/loaders/SceneLoader.hxx"
 
 struct CookerAsset {
     std::string location;
@@ -145,6 +146,12 @@ int main(int argc, char** argv) {
             buffer = audio;
 
             ending = ".audio";
+        }
+        else if (std::strcmp(asset.type.c_str(), "Scene") == 0) {
+            auto scene = playground::editor::assetpipeline::loaders::sceneloader::LoadFromFile(filePath);
+            buffer = scene;
+
+            ending = ".scene";
         }
         else if (std::strcmp(asset.type.c_str(), "Cubemap") == 0) {
             auto cubemap = playground::editor::assetpipeline::loaders::cubemaploader::LoadFromFile(filePath);

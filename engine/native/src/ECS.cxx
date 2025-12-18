@@ -29,8 +29,10 @@
 #include <flecs/os_api.h>
 #include <tracy/Tracy.hpp>
 
+#include "playground/components/CameraComponent.hxx"
 #include "playground/components/TransformComponent.hxx"
 #include "playground/components/WorldTransformComponent.hxx"
+#include "playground/systems/CameraSystem.hxx"
 
 namespace playground::ecs {
     std::unique_ptr<flecs::world> world;
@@ -78,18 +80,56 @@ namespace playground::ecs {
     }
 
     void RegisterComponents() {
+        playground::ecs::GetWorld().component<WorldTransformComponent>("::WorldTransformComponent");
+        playground::ecs::GetWorld().component<MeshRuntimeComponent>("::MeshRuntimeComponent");
+        playground::ecs::GetWorld().component<MaterialRuntimeComponent>("::MaterialRuntimeComponent");
         playground::ecs::GetWorld().component<TransformComponent>("::TransformComponent")
             .on_add([](flecs::entity e, TransformComponent) {
                 e.add<WorldTransformComponent>();
             });
 
-        playground::ecs::GetWorld().component<MeshComponent>("::MeshComponent");
-        playground::ecs::GetWorld().component<MaterialComponent>("::MaterialComponent");
+        playground::ecs::GetWorld().component<MeshComponent>("::MeshComponent")
+            .on_add([](flecs::entity e, MeshComponent component)
+            {
+                e.add<MeshRuntimeComponent>();
+            })
+            .on_set([](flecs::entity e, MeshComponent authoring)
+            {
+                auto runtime = e.get<MeshRuntimeComponent>();
+                runtime.HandleId = assetmanager::LoadModel(authoring.AssetId);
+                runtime.MeshId = authoring.MeshId;
+                e.set<MeshRuntimeComponent>(runtime);
+            })
+            .on_remove([](flecs::entity e, MeshComponent)
+            {
+                auto runtime = e.get<MeshRuntimeComponent>();
+                assetmanager::ReleaseModel(runtime.HandleId);
+                e.remove<MeshRuntimeComponent>();
+            });
+        playground::ecs::GetWorld().component<MaterialComponent>("::MaterialComponent")
+            .on_add([](flecs::entity e, MaterialComponent component)
+            {
+                e.add<MaterialRuntimeComponent>();
+            })
+            .on_set([](flecs::entity e, MaterialComponent authoring)
+            {
+                auto runtime = e.get<MaterialRuntimeComponent>();
+                runtime.HandleId = assetmanager::LoadMaterial(authoring.AssetId);
+
+                e.set<MaterialRuntimeComponent>(runtime);
+            })
+            .on_remove([](flecs::entity e, MaterialComponent)
+            {
+                auto runtime = e.get<MaterialRuntimeComponent>();
+                assetmanager::ReleaseMaterial(runtime.HandleId);
+                e.remove<MaterialRuntimeComponent>();
+            });
         playground::ecs::GetWorld().component<BoxColliderComponent>("::BoxColliderComponent");
         playground::ecs::GetWorld().component<RigidBodyComponent>("::RigidBodyComponent");
         playground::ecs::GetWorld().component<StaticBodyComponent>("::StaticBodyComponent");
         playground::ecs::GetWorld().component<AudioSourceComponent>("::AudioSourceComponent");
         playground::ecs::GetWorld().component<AudioListenerComponent>("::AudioListenerComponent");
+        playground::ecs::GetWorld().component<CameraComponent>("::CameraComponent");
     }
 
     void RegisterSystems() {
@@ -100,6 +140,7 @@ namespace playground::ecs {
         playground::ecs::audiosourcesystem::Init(*world);
         playground::ecs::audiolistenersystem::Init(*world);
         playground::ecs::rendersystem::Init(*world);
+        playground::ecs::camerasystem::Init(*world);
     }
 
     ecs_os_thread_t SpawnTask(ecs_os_thread_callback_t callback, void* param) {

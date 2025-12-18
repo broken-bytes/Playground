@@ -394,7 +394,7 @@ namespace playground::rendering::d3d12
             D3D12_RESOURCE_STATE_COPY_DEST
         );
         _transferCommandList->Native()->ResourceBarrier(1, &copyBarrier);
-        
+
 
         // Copy the render target to the swap chain's back buffer
         _transferCommandList->Native()->CopyResource(backBuffer.Get(), std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get());
@@ -427,7 +427,7 @@ namespace playground::rendering::d3d12
         );
 
         _transferCommandList->Native()->ResourceBarrier(1, &copyFromBarrier);
-       
+
         auto d3d312RenderTarget = std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get();
         D3D12_RESOURCE_DESC textureDesc = d3d312RenderTarget->GetDesc();
         UINT64 totalBytes = 0;
@@ -448,7 +448,7 @@ namespace playground::rendering::d3d12
         dstLocation.PlacedFootprint = footprint;
 
         _transferCommandList->Native()->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, nullptr);
-        
+
         auto renderTargetBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
             std::static_pointer_cast<D3D12RenderTarget>(source)->Resource().Get(),
             D3D12_RESOURCE_STATE_COPY_SOURCE,
@@ -580,7 +580,7 @@ namespace playground::rendering::d3d12
         rtDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
         rtDesc.BeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
             .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
-            .Color = { 0.2f, 0.6f, 0.3f, 1 },
+            .Color = { 0.3f, 0.2f, 0.3f, 1 },
         };
         rtDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
 
@@ -618,8 +618,8 @@ namespace playground::rendering::d3d12
             },
         };
         dsDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
-        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
+        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
         _currentPassList = _shadowCommandList;
         _currentPassList->Native()->BeginRenderPass(0, nullptr, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
         _currentPassList->Native()->SetGraphicsRootSignature(_shadowsRootSignature.Get());
@@ -654,7 +654,7 @@ namespace playground::rendering::d3d12
         rtDesc.BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
         rtDesc.BeginningAccess.Clear.ClearValue = D3D12_CLEAR_VALUE{
             .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
-            .Color = { 0.2f, 0.6f, 0.3f, 1 },
+            .Color = { 0.1f, 0.3f, 0.2f, 1 },
         };
         rtDesc.EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
 
@@ -669,8 +669,8 @@ namespace playground::rendering::d3d12
         };
         dsDesc.DepthBeginningAccess.Clear.ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
         dsDesc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
-        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+        dsDesc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
+        dsDesc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
 
         _currentPassList = _opaqueCommandList;
 

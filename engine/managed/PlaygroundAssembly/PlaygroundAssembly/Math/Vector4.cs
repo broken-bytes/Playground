@@ -1,14 +1,6 @@
 ﻿namespace PlaygroundAssembly.Math;
 
-public interface IVector4<T> where T : unmanaged, IComparable
-{
-    T X { get; set; }
-    T Y { get; set; }
-    T Z { get; set; }
-    T W { get; set; }
-}
-
-public struct Vector4: IVector4<float>
+public struct Vector4
 {
     public float X { get; set; }
     public float Y { get; set; }
@@ -105,7 +97,7 @@ public struct Vector4: IVector4<float>
     }
 }
 
-public struct Vector4Int : IVector4<int>
+public struct Vector4Int
 {
     public int X { get; set; }
     public int Y { get; set; }

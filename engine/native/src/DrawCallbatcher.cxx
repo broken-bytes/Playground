@@ -113,7 +113,7 @@ namespace playground::drawcallbatcher {
         };
     }
 
-    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, math::Vector3& position, math::Quaternion& rotation) {
+    void AddCamera(uint8_t order, float fov, float nearPlane, float farPlane, const math::Vector3& position, const math::Quaternion& rotation) {
         ZoneScopedN("Batcher: Add Camera");
 
         rendering::Camera camera(fov, 0, nearPlane, farPlane, position, rotation, order);
@@ -140,19 +140,22 @@ namespace playground::drawcallbatcher {
             for (int y = 0; y < next.count; y++) {
                 auto item = next.start[y];
 
-                if (item.modelHandle == nullptr || item.materialHandle == nullptr) {
+                auto modelHandle = assetmanager::GetModel(item.modelHandle);
+                auto materialHandle = assetmanager::GetMaterial(item.materialHandle);
+
+                if (modelHandle == nullptr || materialHandle == nullptr) {
                     continue;
                 }
 
-                auto modelState = item.modelHandle->state.load();
-                auto materialState = item.materialHandle->state.load();
+                auto modelState = modelHandle->state.load();
+                auto materialState = materialHandle->state.load();
 
                 if (modelState != assetmanager::ResourceState::Uploaded || materialState != assetmanager::ResourceState::Uploaded) {
                     continue;
                 }
 
-                const auto& mesh = item.modelHandle->meshes[item.meshId];
-                BatchKey key{ item.materialHandle->material, mesh.vertexBuffer, mesh.indexBuffer };
+                const auto& mesh = modelHandle->meshes[item.meshId];
+                BatchKey key{ materialHandle->material, mesh.vertexBuffer, mesh.indexBuffer };
 
                 auto it = batchedDrawCalls.find(key);
                 if (it != batchedDrawCalls.end() && frame.drawCalls[it->second].instanceData.size() < rendering::MAX_BATCH_SIZE) {
@@ -175,7 +178,7 @@ namespace playground::drawcallbatcher {
                     rendering::DrawCall newDrawCall;
                     newDrawCall.vertexBuffer = mesh.vertexBuffer;
                     newDrawCall.indexBuffer = mesh.indexBuffer;
-                    newDrawCall.material = item.materialHandle->material;
+                    newDrawCall.material = materialHandle->material;
                     newDrawCall.instanceData.reserve(rendering::MAX_BATCH_SIZE);
 
                     math::Matrix3x3 normalMatrixInput = item.transform.ToMatrix3x3();

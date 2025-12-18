@@ -11,6 +11,8 @@
 #include <assetloader/RawCubemapData.hxx>
 #include <assetloader/RawAudioData.hxx>
 
+#include "RawSceneData.hxx"
+
 namespace playground::assetloader {
     constexpr const char* ASSET_LOADER_VERSION = "01";
 
@@ -63,5 +65,6 @@ namespace playground::assetloader {
     RawPhysicsMaterialData LoadPhysicsMaterial(uint64_t hash);
     RawCubemapData LoadCubemap(uint64_t hash);
     RawAudioData LoadAudio(uint64_t hash);
+    RawSceneData LoadScene(uint64_t hash);
     AssetMappingsFile LoadMappingsFile(uint64_t hash);
 }

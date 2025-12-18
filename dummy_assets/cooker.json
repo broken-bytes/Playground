@@ -84,6 +84,10 @@
         {
             "location": "SFX.bank",
             "type": "Audio"
+        },
+        {
+            "location": "default.scene.json",
+            "type": "Scene"
         }
     ]
 }

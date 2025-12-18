@@ -21,10 +21,6 @@ namespace playground::ecs::rendersystem {
     std::atomic<uint32_t> offset = 0;
 
     void Init(flecs::world world) {
-        auto translation = ecs::RegisterComponent("WorldTransformComponent", sizeof(WorldTransformComponent), alignof(WorldTransformComponent));
-        auto mesh = ecs::RegisterComponent("MeshRuntimeComponent", sizeof(MeshRuntimeComponent), alignof(MeshRuntimeComponent));
-        auto material = ecs::RegisterComponent("MaterialRuntimeComponent", sizeof(MaterialRuntimeComponent), alignof(MaterialRuntimeComponent));
-
         world.system<const WorldTransformComponent, const MeshRuntimeComponent, const MaterialRuntimeComponent>("RenderSystem")
             .kind(flecs::PostUpdate)
             .multi_threaded(true)
@@ -44,9 +40,9 @@ namespace playground::ecs::rendersystem {
                         );
 
                         drawPtr[x] = drawcallbatcher::DrawCall{
-                            .modelHandle = mesh[x].Handle,
+                            .modelHandle = mesh[x].HandleId,
                             .meshId = mesh[x].MeshId,
-                            .materialHandle = material[x].handle,
+                            .materialHandle = material[x].HandleId,
                             .transform = mat,
                         };
                     }

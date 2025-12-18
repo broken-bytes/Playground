@@ -227,4 +227,21 @@ namespace playground::assetloader {
 
         return loaded;
     }
+
+    RawSceneData LoadScene(uint64_t hash)
+    {
+        auto data = TryLoadFile(hash);
+        if (data.empty()) {
+            throw std::runtime_error("Failed to load data for scene: " + std::to_string(hash));
+        }
+        //std::string binaryStr(data.begin(), data.end());
+        //std::istringstream iss(binaryStr, std::ios::binary);
+        //RawSceneData loaded;
+        //{
+        //    cereal::BinaryInputArchive iarchive(iss);
+            //iarchive(loaded);
+        //}
+
+        return RawSceneData { .sceneData = data };
+    }
 }

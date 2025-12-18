@@ -6,13 +6,14 @@ namespace playground::assetmanager {
     struct ModelHandle;
 }
 
-struct MeshComponent {
+struct alignas(8) MeshComponent {
     uint64_t AssetId;
+    uint16_t MeshId;
 };
 
 struct MeshRuntimeComponent
 {
-    playground::assetmanager::ModelHandle* Handle;
+    uint32_t HandleId;
     uint16_t MeshId;
 };
 

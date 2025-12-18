@@ -27,7 +27,7 @@ public static class PlaygroundAssembly
         Managed.SetupEcs(gameAssembly);
         
         // TODO: Load default scene
-        Scenes.SceneHandler.LoadScene("default.scene").Wait();
+        Scenes.SceneHandler.LoadScene("default.scene");
         
         return 0;
     }

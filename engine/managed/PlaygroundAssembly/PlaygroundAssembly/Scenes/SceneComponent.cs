@@ -2,8 +2,14 @@
 
 namespace PlaygroundAssembly.Scenes;
 
-internal struct SceneComponent
+public sealed class SceneComponentTypeInfo
 {
-    internal string TypeName;
-    internal Dictionary<string, JsonElement> Properties;
+    public string Assembly { get; set; }
+    public string Name { get; set; }
+}
+
+public sealed class SceneComponent
+{
+    public SceneComponentTypeInfo Type { get; set; }
+    public Dictionary<string, JsonElement> Properties { get; set; } = new();
 }

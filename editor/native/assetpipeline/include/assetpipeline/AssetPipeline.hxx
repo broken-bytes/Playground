@@ -13,6 +13,7 @@
 #include "assetloader/RawPhysicsMaterialData.hxx"
 #include "assetloader/RawCubemapData.hxx"
 #include "assetloader/RawAudioData.hxx"
+#include "assetloader/RawSceneData.hxx"
 
 namespace playground::editor::assetpipeline {
     auto Init() -> void;
@@ -26,5 +27,6 @@ namespace playground::editor::assetpipeline {
     auto CookPhysicsMaterial(assetloader::RawPhysicsMaterialData materialData) -> std::vector<uint8_t>;
     auto CookCubemap(assetloader::RawCubemapData cubemapData) -> std::vector<uint8_t>;
     auto CookAudio(assetloader::RawAudioData audioData) -> std::vector<uint8_t>;
+    auto CookScene(assetloader::RawSceneData sceneData) -> std::vector<uint8_t>;
     auto CookMappings(std::map<uint64_t, std::string> mappings) -> std::vector<uint8_t>;
 }

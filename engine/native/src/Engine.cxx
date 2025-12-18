@@ -290,7 +290,8 @@ void StartRenderThread(const PlaygroundConfig& config, void* window) {
 void LoadCoreAssets() {
     // Shadow shader
     auto shadowShader = playground::assetmanager::LoadShader(playground::shared::Hash("shadows.shader"));
-    playground::rendering::RegisterShadowShader(shadowShader->vertexShader);
+    auto shaderPtr = playground::assetmanager::GetShader(shadowShader);
+    playground::rendering::RegisterShadowShader(shaderPtr->vertexShader);
 
     //playground::assetmanager::LoadAudio("Master.audio");
     //playground::assetmanager::LoadAudio("Master.strings.audio");

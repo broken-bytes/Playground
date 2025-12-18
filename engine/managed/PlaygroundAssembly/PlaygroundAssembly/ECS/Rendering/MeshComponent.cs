@@ -5,9 +5,11 @@ using PlaygroundAssembly.ECS.Core;
 namespace PlaygroundAssembly.ECS.Rendering;
 
 [EcsComponent]
-[StructLayout(LayoutKind.Explicit, Pack = 8, Size = 8)]
+[StructLayout(LayoutKind.Explicit, Pack = 8, Size = 16)]
 public struct MeshComponent
 {
     [FieldOffset(0)]
     public ulong AssetId;
+    [FieldOffset(8)]
+    public ushort MeshId;
 }

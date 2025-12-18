@@ -1,8 +1,8 @@
 ﻿namespace PlaygroundAssembly.Scenes;
 
-internal class Scene
+public class Scene
 {
-    List<SceneEntity> Entities;
+    public List<SceneEntity> Entities { get; set; } = new();
 
     public override string ToString()
     {

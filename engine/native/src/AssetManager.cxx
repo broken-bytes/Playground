@@ -126,7 +126,70 @@ namespace playground::assetmanager {
         }
     }
 
-    ModelHandle* LoadModel(uint64_t hash) {
+    ModelHandle* GetModel(uint32_t handle)
+    {
+        if (handle >= _modelHandles.size())
+        {
+            return nullptr;
+        }
+        return _modelHandles[handle];
+    }
+
+    TextureHandle* GetTexture(uint32_t handle)
+    {
+        if (handle >= _textureHandles.size())
+        {
+            return nullptr;
+        }
+        return _textureHandles[handle];
+    }
+
+    CubemapHandle* GetCubemap(uint32_t handle)
+    {
+        if (handle >= _cubemapHandles.size())
+        {
+            return nullptr;
+        }
+        return _cubemapHandles[handle];
+    }
+
+    MaterialHandle* GetMaterial(uint32_t handle)
+    {
+        if (handle >= _materialHandles.size())
+        {
+            return nullptr;
+        }
+        return _materialHandles[handle];
+    }
+
+    ShaderHandle* GetShader(uint32_t handle)
+    {
+        if (handle >= _shaderHandles.size())
+        {
+            return nullptr;
+        }
+        return _shaderHandles[handle];
+    }
+
+    AudioHandle* GetAudio(uint32_t handle)
+    {
+        if (handle >= _audioHandles.size())
+        {
+            return nullptr;
+        }
+        return _audioHandles[handle];
+    }
+
+    PhysicsMaterialHandle* GetPhysicsMaterial(uint32_t handle)
+    {
+        if (handle >= _physicsMaterialHandles.size())
+        {
+            return nullptr;
+        }
+        return _physicsMaterialHandles[handle];
+    }
+
+    uint32_t LoadModel(uint64_t hash) {
         ModelHandle* handle;
         for (uint32_t i = 0; i < _modelHandles.size(); ++i) {
             handle = _modelHandles[i];
@@ -134,7 +197,8 @@ namespace playground::assetmanager {
                 auto state = handle->state.load();
                 if (state == ResourceState::Uploaded || state == ResourceState::Loading || state == ResourceState::Created) {
                     handle->externalRefs++;
-                    return handle;
+
+                    return i;
                 }
                 if (state == ResourceState::Unloaded) {
                     auto rawMeshData = playground::assetloader::LoadMeshes(hash);
@@ -142,7 +206,7 @@ namespace playground::assetmanager {
                     handle->state.store(ResourceState::Created);
                     playground::rendering::QueueUploadModel(rawMeshData, i, MarkModelUploadFinished);
 
-                    return handle;
+                    return i;
                 }
             }
         }
@@ -153,7 +217,7 @@ namespace playground::assetmanager {
             .hash = hash,
             .state = {ResourceState::Created},
             .externalRefs = 1,
-            .internalRefs = 0,
+            .internalRefs = 1,
             .meshes = {},
         };
 
@@ -163,10 +227,10 @@ namespace playground::assetmanager {
 
         playground::rendering::QueueUploadModel(rawMeshData, handleId, MarkModelUploadFinished);
 
-        return _modelHandles[handleId];
+        return handleId;
     }
 
-    MaterialHandle* LoadMaterial(uint64_t hash, void (*onCompletion)(uint32_t)) {
+    uint32_t LoadMaterial(uint64_t hash, void (*onCompletion)(uint32_t)) {
         std::optional<uint32_t> handleId;
         MaterialHandle* handle;
         for (uint32_t i = 0; i < _materialHandles.size(); ++i) {
@@ -175,9 +239,9 @@ namespace playground::assetmanager {
                 if (handle->state == ResourceState::Uploaded) {
                     handle->externalRefs++;
 
-                    return handle;
+                    return i;
                 }
-                else if (handle->state == ResourceState::Unloaded) {
+                if (handle->state == ResourceState::Unloaded) {
                     handle = _materialHandles[i];
                     handleId = i;
                     handle->externalRefs = 1;
@@ -195,7 +259,7 @@ namespace playground::assetmanager {
                 .hash = hash,
                 .state = {ResourceState::Created},
                 .externalRefs = 1,
-                .internalRefs = 0,
+                .internalRefs = 1,
                 .material = 0,
                 .onCompletion = onCompletion,
             };
@@ -209,14 +273,16 @@ namespace playground::assetmanager {
             uint64_t hash;
             ParseU64(texture.value, hash);
             auto texHandle = LoadTexture(hash);
-            handle->textures.insert({ texture.name, texHandle });
+            auto texHandlePtr = GetTexture(texHandle);
+            handle->textures.insert({ texture.name, texHandlePtr });
         }
 
         for (auto& cubemap : rawMaterialData.cubemaps) {
             uint64_t hash;
             ParseU64(cubemap.value, hash);
             auto cubemapHandle = LoadCubemap(hash);
-            handle->cubemaps.insert({ cubemap.name, cubemapHandle });
+            auto cubemapHandlePtr = GetCubemap(cubemapHandle);
+            handle->cubemaps.insert({ cubemap.name, cubemapHandlePtr });
         }
 
         // Get all float properties
@@ -268,17 +334,17 @@ namespace playground::assetmanager {
 
         jobsystem::Submit(materialLoadJob);
 
-        return _materialHandles[handleId.value()];
+        return handleId.value();
     }
 
-    ShaderHandle* LoadShader(uint64_t hash) {
+    uint32_t LoadShader(uint64_t hash) {
         ShaderHandle* handle;
         for (uint32_t i = 0; i < _shaderHandles.size(); ++i) {
             handle = _shaderHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
                     handle->externalRefs++;
-                    return handle;
+                    return i;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto rawShaderData = playground::assetloader::LoadShader(hash);
@@ -287,7 +353,7 @@ namespace playground::assetmanager {
                     handle->vertexShader = rawShaderData.vertexShader;
                     handle->pixelShader = rawShaderData.pixelShader;
 
-                    return handle;
+                    return i;
                 }
             }
         }
@@ -307,10 +373,10 @@ namespace playground::assetmanager {
         handleId = _shaderHandles.size();
         _shaderHandles.push_back(newHandle);
 
-        return _shaderHandles[handleId];
+        return handleId;
     }
 
-    TextureHandle* LoadTexture(uint64_t hash) {
+    uint32_t LoadTexture(uint64_t hash) {
         std::optional<uint32_t> handleId;
         TextureHandle* handle;
         for (uint32_t i = 0; i < _textureHandles.size(); ++i) {
@@ -319,9 +385,9 @@ namespace playground::assetmanager {
                 if (handle->state.load() == ResourceState::Uploaded) {
                     handle->externalRefs++;
 
-                    return handle;
+                    return i;
                 }
-                else if (handle->state == ResourceState::Unloaded) {
+                if (handle->state == ResourceState::Unloaded) {
                     auto rawTextureData = playground::assetloader::LoadTexture(hash);
                     handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
@@ -365,17 +431,17 @@ namespace playground::assetmanager {
 
         handle->uploadJob = jobsystem::Submit(uploadJob);
 
-        return _textureHandles[handleId.value()];
+        return handleId.value();
     }
 
-    PhysicsMaterialHandle* LoadPhysicsMaterial(uint64_t hash) {
+    uint32_t LoadPhysicsMaterial(uint64_t hash) {
         PhysicsMaterialHandle* handle;
         for (uint32_t i = 0; i < _physicsMaterialHandles.size(); ++i) {
             handle = _physicsMaterialHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
                     handle->externalRefs++;
-                    return handle;
+                    return i;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(hash);
@@ -384,7 +450,7 @@ namespace playground::assetmanager {
                     handle->state = ResourceState::Uploaded;
                     handle->material = rawHandle;
 
-                    return handle;
+                    return i;
                 }
             }
         }
@@ -404,10 +470,10 @@ namespace playground::assetmanager {
         handleId = _physicsMaterialHandles.size();
         _physicsMaterialHandles.push_back(newHandle);
 
-        return _physicsMaterialHandles[handleId];
+        return handleId;
     }
 
-    CubemapHandle* LoadCubemap(uint64_t hash) {
+    uint32_t LoadCubemap(uint64_t hash) {
         std::optional<uint32_t> handleId;
         CubemapHandle* handle;
         for (uint32_t i = 0; i < _cubemapHandles.size(); ++i) {
@@ -416,9 +482,9 @@ namespace playground::assetmanager {
                 if (handle->state.load() == ResourceState::Uploaded) {
                     handle->externalRefs++;
 
-                    return handle;
+                    return i;
                 }
-                else if (handle->state == ResourceState::Unloaded) {
+                if (handle->state == ResourceState::Unloaded) {
                     handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
                 }
@@ -458,17 +524,17 @@ namespace playground::assetmanager {
 
          handle->uploadJob = jobsystem::Submit(uploadJob);
 
-        return _cubemapHandles[handleId.value()];
+        return handleId.value();
     }
 
-    AudioHandle* LoadAudio(uint64_t hash, std::string name) {
+    uint32_t LoadAudio(uint64_t hash, std::string name) {
         AudioHandle* handle;
         for (uint32_t i = 0; i < _audioHandles.size(); ++i) {
             handle = _audioHandles[i];
             if (handle->hash == hash) {
                 if (handle->state == ResourceState::Uploaded) {
                     handle->externalRefs++;
-                    return handle;
+                    return i;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
                     auto archive = assetloader::TryFindFile(hash);
@@ -479,7 +545,7 @@ namespace playground::assetmanager {
                     handle->externalRefs = 1;
                     handle->state = ResourceState::Uploaded;
 
-                    return handle;
+                    return i;
                 }
             }
         }
@@ -503,7 +569,7 @@ namespace playground::assetmanager {
         handleId = _audioHandles.size();
         _audioHandles.push_back(handle);
 
-        return _audioHandles[handleId];
+        return handleId;
     }
 
     void LoadSceneData(uint64_t hash, char* data, size_t* size)
@@ -513,56 +579,56 @@ namespace playground::assetmanager {
             throw std::runtime_error("Scene file not found: " + std::to_string(hash));
         }
 
-        auto fileData = assetloader::TryLoadFile(hash);
+        auto fileData = assetloader::LoadScene(hash);
 
         if (data == nullptr)
         {
-            *size = fileData.size();
+            *size = fileData.sceneData.size();
             return;
         }
 
-        memcpy(data, fileData.data(), fileData.size());
-        data[fileData.size()] = '\0';
+        memcpy(data, fileData.sceneData.data(), fileData.sceneData.size());
+        data[fileData.sceneData.size()] = '\0';
 
-        *size = fileData.size();
+        *size = fileData.sceneData.size();
     }
 
-    ModelHandle* LoadModelByName(const char* name)
+    uint32_t LoadModelByName(const char* name)
     {
         auto hash = shared::Hash(name);
 
         return LoadModel(hash);
     }
 
-    MaterialHandle* LoadMaterialByName(const char* name, void (*onCompletion)(uint32_t))
+    uint32_t LoadMaterialByName(const char* name, void (*onCompletion)(uint32_t))
     {
         auto hash = shared::Hash(name);
 
         return LoadMaterial(hash, onCompletion);
     }
 
-    ShaderHandle* LoadShaderByName(const char* name)
+    uint32_t LoadShaderByName(const char* name)
     {
         auto hash = shared::Hash(name);
 
         return LoadShader(hash);
     }
 
-    TextureHandle* LoadTextureByName(const char* name)
+    uint32_t LoadTextureByName(const char* name)
     {
         auto hash = shared::Hash(name);
 
         return LoadTexture(hash);
     }
 
-    PhysicsMaterialHandle* LoadPhysicsMaterialByName(const char* name)
+    uint32_t LoadPhysicsMaterialByName(const char* name)
     {
         auto hash = shared::Hash(name);
 
         return LoadPhysicsMaterial(hash);
     }
 
-    CubemapHandle* LoadCubemapByName(const char* name)
+    uint32_t LoadCubemapByName(const char* name)
     {
         auto hash = shared::Hash(name);
 
@@ -576,38 +642,38 @@ namespace playground::assetmanager {
         LoadSceneData(hash, data, size);
     }
 
-    void ReleaseModel(ModelHandle* handle)
+    void ReleaseModel(uint32_t handle)
     {
-        handle->externalRefs--;
+        _modelHandles[handle]->externalRefs--;
         // TODO: Free model
     }
 
-    void ReleaseMaterial(MaterialHandle* handle)
+    void ReleaseMaterial(uint32_t handle)
     {
 
     }
 
-    void ReleaseShader(ShaderHandle* handle)
+    void ReleaseShader(uint32_t handle)
     {
 
     }
 
-    void ReleaseTexture(TextureHandle* handle)
+    void ReleaseTexture(uint32_t handle)
     {
 
     }
 
-    void ReleaseCubemap(CubemapHandle* handle)
+    void ReleaseCubemap(uint32_t handle)
     {
 
     }
 
-    void ReleaseAudio(AudioHandle* handle)
+    void ReleaseAudio(uint32_t handle)
     {
 
     }
 
-    void ReleasePhysicsMaterial(PhysicsMaterialHandle* handle)
+    void ReleasePhysicsMaterial(uint32_t handle)
     {
 
     }
