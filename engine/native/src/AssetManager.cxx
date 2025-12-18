@@ -24,6 +24,12 @@ namespace playground::assetmanager {
     std::vector<CubemapHandle*> _cubemapHandles = {};
     std::vector<AudioHandle*> _audioHandles = {};
 
+    bool ParseU64(std::string_view s, uint64_t& out)
+    {
+        auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), out);
+        return ec == std::errc{} && ptr == s.data() + s.size();
+    }
+
     void MarkModelUploadFinished(uint32_t handleId, std::vector<rendering::Mesh> meshes) {
         if (handleId < _modelHandles.size()) {
             _modelHandles[handleId]->state.store(ResourceState::Uploaded);
@@ -120,9 +126,7 @@ namespace playground::assetmanager {
         }
     }
 
-    ModelHandle* LoadModel(const char* name) {
-        auto hash = shared::Hash(name);
-
+    ModelHandle* LoadModel(uint64_t hash) {
         ModelHandle* handle;
         for (uint32_t i = 0; i < _modelHandles.size(); ++i) {
             handle = _modelHandles[i];
@@ -133,7 +137,7 @@ namespace playground::assetmanager {
                     return handle;
                 }
                 if (state == ResourceState::Unloaded) {
-                    auto rawMeshData = playground::assetloader::LoadMeshes(name);
+                    auto rawMeshData = playground::assetloader::LoadMeshes(hash);
                     handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
                     playground::rendering::QueueUploadModel(rawMeshData, i, MarkModelUploadFinished);
@@ -143,7 +147,7 @@ namespace playground::assetmanager {
             }
         }
 
-        auto rawMeshData = playground::assetloader::LoadMeshes(name);
+        auto rawMeshData = playground::assetloader::LoadMeshes(hash);
 
         auto newHandle = new ModelHandle{
             .hash = hash,
@@ -162,9 +166,7 @@ namespace playground::assetmanager {
         return _modelHandles[handleId];
     }
 
-    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t)) {
-        auto hash = shared::Hash(name);
-
+    MaterialHandle* LoadMaterial(uint64_t hash, void (*onCompletion)(uint32_t)) {
         std::optional<uint32_t> handleId;
         MaterialHandle* handle;
         for (uint32_t i = 0; i < _materialHandles.size(); ++i) {
@@ -201,16 +203,19 @@ namespace playground::assetmanager {
             _materialHandles.push_back(handle);
         }
 
-        auto materialName = std::string(name);
-        auto rawMaterialData = playground::assetloader::LoadMaterial(materialName);
+        auto rawMaterialData = playground::assetloader::LoadMaterial(hash);
 
         for (auto& texture : rawMaterialData.textures) {
-            auto texHandle = LoadTexture(texture.value.c_str());
+            uint64_t hash;
+            ParseU64(texture.value, hash);
+            auto texHandle = LoadTexture(hash);
             handle->textures.insert({ texture.name, texHandle });
         }
 
         for (auto& cubemap : rawMaterialData.cubemaps) {
-            auto cubemapHandle = LoadCubemap(cubemap.value.c_str());
+            uint64_t hash;
+            ParseU64(cubemap.value, hash);
+            auto cubemapHandle = LoadCubemap(hash);
             handle->cubemaps.insert({ cubemap.name, cubemapHandle });
         }
 
@@ -224,12 +229,14 @@ namespace playground::assetmanager {
         }
 
         auto materialLoadJob = jobsystem::Job{
-            .Name = std::string(name) + "_MATERIAL_UPLOAD_JOB",
+            .Name = "_MATERIAL_UPLOAD_JOB_" + std::to_string(handleId.value()),
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Green,
             .Dependencies = {},
             .Task = [rawMaterialData, handleId, onCompletion](uint8_t workerId) {
-                auto shader = playground::assetloader::LoadShader(rawMaterialData.shaderName);
+                uint64_t hash;
+                ParseU64(rawMaterialData.shaderName, hash);
+                auto shader = playground::assetloader::LoadShader(hash);
 
                 playground::rendering::MaterialType type;
                 if (rawMaterialData.type == "skybox") {
@@ -264,9 +271,7 @@ namespace playground::assetmanager {
         return _materialHandles[handleId.value()];
     }
 
-    ShaderHandle* LoadShader(const char* name) {
-        auto hash = shared::Hash(name);
-
+    ShaderHandle* LoadShader(uint64_t hash) {
         ShaderHandle* handle;
         for (uint32_t i = 0; i < _shaderHandles.size(); ++i) {
             handle = _shaderHandles[i];
@@ -276,7 +281,7 @@ namespace playground::assetmanager {
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
-                    auto rawShaderData = playground::assetloader::LoadShader(name);
+                    auto rawShaderData = playground::assetloader::LoadShader(hash);
                     handle->externalRefs = 1;
                     handle->state = ResourceState::Created;
                     handle->vertexShader = rawShaderData.vertexShader;
@@ -287,7 +292,7 @@ namespace playground::assetmanager {
             }
         }
 
-        auto rawShaderData = playground::assetloader::LoadShader(name);
+        auto rawShaderData = playground::assetloader::LoadShader(hash);
 
         auto newHandle = new ShaderHandle{
             .hash = hash,
@@ -305,9 +310,7 @@ namespace playground::assetmanager {
         return _shaderHandles[handleId];
     }
 
-    TextureHandle* LoadTexture(const char* name) {
-        auto hash = shared::Hash(name);
-
+    TextureHandle* LoadTexture(uint64_t hash) {
         std::optional<uint32_t> handleId;
         TextureHandle* handle;
         for (uint32_t i = 0; i < _textureHandles.size(); ++i) {
@@ -319,7 +322,7 @@ namespace playground::assetmanager {
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
-                    auto rawTextureData = playground::assetloader::LoadTexture(name);
+                    auto rawTextureData = playground::assetloader::LoadTexture(hash);
                     handle->externalRefs = 1;
                     handle->state.store(ResourceState::Created);
                 }
@@ -344,12 +347,12 @@ namespace playground::assetmanager {
         }
 
         auto uploadJob = jobsystem::Job{
-            .Name = std::string(name) + "_TEXTURE_UPLOAD_JOB",
+            .Name = "_TEXTURE_UPLOAD_JOB_" + std::to_string(hash),
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Green,
             .Dependencies = {},
-            .Task = [handle, handleId, name](uint8_t workerId) {
-                auto rawTextureData = playground::assetloader::LoadTexture(name);
+            .Task = [handle, handleId, hash](uint8_t workerId) {
+                auto rawTextureData = playground::assetloader::LoadTexture(hash);
                 auto data = new assetloader::RawTextureData();
                 data->MipMaps = rawTextureData.MipMaps;
                 data->Width = rawTextureData.Width;
@@ -365,9 +368,7 @@ namespace playground::assetmanager {
         return _textureHandles[handleId.value()];
     }
 
-    PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name) {
-        auto hash = shared::Hash(name);
-
+    PhysicsMaterialHandle* LoadPhysicsMaterial(uint64_t hash) {
         PhysicsMaterialHandle* handle;
         for (uint32_t i = 0; i < _physicsMaterialHandles.size(); ++i) {
             handle = _physicsMaterialHandles[i];
@@ -377,7 +378,7 @@ namespace playground::assetmanager {
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
-                    auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(name);
+                    auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(hash);
                     auto rawHandle = playground::physics::CreateMaterial(rawMaterial.staticFriction, rawMaterial.dynamicFriction, rawMaterial.restitution);
                     handle->externalRefs = 1;
                     handle->state = ResourceState::Uploaded;
@@ -388,7 +389,7 @@ namespace playground::assetmanager {
             }
         }
 
-        auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(name);
+        auto rawMaterial = playground::assetloader::LoadPhysicsMaterial(hash);
         auto rawHandle = playground::physics::CreateMaterial(rawMaterial.staticFriction, rawMaterial.dynamicFriction, rawMaterial.restitution);
 
         auto newHandle = new PhysicsMaterialHandle{
@@ -406,9 +407,7 @@ namespace playground::assetmanager {
         return _physicsMaterialHandles[handleId];
     }
 
-    CubemapHandle* LoadCubemap(const char* name) {
-        auto hash = shared::Hash(name);
-
+    CubemapHandle* LoadCubemap(uint64_t hash) {
         std::optional<uint32_t> handleId;
         CubemapHandle* handle;
         for (uint32_t i = 0; i < _cubemapHandles.size(); ++i) {
@@ -445,12 +444,12 @@ namespace playground::assetmanager {
         }
 
         auto uploadJob = jobsystem::Job{
-            .Name = std::string(name) + "_CUBEMAP_UPLOAD_JOB",
+            .Name = "_CUBEMAP_UPLOAD_JOB_" + std::to_string(hash),
             .Priority = jobsystem::JobPriority::Low,
             .Color = tracy::Color::Blue,
             .Dependencies = {},
-            .Task = [handle, handleId, name](uint8_t workerId) {
-                auto rawCubemapData = playground::assetloader::LoadCubemap(name);
+            .Task = [handle, handleId, hash](uint8_t workerId) {
+                auto rawCubemapData = playground::assetloader::LoadCubemap(hash);
                 auto data = std::make_shared<assetloader::RawCubemapData>(rawCubemapData);
                 handle->data = data;
                 rendering::QueueUploadCubemap(handle->data, handleId.value(), MarkCubemapUploadFinished);
@@ -462,8 +461,7 @@ namespace playground::assetmanager {
         return _cubemapHandles[handleId.value()];
     }
 
-    AudioHandle* LoadAudio(const char* name) {
-        auto hash = shared::Hash(name);
+    AudioHandle* LoadAudio(uint64_t hash, std::string name) {
         AudioHandle* handle;
         for (uint32_t i = 0; i < _audioHandles.size(); ++i) {
             handle = _audioHandles[i];
@@ -473,9 +471,9 @@ namespace playground::assetmanager {
                     return handle;
                 }
                 else if (handle->state == ResourceState::Unloaded) {
-                    auto archive = assetloader::TryFindFile(name);
+                    auto archive = assetloader::TryFindFile(hash);
                     if (archive.size() == 0) {
-                        throw std::runtime_error("Audio file not found: " + std::string(name));
+                        throw std::runtime_error("Audio file not found: " + std::to_string(hash));
                     }
                     handle->audioBank = audio::LoadBank(archive, name);
                     handle->externalRefs = 1;
@@ -493,12 +491,12 @@ namespace playground::assetmanager {
             .audioBank = nullptr
         };
 
-        auto archive = assetloader::TryFindFile(name);
+        auto archive = assetloader::TryFindFile(hash);
         if (archive.size() > 0) {
             handle->audioBank = audio::LoadBank(archive, name);
         }
         else {
-            throw std::runtime_error("Audio file not found: " + std::string(name));
+            throw std::runtime_error("Audio file not found: " + std::to_string(hash));
         }
 
         uint32_t handleId;
@@ -506,6 +504,76 @@ namespace playground::assetmanager {
         _audioHandles.push_back(handle);
 
         return _audioHandles[handleId];
+    }
+
+    void LoadSceneData(uint64_t hash, char* data, size_t* size)
+    {
+        auto archive = assetloader::TryFindFile(hash);
+        if (archive.size() == 0) {
+            throw std::runtime_error("Scene file not found: " + std::to_string(hash));
+        }
+
+        auto fileData = assetloader::TryLoadFile(hash);
+
+        if (data == nullptr)
+        {
+            *size = fileData.size();
+            return;
+        }
+
+        memcpy(data, fileData.data(), fileData.size());
+        data[fileData.size()] = '\0';
+
+        *size = fileData.size();
+    }
+
+    ModelHandle* LoadModelByName(const char* name)
+    {
+        auto hash = shared::Hash(name);
+
+        return LoadModel(hash);
+    }
+
+    MaterialHandle* LoadMaterialByName(const char* name, void (*onCompletion)(uint32_t))
+    {
+        auto hash = shared::Hash(name);
+
+        return LoadMaterial(hash, onCompletion);
+    }
+
+    ShaderHandle* LoadShaderByName(const char* name)
+    {
+        auto hash = shared::Hash(name);
+
+        return LoadShader(hash);
+    }
+
+    TextureHandle* LoadTextureByName(const char* name)
+    {
+        auto hash = shared::Hash(name);
+
+        return LoadTexture(hash);
+    }
+
+    PhysicsMaterialHandle* LoadPhysicsMaterialByName(const char* name)
+    {
+        auto hash = shared::Hash(name);
+
+        return LoadPhysicsMaterial(hash);
+    }
+
+    CubemapHandle* LoadCubemapByName(const char* name)
+    {
+        auto hash = shared::Hash(name);
+
+        return LoadCubemap(hash);
+    }
+
+    void LoadSceneDataByName(const char* name, char* data, size_t* size)
+    {
+        auto hash = shared::Hash(name);
+
+        LoadSceneData(hash, data, size);
     }
 
     void ReleaseModel(ModelHandle* handle)

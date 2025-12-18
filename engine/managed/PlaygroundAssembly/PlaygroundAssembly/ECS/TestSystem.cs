@@ -10,6 +10,6 @@ public static class TestSystem
     [EcsSystem]
     public static void Execute(EcsContext ctx, double deltaTime)
     {
-
+        
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 #include <assetloader/RawMaterialData.hxx>
 #include <assetloader/RawMeshData.hxx>
@@ -21,6 +22,11 @@ namespace playground::assetloader {
         PHYSICS_MATERIAL = 0x50584D41,
         CUBEMAP = 0x43554245,
         AUDIO = 0x41554449,
+    };
+
+    struct AssetMappingsFile
+    {
+        std::map<uint64_t, std::string> Mappings;
     };
 
     inline const char* MagicNumberStringFor(MAGIC_NUMBERS number) {
@@ -48,12 +54,14 @@ namespace playground::assetloader {
     }
 
     void Init(const char* path);
-    std::string TryFindFile(std::string_view fileName);
-    std::vector<RawMeshData> LoadMeshes(std::string_view name);
-    RawTextureData LoadTexture(std::string_view name);
-    RawMaterialData LoadMaterial(std::string_view name);
-    RawShaderData LoadShader(std::string_view shaderName);
-    RawPhysicsMaterialData LoadPhysicsMaterial(std::string_view name);
-    RawCubemapData LoadCubemap(std::string_view name);
-    RawAudioData LoadAudio(std::string_view name);
+    std::string TryFindFile(uint64_t hash);
+    std::vector<uint8_t> TryLoadFile(uint64_t hash);
+    std::vector<RawMeshData> LoadMeshes(uint64_t hash);
+    RawTextureData LoadTexture(uint64_t hash);
+    RawMaterialData LoadMaterial(uint64_t hash);
+    RawShaderData LoadShader(uint64_t hash);
+    RawPhysicsMaterialData LoadPhysicsMaterial(uint64_t hash);
+    RawCubemapData LoadCubemap(uint64_t hash);
+    RawAudioData LoadAudio(uint64_t hash);
+    AssetMappingsFile LoadMappingsFile(uint64_t hash);
 }

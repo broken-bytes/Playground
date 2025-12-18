@@ -7,7 +7,12 @@ namespace playground::assetmanager {
 }
 
 struct MeshComponent {
-    playground::assetmanager::ModelHandle* handle;
-    uint16_t meshId;
+    uint64_t AssetId;
+};
+
+struct MeshRuntimeComponent
+{
+    playground::assetmanager::ModelHandle* Handle;
+    uint16_t MeshId;
 };
 

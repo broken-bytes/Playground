@@ -1,11 +1,7 @@
 #include "playground/systems/HierarchySystem.hxx"
 #include "playground/ECS.hxx"
-#include "playground/components/TranslationComponent.hxx"
-#include "playground/components/RotationComponent.hxx"
-#include "playground/components/ScaleComponent.hxx"
-#include "playground/components/WorldTranslationComponent.hxx"
-#include "playground/components/WorldRotationComponent.hxx"
-#include "playground/components/WorldScaleComponent.hxx"
+#include "playground/components/TransformComponent.hxx"
+#include "playground/components/WorldTransformComponent.hxx"
 #include "playground/components/MeshComponent.hxx"
 #include "playground/components/MaterialComponent.hxx"
 #include "playground/DrawCallBatcher.hxx"
@@ -21,36 +17,35 @@
 #include <iostream>
 
 namespace playground::ecs::hierarchysystem {
-    void UpdateChildren(flecs::entity e, const WorldTranslationComponent& t, const WorldRotationComponent& r, const WorldScaleComponent& s) {
+    void UpdateChildren(flecs::entity e, const WorldTransformComponent& t) {
         // Update the world components based on the local components
-        e.children([t, r, s](flecs::entity child) {
-            child.set<WorldTranslationComponent>({ t.position + (r.rotation * child.get<TranslationComponent>().position )});
-            child.set<WorldRotationComponent>({ r.rotation * child.get<RotationComponent>().rotation });
-            child.set<WorldScaleComponent>({ child.get<ScaleComponent>().scale * s.scale });
+        e.children([t](flecs::entity child) {
+            auto local = child.get<TransformComponent>();
+            child.set<WorldTransformComponent>({
+                t.Position + (t.Rotation * local.Position ),
+                t.Rotation * local.Rotation,
+                local.Scale * t.Scale
+            });
 
-            UpdateChildren(child, child.get<WorldTranslationComponent>(), child.get<WorldRotationComponent>(), child.get<WorldScaleComponent>());
+            UpdateChildren(child, child.get<WorldTransformComponent>());
         });
     }
 
     void Init(flecs::world world) {
-        world.system<TranslationComponent, RotationComponent, ScaleComponent, WorldTranslationComponent, WorldRotationComponent, WorldScaleComponent>("HierarchySystem")
+        world.system<TransformComponent, WorldTransformComponent>("HierarchySystem")
             .kind(flecs::PostUpdate)
             .multi_threaded(true)
             .without(flecs::ChildOf, flecs::Wildcard)
             .each([](
                 flecs::entity e,
-                TranslationComponent& t,
-                RotationComponent& r,
-                ScaleComponent& s,
-                WorldTranslationComponent& wt,
-                WorldRotationComponent& wr,
-                WorldScaleComponent& ws
+                TransformComponent& t,
+                WorldTransformComponent& wt
             ) {
                     ZoneScopedNC("HierarchySystem", tracy::Color::Green);
-                    wt.position = t.position;
-                    wr.rotation = r.rotation;
-                    ws.scale = s.scale;
-                    UpdateChildren(e, wt, wr, ws);
+                    wt.Position = t.Position;
+                    wt.Rotation = t.Rotation;
+                    wt.Scale = t.Scale;
+                    UpdateChildren(e, wt);
             });
     }
 }

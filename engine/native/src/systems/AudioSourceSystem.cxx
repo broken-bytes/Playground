@@ -1,25 +1,24 @@
 #include "playground/systems/AudioSourceSystem.hxx"
 #include "playground/components/AudioSourceComponent.hxx"
-#include "playground/components/WorldTranslationComponent.hxx"
-#include "playground/components/WorldRotationComponent.hxx"
+#include "playground/components/WorldTransformComponent.hxx"
 #include <tracy/Tracy.hpp>
 #include <audio/Audio.hxx>
 
 namespace playground::ecs::audiosourcesystem {
     void Init(flecs::world world) {
-        world.system<AudioSourceComponent, const WorldTranslationComponent, const WorldRotationComponent>("AudioSourceSystem")
+        world.system<AudioSourceComponent, const WorldTransformComponent>("AudioSourceSystem")
             .kind(flecs::PostUpdate)
             .multi_threaded(true)
-            .each([](flecs::iter& it, size_t, AudioSourceComponent& audioSource, const WorldTranslationComponent& trans, const WorldRotationComponent& rot) {
+            .each([](flecs::iter& it, size_t, AudioSourceComponent& audioSource, const WorldTransformComponent& trans) {
                 ZoneScopedNC("AudioSourceSystem", tracy::Color::Pink);
                 if (audioSource.handle == UINT64_MAX) {
-                    audioSource.previousPosition = trans.position;
-                    audioSource.forward = rot.rotation.Forward();
+                    audioSource.previousPosition = trans.Position;
+                    audioSource.forward = trans.Rotation.Forward();
                     audioSource.handle = audio::CreateAudioSource(
                         audioSource.eventName,
-                        trans.position,
-                        rot.rotation.Up(),
-                        rot.rotation.Forward(),
+                        trans.Position,
+                        trans.Rotation.Up(),
+                        trans.Rotation.Forward(),
                         math::Vector3(0.0f, 0.0f, 0.0f)
                     );
 
@@ -28,15 +27,15 @@ namespace playground::ecs::audiosourcesystem {
 
                 // Calculate
                 if (
-                    audioSource.previousPosition != trans.position ||
-                    audioSource.forward != rot.rotation.Forward()
+                    audioSource.previousPosition != trans.Position ||
+                    audioSource.forward != trans.Rotation.Forward()
                 ) {
                     audio::UpdateAudioSource(
                         audioSource.handle,
-                        trans.position,
-                        rot.rotation.Up(),
-                        rot.rotation.Forward(),
-                        (audioSource.previousPosition - trans.position) / it.delta_time()
+                        trans.Position,
+                        trans.Rotation.Up(),
+                        trans.Rotation.Forward(),
+                        (audioSource.previousPosition - trans.Position) / it.delta_time()
                     );
                 }
             });

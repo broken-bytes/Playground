@@ -14,15 +14,13 @@ public class PluginLoadContext(string basePath) : AssemblyLoadContext(isCollecti
         
         if (assemblyName.Name == "Playground.Core")
         {
-            return System.Reflection.Assembly.Load(assemblyName); // already loaded → identity-safe
+            return System.Reflection.Assembly.Load(assemblyName);
         }
         
         string assemblyPath = Path.Combine(
             basePath,
             $"{assemblyName.Name}.dll");
         
-        Console.WriteLine($"Loading assembly {assemblyPath}");
-
         if (File.Exists(assemblyPath))
         {
             return LoadFromAssemblyPath(assemblyPath);

@@ -29,6 +29,8 @@
 #include <thread>
 #include <future>
 
+#include "shared/Hasher.hxx"
+
 typedef void(*ScriptingEventCallback)(playground::events::Event* event);
 
 bool isRunning = true;
@@ -200,9 +202,10 @@ void SetupPointerLookupTable(const PlaygroundConfig& config) {
     config.Delegate("Logger_Warn", reinterpret_cast<void*>(playground::logging::logger::Info_C));
     config.Delegate("Logger_Error", reinterpret_cast<void*>(playground::logging::logger::Info_C));
 
-    config.Delegate("AssetManager_LoadModel\0", reinterpret_cast<void*>(playground::assetmanager::LoadModel));
-    config.Delegate("AssetManager_LoadMaterial\0", reinterpret_cast<void*>(playground::assetmanager::LoadMaterial));
-    config.Delegate("AssetManager_LoadPhysicsMaterial\0", reinterpret_cast<void*>(playground::assetmanager::LoadPhysicsMaterial));
+    config.Delegate("AssetManager_LoadModelByName\0", reinterpret_cast<void*>(playground::assetmanager::LoadModelByName));
+    config.Delegate("AssetManager_LoadMaterialByName\0", reinterpret_cast<void*>(playground::assetmanager::LoadMaterialByName));
+    config.Delegate("AssetManager_LoadPhysicsMaterialByName\0", reinterpret_cast<void*>(playground::assetmanager::LoadPhysicsMaterialByName));
+    config.Delegate("AssetManager_LoadSceneByName\0", reinterpret_cast<void*>(playground::assetmanager::LoadSceneDataByName));
 
     config.Delegate("Batcher_Batch\0", reinterpret_cast<void*>(playground::drawcallbatcher::Batch));
     config.Delegate("Batcher_SetSun\0", reinterpret_cast<void*>(playground::drawcallbatcher::SetSun));
@@ -286,15 +289,15 @@ void StartRenderThread(const PlaygroundConfig& config, void* window) {
 
 void LoadCoreAssets() {
     // Shadow shader
-    auto shadowShader = playground::assetmanager::LoadShader("shadows.shader");
+    auto shadowShader = playground::assetmanager::LoadShader(playground::shared::Hash("shadows.shader"));
     playground::rendering::RegisterShadowShader(shadowShader->vertexShader);
 
-    playground::assetmanager::LoadAudio("Master.audio");
-    playground::assetmanager::LoadAudio("Master.strings.audio");
-    playground::assetmanager::LoadAudio("Ambient.audio");
-    playground::assetmanager::LoadAudio("Dialogue.audio");
-    playground::assetmanager::LoadAudio("SFX.audio");
-    playground::assetmanager::LoadAudio("Music.audio");
+    //playground::assetmanager::LoadAudio("Master.audio");
+    //playground::assetmanager::LoadAudio("Master.strings.audio");
+    //playground::assetmanager::LoadAudio("Ambient.audio");
+    //playground::assetmanager::LoadAudio("Dialogue.audio");
+    //playground::assetmanager::LoadAudio("SFX.audio");
+    //playground::assetmanager::LoadAudio("Music.audio");
     playground::audio::SetVolume(1);
 }
 

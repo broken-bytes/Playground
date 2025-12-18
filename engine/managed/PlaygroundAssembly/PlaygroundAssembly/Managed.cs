@@ -1,10 +1,9 @@
 ﻿using System.Reflection;
 using System.Runtime.Loader;
 using Playground.Core;
+using Playground.Core.Assets;
 using Playground.Core.Ecs;
 using Playground.Core.Logging;
-using PlaygroundAssembly.ECS;
-using PlaygroundAssembly.ECS.Core;
 
 namespace PlaygroundAssembly;
 
@@ -35,6 +34,7 @@ internal static class Managed
         
         LoggerApi.Setup();
         EcsApi.Setup();
+        AssetApi.Setup();
     }
     
     internal static void SetupEcs(System.Reflection.Assembly assembly)
@@ -48,8 +48,6 @@ internal static class Managed
         var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
         var types = currentAssembly.GetTypes().Concat(assembly.GetTypes()).ToArray();
         
-        Logger.Info($"Types: {types.Length}");
-
         foreach (var type in types)
         {
             if (!type.IsClass)
@@ -123,8 +121,6 @@ internal static class Managed
 
                 var filters = EcsFilter.BuildFilters(queries);
                 
-                Logger.Info($"Registering system {type.Name}");
-
                 var id = EcsApi.CreateSystem(type.Name, filters, systemAttr.IsMultiThreaded, &EcsRuntimeDispatcher.Invoke);
                 
                 var del = (Action<EcsContext, double>)method.CreateDelegate(typeof(Action<EcsContext, double>));
@@ -137,22 +133,14 @@ internal static class Managed
     private static void SetupEcsComponents(System.Reflection.Assembly assembly)
     {
         var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-
-        foreach (var type in assembly.GetTypes())
-        {
-            Logger.Info($"Type: {type.Name}");
-        }
         
         var types = currentAssembly.GetTypes().Concat(assembly.GetTypes()).ToArray();
-        
-        Logger.Info($"Types: {types.Length}");
         
         types
             .Where(t => t.GetCustomAttribute<EcsComponentAttribute>() != null)
             .ToList()
             .ForEach(component =>
             {
-                Logger.Info($"Registering component {component.Name}");
                 EcsApi.RegisterComponent(component);
             });
     }

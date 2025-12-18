@@ -8,6 +8,11 @@ namespace playground::assetmanager {
 }
 
 struct MaterialComponent {
+    uint64_t AssetId;
+};
+
+struct MaterialRuntimeComponent {
     playground::assetmanager::MaterialHandle* handle;
 };
+
 

@@ -4,11 +4,19 @@
 #include <stdexcept>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/types/map.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/string.hpp>
+#include <cstdint>
+#include <map>
 
 namespace playground::assetloader {
     auto paks = std::vector<std::filesystem::path>();
+    auto mappings = std::map<uint64_t, std::string>();
+
+    std::vector<uint8_t> TryLoadFileFromPak(std::string fileName, std::string pak);
+    std::string TryFindFile(std::string_view fileName);
 
     void Init(const char* path) {
         logging::logger::SetupSubsystem("assetloader");
@@ -17,16 +25,38 @@ namespace playground::assetloader {
         for (const auto& file : filelIst) {
             if (file.is_regular_file() && file.path().extension() == ".pak") {
                 paks.push_back(file.path());
+
+                auto data = TryLoadFileFromPak("_mapping_", file.path().string());
+
+                std::string binaryStr(data.begin(), data.end());
+
+                std::istringstream iss(binaryStr, std::ios::binary);
+
+                std::map<uint64_t, std::string> loadedMeshes;
+                {
+                    cereal::JSONInputArchive iarchive(iss);
+                    iarchive(loadedMeshes);
+                }
+
+                for (const auto& [key, value] : loadedMeshes) {
+                    mappings[key] = value;
+                }
             }
         }
     }
 
-    std::vector<uint8_t> TryLoadFile(std::string fileName) {
+    std::vector<uint8_t> TryLoadFile(uint64_t hash) {
+        auto it = mappings.find(hash);
+        if (it == mappings.end())
+        {
+            return {};
+        }
+
         std::vector<uint8_t> data;
 
         for (const auto& pak : paks) {
-            if (io::CheckIfFileExists(pak.string(), fileName.data())) {
-                data = io::LoadFileFromArchive(pak.string().c_str(), fileName.data());
+            if (io::CheckIfFileExists(pak.string(), it->second.data())) {
+                data = io::LoadFileFromArchive(pak.string().c_str(), it->second.data());
 
                 return data;
             }
@@ -35,9 +65,25 @@ namespace playground::assetloader {
         return {};
     }
 
-    std::string TryFindFile(std::string_view fileName) {
+    std::vector<uint8_t> TryLoadFileFromPak(std::string fileName, std::string pak) {
+        std::vector<uint8_t> data = io::LoadFileFromArchive(pak.c_str(), fileName.data());
+        if (!data.empty())
+        {
+            return data;
+        }
+
+        return {};
+    }
+
+    std::string TryFindFile(uint64_t hash) {
+        auto it = mappings.find(hash);
+        if (it == mappings.end())
+        {
+            return "";
+        }
+
         for (const auto& pak : paks) {
-            if (io::CheckIfFileExists(pak.string(), fileName.data())) {
+            if (io::CheckIfFileExists(pak.string(), it->second.data())) {
                 return pak.string();
             }
         }
@@ -45,12 +91,12 @@ namespace playground::assetloader {
         return "";
     }
 
-    std::vector<RawMeshData> LoadMeshes(std::string_view modelName)
+    std::vector<RawMeshData> LoadMeshes(uint64_t hash)
     {
-        auto data = TryLoadFile(std::string(modelName));
+        auto data = TryLoadFile(hash);
 
         if (data.empty()) {
-            throw std::runtime_error("Failed to load mesh data for model: " + std::string(modelName));
+            throw std::runtime_error("Failed to load mesh data for model: " + std::to_string(hash));
         }
 
         std::string binaryStr(data.begin(), data.end());
@@ -66,11 +112,11 @@ namespace playground::assetloader {
         return loadedMeshes;
     }
 
-    RawTextureData LoadTexture(std::string_view textureName) {
-        auto data = TryLoadFile(std::string(textureName));
+    RawTextureData LoadTexture(uint64_t hash) {
+        auto data = TryLoadFile(hash);
 
         if (data.empty()) {
-            throw std::runtime_error("Failed to load data for texture: " + std::string(textureName));
+            throw std::runtime_error("Failed to load data for texture: " + std::to_string(hash));
         }
 
         std::string binaryStr(data.begin(), data.end());
@@ -86,11 +132,11 @@ namespace playground::assetloader {
         return loaded;
     }
 
-    RawMaterialData LoadMaterial(std::string_view materialName) {
-        auto data = TryLoadFile(std::string(materialName));
+    RawMaterialData LoadMaterial(uint64_t hash) {
+        auto data = TryLoadFile(hash);
 
         if (data.empty()) {
-            throw std::runtime_error("Failed to load data for material: " + std::string(materialName));
+            throw std::runtime_error("Failed to load data for material: " + std::to_string(hash));
         }
 
         std::string binaryStr(data.begin(), data.end());
@@ -106,11 +152,11 @@ namespace playground::assetloader {
         return loaded;
     }
 
-    RawShaderData LoadShader(std::string_view shaderName) {
-        auto data = TryLoadFile(std::string(shaderName));
+    RawShaderData LoadShader(uint64_t hash) {
+        auto data = TryLoadFile(hash);
 
         if (data.empty()) {
-            throw std::runtime_error("Failed to load data for shader: " + std::string(shaderName));
+            throw std::runtime_error("Failed to load data for shader: " + std::to_string(hash));
         }
 
         std::string binaryStr(data.begin(), data.end());
@@ -126,11 +172,11 @@ namespace playground::assetloader {
         return loaded;
     }
 
-    RawPhysicsMaterialData LoadPhysicsMaterial(std::string_view name) {
-        auto data = TryLoadFile(std::string(name));
+    RawPhysicsMaterialData LoadPhysicsMaterial(uint64_t hash) {
+        auto data = TryLoadFile(hash);
 
         if (data.empty()) {
-            throw std::runtime_error("Failed to load data for physics material: " + std::string(name));
+            throw std::runtime_error("Failed to load data for physics material: " + std::to_string(hash));
         }
 
         std::string binaryStr(data.begin(), data.end());
@@ -146,11 +192,11 @@ namespace playground::assetloader {
         return loaded;
     }
 
-    RawCubemapData LoadCubemap(std::string_view name) {
-        auto data = TryLoadFile(std::string(name));
+    RawCubemapData LoadCubemap(uint64_t hash) {
+        auto data = TryLoadFile(hash);
 
         if (data.empty()) {
-            throw std::runtime_error("Failed to load data for cubemap: " + std::string(name));
+            throw std::runtime_error("Failed to load data for cubemap: " + std::to_string(hash));
         }
 
         std::string binaryStr(data.begin(), data.end());
@@ -166,10 +212,10 @@ namespace playground::assetloader {
         return loaded;
     }
 
-    RawAudioData LoadAudio(std::string_view name) {
-        auto data = TryLoadFile(std::string(name));
+    RawAudioData LoadAudio(uint64_t hash) {
+        auto data = TryLoadFile(hash);
         if (data.empty()) {
-            throw std::runtime_error("Failed to load data for audio: " + std::string(name));
+            throw std::runtime_error("Failed to load data for audio: " + std::to_string(hash));
         }
         std::string binaryStr(data.begin(), data.end());
         std::istringstream iss(binaryStr, std::ios::binary);

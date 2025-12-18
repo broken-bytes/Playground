@@ -144,8 +144,6 @@ internal static class EcsApi
         var size = Marshal.SizeOf(type);
         var align = GetAlignment(type);
         
-        Logger.Info("Registering component: " + type.Name + " with size: " + size + " and alignment: " + align + "");
-        
         fixed (byte* ptr = utf8)
         {
             var cachedId = RegisterComponentPtr(ptr, (ulong)size, (ulong)align);
@@ -214,9 +212,6 @@ internal static class EcsApi
     
     private static int GetAlignment(Type type)
     {
-        if (!type.IsValueType)
-            throw new InvalidOperationException("Only value types supported");
-
         int maxAlignment = 1;
 
         foreach (var field in type.GetFields(
@@ -224,7 +219,6 @@ internal static class EcsApi
              BindingFlags.Public |
              BindingFlags.NonPublic))
         {
-            Logger.Info("Field: " + field.Name);
             int fieldAlignment = GetFieldAlignment(field.FieldType);
             if (maxAlignment < fieldAlignment)
                 maxAlignment = fieldAlignment;
@@ -256,7 +250,8 @@ internal static class EcsApi
         if (fieldType.IsValueType)
         {
             int size = Marshal.SizeOf(fieldType);
-
+            
+            if (size >= 16) return 16;
             if (size >= 8) return 8;
             if (size >= 4) return 4;
             if (size >= 2) return 2;

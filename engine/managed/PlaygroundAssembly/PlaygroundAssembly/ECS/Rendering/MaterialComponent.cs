@@ -1,21 +1,14 @@
-﻿using Playground.Core.Ecs;
+﻿using System.Runtime.InteropServices;
+using Playground.Core.Ecs;
 using PlaygroundAssembly.ECS.Core;
 using PlaygroundAssembly.Rendering;
 
 namespace PlaygroundAssembly.ECS.Rendering;
 
 [EcsComponent]
+[StructLayout(LayoutKind.Explicit, Pack = 8, Size = 8)]
 public struct MaterialComponent
 {
-    internal IntPtr MaterialPtr;
-
-    public MaterialComponent(Material mesh)
-    {
-        MaterialPtr = mesh.NativePtr;
-    }
-    
-    internal MaterialComponent(IntPtr materialPtr)
-    {
-        MaterialPtr = materialPtr;
-    }
+    [FieldOffset(0)]
+    public ulong AssetId;
 }

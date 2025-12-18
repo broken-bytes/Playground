@@ -14,6 +14,9 @@
 #include <cereal/types/string.hpp>
 #include <fstream>
 
+#include "../../../engine/native/modules/shared/include/shared/Hasher.hxx"
+#include "assetloader/AssetLoader.hxx"
+
 struct CookerAsset {
     std::string location;
     std::string type;
@@ -46,7 +49,7 @@ int main(int argc, char** argv) {
     playground::editor::assetpipeline::Init();
 
     std::ifstream file;
-    file.open(std::filesystem::current_path() / "cooker.json");
+    file.open(std::filesystem::path(argv[1]) / "cooker.json", std::ios::in | std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("Could not find cooker conig in directory");
     }
@@ -84,11 +87,19 @@ int main(int argc, char** argv) {
     uint32_t bytes = 0;
     uint16_t currentPackIndex = 1;
 
+    std::stringstream pakName;
+    pakName << "content_package_";
+    pakName << currentPackIndex;
+    pakName << ".pak";
+    auto pakPath = std::filesystem::path(std::string(argv[1])) / pakName.str();
+
+    auto mappings = playground::assetloader::AssetMappingsFile();
+
     for (auto asset : config.assets) {
         std::vector<uint8_t> buffer;
         std::string ending = "";
 
-        auto filePath = std::filesystem::current_path() / asset.location;
+        auto filePath = std::filesystem::path(std::string(argv[1])) / asset.location;
 
         if (std::strcmp(asset.type.c_str(), "Model") == 0) {
             auto meshes = playground::editor::assetpipeline::loaders::modelloader::LoadFromFile(filePath);
@@ -141,7 +152,7 @@ int main(int argc, char** argv) {
             std::vector<playground::assetloader::RawTextureData> faces(6);
 
             for(int x = 0; x < 6; x++) {
-                auto texture = playground::editor::assetpipeline::loaders::textureloader::LoadFromFile(cubemap.faces[x], false);
+                auto texture = playground::editor::assetpipeline::loaders::textureloader::LoadFromFile(filePath.parent_path() / cubemap.faces[x], false);
 
                 if (x == 0) {
                     cubemap.Width = texture.Width;
@@ -170,13 +181,6 @@ int main(int argc, char** argv) {
             return -1;
         }
 
-        std::stringstream pakName;
-        pakName << "content_package_";
-        pakName << currentPackIndex;
-        pakName << ".pak";
-
-        auto pakPath = std::filesystem::current_path() / pakName.str();
-
         // Remove the extension from the asset location if it is not an audio file (audio files have .strings.bank which would break)
         if (ending != ".audio") {
             size_t pos = asset.location.find(".");
@@ -189,14 +193,22 @@ int main(int argc, char** argv) {
             asset.location = asset.location.substr(0, asset.location.find_last_of('.'));
         }
 
+        auto vfsPath = asset.location + ending;
+
         if ((bytes + buffer.size()) <= config.maxSize * 1024 * 1024) {
-            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, asset.location + ending, buffer, ending != ".audio");
+            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, vfsPath, buffer, ending != ".audio");
             bytes += buffer.size();
         }
         else {
             currentPackIndex++;
-            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, asset.location + ending, buffer, ending != ".audio");
+            playground::editor::assetpipeline::SaveBufferToArchive(pakPath, vfsPath, buffer, ending != ".audio");
             bytes = buffer.size();
         }
+
+        mappings.Mappings.insert({playground::shared::Hash(vfsPath), vfsPath});
     }
+
+    auto buffer = playground::editor::assetpipeline::CookMappings(mappings.Mappings);
+
+    playground::editor::assetpipeline::SaveBufferToArchive(pakPath, "_mapping_", buffer, false);
 }

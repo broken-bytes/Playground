@@ -6,7 +6,7 @@ add_executable(model2prefab ${SRC} ${HEADERS})
 find_package(cereal CONFIG REQUIRED)
 
 target_include_directories(model2prefab PRIVATE include)
-target_include_directories(model2prefab PRIVATE ${CMAKE_SOURCE_DIR}/core/editor/assetpipeline/include)
+target_include_directories(model2prefab PRIVATE ${CMAKE_SOURCE_DIR}/editor/native/assetpipeline/include)
 target_include_directories(model2prefab PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/assetloader/include)
 target_include_directories(model2prefab PRIVATE ${CMAKE_SOURCE_DIR}/engine/native/modules/math/include)
 

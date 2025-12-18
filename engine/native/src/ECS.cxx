@@ -8,12 +8,8 @@
 #include "playground/systems/StaticBodyUpdateSystem.hxx"
 #include "playground/systems/AudioSourceSystem.hxx"
 #include "playground/systems/AudioListenerSystem.hxx"
-#include "playground/components/TranslationComponent.hxx"
-#include "playground/components/WorldTranslationComponent.hxx"
-#include "playground/components/RotationComponent.hxx"
-#include "playground/components/WorldRotationComponent.hxx"
-#include "playground/components/ScaleComponent.hxx"
-#include "playground/components/WorldScaleComponent.hxx"
+#include "playground/components/TransformComponent.hxx"
+#include "playground/components/WorldTransformComponent.hxx"
 #include "playground/components/MeshComponent.hxx"
 #include "playground/components/MaterialComponent.hxx"
 #include "playground/components/BoxColliderComponent.hxx"
@@ -32,6 +28,9 @@
 #include <iostream>
 #include <flecs/os_api.h>
 #include <tracy/Tracy.hpp>
+
+#include "playground/components/TransformComponent.hxx"
+#include "playground/components/WorldTransformComponent.hxx"
 
 namespace playground::ecs {
     std::unique_ptr<flecs::world> world;
@@ -79,21 +78,11 @@ namespace playground::ecs {
     }
 
     void RegisterComponents() {
-        playground::ecs::GetWorld().component<TranslationComponent>("::TranslationComponent")
-            .on_add([](flecs::entity e, TranslationComponent) {
-                e.add<WorldTranslationComponent>();
+        playground::ecs::GetWorld().component<TransformComponent>("::TransformComponent")
+            .on_add([](flecs::entity e, TransformComponent) {
+                e.add<WorldTransformComponent>();
             });
-        playground::ecs::GetWorld().component<WorldTranslationComponent>("::WorldTranslationComponent");
-        playground::ecs::GetWorld().component<RotationComponent>("::RotationComponent")
-            .on_add([](flecs::entity e, RotationComponent) {
-                e.add<WorldRotationComponent>();
-            });
-        playground::ecs::GetWorld().component<WorldRotationComponent>("::WorldRotationComponent");
-        playground::ecs::GetWorld().component<ScaleComponent>("::ScaleComponent")
-            .on_add([](flecs::entity e, ScaleComponent) {
-                e.add<WorldScaleComponent>();
-            });
-        playground::ecs::GetWorld().component<WorldScaleComponent>("::WorldScaleComponent");
+
         playground::ecs::GetWorld().component<MeshComponent>("::MeshComponent");
         playground::ecs::GetWorld().component<MaterialComponent>("::MaterialComponent");
         playground::ecs::GetWorld().component<BoxColliderComponent>("::BoxColliderComponent");

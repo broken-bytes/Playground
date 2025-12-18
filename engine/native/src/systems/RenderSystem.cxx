@@ -1,8 +1,6 @@
 #include "playground/systems/RenderSystem.hxx"
 #include "playground/ECS.hxx"
-#include "playground/components/WorldTranslationComponent.hxx"
-#include "playground/components/WorldRotationComponent.hxx"
-#include "playground/components/WorldScaleComponent.hxx"
+#include "playground/components/WorldTransformComponent.hxx"
 #include "playground/components/MeshComponent.hxx"
 #include "playground/components/MaterialComponent.hxx"
 #include "playground/DrawCallBatcher.hxx"
@@ -23,35 +21,31 @@ namespace playground::ecs::rendersystem {
     std::atomic<uint32_t> offset = 0;
 
     void Init(flecs::world world) {
-        auto translation = ecs::RegisterComponent("WorldTranslationComponent", sizeof(WorldTranslationComponent), alignof(WorldTranslationComponent));
-        auto rotation = ecs::RegisterComponent("WorldRotationComponent", sizeof(WorldRotationComponent), alignof(WorldRotationComponent));
-        auto scale = ecs::RegisterComponent("WorldScaleComponent", sizeof(WorldScaleComponent), alignof(WorldScaleComponent));
-        auto mesh = ecs::RegisterComponent("MeshComponent", sizeof(MeshComponent), alignof(MeshComponent));
-        auto material = ecs::RegisterComponent("MaterialComponent", sizeof(MaterialComponent), alignof(MaterialComponent));
+        auto translation = ecs::RegisterComponent("WorldTransformComponent", sizeof(WorldTransformComponent), alignof(WorldTransformComponent));
+        auto mesh = ecs::RegisterComponent("MeshRuntimeComponent", sizeof(MeshRuntimeComponent), alignof(MeshRuntimeComponent));
+        auto material = ecs::RegisterComponent("MaterialRuntimeComponent", sizeof(MaterialRuntimeComponent), alignof(MaterialRuntimeComponent));
 
-        world.system<const WorldTranslationComponent, const WorldRotationComponent, const WorldScaleComponent, const MeshComponent, const MaterialComponent>("RenderSystem")
+        world.system<const WorldTransformComponent, const MeshRuntimeComponent, const MaterialRuntimeComponent>("RenderSystem")
             .kind(flecs::PostUpdate)
             .multi_threaded(true)
             .run([](flecs::iter& it) {
                 while (it.next()) {
                     ZoneScopedNC("RenderSystem", tracy::Color::Green);
-                    auto translation = it.field<const WorldTranslationComponent>(0);
-                    auto rotation = it.field<const WorldRotationComponent>(1);
-                    auto scale = it.field<const WorldScaleComponent>(2);
-                    auto mesh = it.field<const MeshComponent>(3);
-                    auto material = it.field<const MaterialComponent>(4);
+                    auto transform = it.field<const WorldTransformComponent>(0);
+                    auto mesh = it.field<const MeshRuntimeComponent>(1);
+                    auto material = it.field<const MaterialRuntimeComponent>(2);
                     auto startIndex = offset.fetch_add(it.count(), std::memory_order_acquire);
                     auto drawPtr = &drawCalls[startIndex];
                     for (int x = 0; x < it.count(); x++) {
                         math::Matrix4x4 mat = math::Mat4FromPRS(
-                            translation[x].position,
-                            rotation[x].rotation,
-                            scale[x].scale
+                            transform[x].Position,
+                            transform[x].Rotation,
+                            transform[x].Scale
                         );
 
                         drawPtr[x] = drawcallbatcher::DrawCall{
-                            .modelHandle = mesh[x].handle,
-                            .meshId = mesh[x].meshId,
+                            .modelHandle = mesh[x].Handle,
+                            .meshId = mesh[x].MeshId,
                             .materialHandle = material[x].handle,
                             .transform = mat,
                         };

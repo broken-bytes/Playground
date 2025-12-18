@@ -1,33 +1,22 @@
 ﻿namespace PlaygroundAssembly.Rendering;
 
-public sealed class Material : IDisposable
+public sealed class Material
 {
-    internal IntPtr  NativePtr { get; private set; }
-    private bool _disposed;
+    internal IntPtr NativePtr { get; private set; }
 
+    public Material()
+    {
+        NativePtr = IntPtr.Zero;
+    }
+
+    ~Material()
+    {
+        // TODO: Destroy material in native
+        NativePtr = IntPtr.Zero;
+    }
+    
     internal Material(IntPtr nativePtr)
     {
         NativePtr = nativePtr;
-    }
-    
-    ~Material() => Dispose();
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-
-        
-        if (NativePtr != IntPtr.Zero)
-        {
-            //NativeRendering.DestroyMaterial(NativePtr);
-            NativePtr = IntPtr.Zero;
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

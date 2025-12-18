@@ -1,0 +1,88 @@
+{
+    "value0": [
+        {
+            "key": 954972852327087219,
+            "value": "Master.audio"
+        },
+        {
+            "key": 998977024476056827,
+            "value": "Ambient.audio"
+        },
+        {
+            "key": 4593653776642430219,
+            "value": "skybox.mat"
+        },
+        {
+            "key": 4711865711042440878,
+            "value": "fog.shader"
+        },
+        {
+            "key": 6189336557936607571,
+            "value": "Master.strings.audio"
+        },
+        {
+            "key": 6470831996559563602,
+            "value": "ground.mat"
+        },
+        {
+            "key": 7928603674250929314,
+            "value": "skybox.shader"
+        },
+        {
+            "key": 8647512118132688266,
+            "value": "skybox.cube"
+        },
+        {
+            "key": 9311482957023423369,
+            "value": "ground.tex"
+        },
+        {
+            "key": 9582269113129926610,
+            "value": "default.mat"
+        },
+        {
+            "key": 9583988749316070164,
+            "value": "default.mod"
+        },
+        {
+            "key": 10085975938923611416,
+            "value": "Music.audio"
+        },
+        {
+            "key": 10496815596321162608,
+            "value": "SFX.audio"
+        },
+        {
+            "key": 12001752205590145137,
+            "value": "default.shader"
+        },
+        {
+            "key": 12422920073593786377,
+            "value": "default.tex"
+        },
+        {
+            "key": 14896538911313588601,
+            "value": "shadows.shader"
+        },
+        {
+            "key": 15003932565190113484,
+            "value": "bricks.tex"
+        },
+        {
+            "key": 15855451472150495935,
+            "value": "fog.mat"
+        },
+        {
+            "key": 16352864119645775379,
+            "value": "Dialogue.audio"
+        },
+        {
+            "key": 17510872140526872866,
+            "value": "default.pmat"
+        },
+	{
+            "key": 13624515243608415608,
+            "value": "default.scene"
+        }
+    ]
+}

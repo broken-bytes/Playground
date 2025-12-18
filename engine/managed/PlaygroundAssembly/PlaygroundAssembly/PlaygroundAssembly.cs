@@ -23,16 +23,12 @@ public static class PlaygroundAssembly
         var gameAssembly = loadContext.LoadFromAssemblyName(
             new AssemblyName("GameAssembly"));
         
-        Console.WriteLine($"=== ALC DUMP ===");
-        foreach (var alc in AssemblyLoadContext.All)
-        {
-            Console.WriteLine($"ALC: {alc.Name ?? "<default>"}");
-            foreach (var asm in alc.Assemblies)
-                Console.WriteLine($"  {asm.GetName().Name}");
-        }
-        
         Managed.SetupSubsystems(gameAssembly);
         Managed.SetupEcs(gameAssembly);
+        
+        // TODO: Load default scene
+        Scenes.SceneHandler.LoadScene("default.scene").Wait();
+        
         return 0;
     }
 }

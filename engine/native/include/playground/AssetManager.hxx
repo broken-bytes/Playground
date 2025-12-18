@@ -104,13 +104,22 @@ namespace playground::assetmanager {
         uint32_t material;
     };
 
-    ModelHandle* LoadModel(const char* name);
-    MaterialHandle* LoadMaterial(const char* name, void (*onCompletion)(uint32_t) = nullptr);
-    ShaderHandle* LoadShader(const char* name);
-    TextureHandle* LoadTexture(const char* name);
-    PhysicsMaterialHandle* LoadPhysicsMaterial(const char* name);
-    CubemapHandle* LoadCubemap(const char* name);
-    AudioHandle* LoadAudio(const char* name);
+    ModelHandle* LoadModel(uint64_t hash);
+    MaterialHandle* LoadMaterial(uint64_t hash, void (*onCompletion)(uint32_t) = nullptr);
+    ShaderHandle* LoadShader(uint64_t hash);
+    TextureHandle* LoadTexture(uint64_t hash);
+    PhysicsMaterialHandle* LoadPhysicsMaterial(uint64_t hash);
+    CubemapHandle* LoadCubemap(uint64_t hash);
+    AudioHandle* LoadAudio(uint64_t hash, std::string name);
+    void LoadSceneData(uint64_t hash, char* data, size_t* size);
+
+    ModelHandle* LoadModelByName(const char* name);
+    MaterialHandle* LoadMaterialByName(const char* name, void (*onCompletion)(uint32_t) = nullptr);
+    ShaderHandle* LoadShaderByName(const char* name);
+    TextureHandle* LoadTextureByName(const char* name);
+    PhysicsMaterialHandle* LoadPhysicsMaterialByName(const char* name);
+    CubemapHandle* LoadCubemapByName(const char* name);
+    void LoadSceneDataByName(const char* name, char* data, size_t* size);
 
     void ReleaseModel(ModelHandle* handle);
     void ReleaseMaterial(MaterialHandle* handle);
